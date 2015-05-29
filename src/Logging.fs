@@ -154,11 +154,13 @@ let memoize (compute : Logger<'a,'b> -> 'c) =
         | None -> let v = compute log
                   cache := Some v
                   v
-    
-/// A process-wide global logger. 
-/// CAUTION: This should only be used to log process-wide global messages
-/// (for instance when initializing global variables). Whenever possible 
-/// one should use a context-dependent logger that is
+
+/// A global logger. 
+///
+/// CAUTION: This should only be used to log global messages (for instance when
+/// initializing global variables).
+///
+/// It is important whenever possible to use a context-dependent logger that is
 /// passed around as a parameter to all functions. This guarantees
-/// compositionality and allow concurrent workflow to be run in parallel
+/// compositionality and allow concurrent workflow to be run in parallel.
 let mutable glog = makeLogger "[global]" None

@@ -17,6 +17,12 @@ Revision history:
 
 module Microsoft.FSharpLu.Text
 
+/// File path comparer
+type CaseInsensitiveComparer() =
+    interface System.Collections.Generic.IComparer<string> with
+        member x.Compare(f1, f2) = 
+            System.String.Compare(f1, f2, System.StringComparison.OrdinalIgnoreCase)
+
 /// Returns true if text starts with the specified prefix
 let startsWith prefix (text:System.String) =
     text.StartsWith prefix

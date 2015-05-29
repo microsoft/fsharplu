@@ -358,3 +358,18 @@ module Seq =
     #else
         s
     #endif
+
+    /// Partition a sequence based on the specified partition chooser function
+    /// (Generalization of Seq.parition to any number of partitions)
+    let multipartition choose t =
+        Seq.fold (fun s x -> Map.add (choose x) x s) Map.empty t
+
+module Hashtable =
+    /// Try looking up an element from a hashtable
+    let tryGetValue<'T when 'T:null> (hashtable:System.Collections.Hashtable) name = 
+        if hashtable.ContainsKey name then
+            match hashtable.Item name :?> 'T with 
+            | null -> None
+            | v -> Some v
+        else
+            None
