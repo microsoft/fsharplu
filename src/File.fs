@@ -87,7 +87,8 @@ let public atomaticWriteAllLines filePath lines =
     // Write content to a temp file in the target directory
     let writeToTempFile () =
         let targetDir = System.IO.Path.GetDirectoryName(filePath)
-        let tempFile = targetDir ++ System.IO.Path.GetFileName(System.IO.Path.GetTempFileName())        
+        let tempFileName = System.Guid.NewGuid().ToString().Replace("-","")
+        let tempFile = targetDir ++ tempFileName
         System.IO.File.WriteAllLines(tempFile, lines |> Seq.toArray)
         tempFile
 
