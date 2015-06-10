@@ -1,7 +1,8 @@
 ﻿# FSharpLu
 
-F# helpers for string manipulations, logging and collection data structures.
-
+F# helpers for string manipulations, logging, collection data structures, 
+file operations, text processing, security, async, parsing, diagnostics, 
+configuration files.
 
 ## Contact
- william.blum@microsoft.OM
+ william.blum@microsoft.com

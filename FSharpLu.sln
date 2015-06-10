@@ -1,11 +1,25 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.22823.1
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu", "src\FSharpLu.fsproj", "{77C664BE-DD18-476D-AB71-1144107DE408}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu.Tests", "FSharpLu.Tests\FSharpLu.Tests.fsproj", "{1A22180F-57C3-4415-8D1A-4AD523967251}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1FF1118A-322F-4F49-AF9A-ED825DE70260}"
+	ProjectSection(SolutionItems) = preProject
+		src\FSharpLu.nuspec = src\FSharpLu.nuspec
+		src\pushnuget.ps1 = src\pushnuget.ps1
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{EE6A3D9E-8362-442B-9C8F-252B3ED7D8E4}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+		.nuget\NuGet.targets = .nuget\NuGet.targets
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
