@@ -16,7 +16,7 @@ Revision history:
 
 *)
 
-namespace Microsoft.FSharpLu
+namespace Microsoft.FSharpLu.Collections
 
 open System
 open System.Runtime.InteropServices 
@@ -24,85 +24,7 @@ open System.Collections.Generic
 open System.Collections.Concurrent
 open System.Linq
 
-////////////////
-// Option type helpers
-module Option =
-    /// Branching combinator for function returning value of type 'a option
-    let public (|-) f g =
-        match f with
-        | None -> g()
-        | v -> v
-
-    /// Dual branching combinator for function returning value of type 'a option
-    let public (|+) f g =
-        match f with
-        | None -> None
-        | Some v -> g v
-
-    /// Convert a result to option type according to a boolean success code
-    let public ofCurriedPair result success = 
-        if success then Some result else None
-
-    /// Convert a success*result pair to a Some type
-    let public ofPair (success, result) =
-        ofCurriedPair result success
-
-    /// Inner-join an element with a function returning an option type. 
-    /// Apply a function to an element and return a pair of the element and the function result
-    /// or None if the function returns nothing.
-    let public mapjoin e f = 
-        match f e with
-        | None -> None
-        | Some a -> Some(e, a)
-
-    /// Convert a nullable type to a Some type
-    let public ofNullable (a:Nullable<'T>) = 
-        if a.HasValue then
-            Some(a.Value)
-        else 
-            None
-
-    /// Pattern-matching on option (equivalent to F# match)
-    let _match none some =
-        function
-        | None -> none()
-        | Some v -> some v
-
-    /// Pattern-matching on option (equivalent to F# match)
-    let mapOrDefault f defaultValue =
-        function
-        | None -> defaultValue
-        | Some v -> f v
-    
-    /// Provide default value for a None optional argument
-    let public orDefault defaultValue x = 
-        defaultArg x defaultValue
-
-    /// Return the value of a some type or raise an exception if it is None
-    let public orRaise anException = 
-        function 
-        | None -> raise anException
-        | Some v -> v
-
-    /// Return the value of a some type or if it is None execute the given default operation 
-    let public orDo (defaultOrFailure:unit -> 'T) = 
-        function 
-        | None -> defaultOrFailure()
-        | Some v -> v
-
-    /// The Maybe monad
-    type MaybeMonad() = 
-        member x.Return(v) = Some v
-        member x.ReturnFrom(v) = v
-        member x.Bind(p, f) = match p with None -> None | Some v -> f v
-        member x.Delay(f) = f
-        member x.Combine(first, fallback) = if Option.isSome first then first else fallback()
-        member x.Run(f) = f()
-
-    let public maybe = MaybeMonad()
-
-////////////////
-// Tuple manipulation
+/// Tuple manipulation
 module Triple =
     /// Get the first element in a triple
     let first (x,_,_) = x
@@ -113,9 +35,9 @@ module Triple =
     /// Get the third element in a triple
     let third (_,_,x) = x
 
-////////////////
-// Dictionaries
-module Collections =
+/// Dictionary and collection helpers
+[<AutoOpen>]
+module Dictionary =
 
     /// Get the key from a key-value pair
     let getKey (kvp:KeyValuePair<'K,'V>) = kvp.Key
@@ -171,8 +93,9 @@ module Collections =
         done
         !grows
 
-    /// Functor used to create a HashMultiMap container type. HashMultimaps are like dictionaries
-    /// except that each key can map to multiple elements.
+/// HashMultimaps are like dictionaries except that each key can map to multiple elements.
+module HashMultimap =
+    /// Functor used to create a HashMultiMap container type. 
     [<AbstractClass>]
     type public HashMultiMapFunctor<'K,'V when 'K: equality and 'V:comparison>
         (

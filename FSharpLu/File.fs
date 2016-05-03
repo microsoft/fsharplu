@@ -4,8 +4,6 @@
 module Microsoft.FSharpLu.File
 
 open System.IO
-
-type Logger<'A,'B> = Logging.Logger<'A,'B>
 open Microsoft.FSharpLu.Option
 open Microsoft.FSharpLu
 
@@ -51,20 +49,20 @@ let public createEmptyFile filepath =
     )
 
 /// Write to a text file atomically while allowing concurrent reads.
-/// Atomicity is guaranteed only if file content is < 8kb
+/// **Atomicity is guaranteed only if file content is < 8kb**
 ///
 // NOTE: An implementation based on System.IO.File.Replace 
-// would not guarantee atomicity for files on SMB shares!
+// would not guarantee atomicity for files residing on SMB shares!
 // (http://msdn.microsoft.com/en-us/library/windows/desktop/aa365512(v=vs.85).aspx)
-let public atomaticWriteAllLines filePath lines =        
+let public atomaticWriteAllLines filePath lines =
     /// Replace content of an existing file atomically using the 
     /// whitespace padding hack.
     let replaceExistingContentWithPaddingHack () =
         // CAUTION: Atomicity breaks if bufferSize < |content to be written|
-        let bufferSize = 8192
+        let BufferSize = 8192
 
         // Should not use FileMode.Create otherwise the file will be empty until the next flush.
-        use fs = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, bufferSize, FileOptions.WriteThrough)
+        use fs = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, BufferSize, FileOptions.WriteThrough)
         use streamWriter = new StreamWriter(fs)
         streamWriter.AutoFlush <- false
         let newContent = Text.join streamWriter.NewLine lines
@@ -83,6 +81,8 @@ let public atomaticWriteAllLines filePath lines =
         streamWriter.Flush()
         // Trim the extra padding
         fs.SetLength(newLength)
+        if newLength > int64 BufferSize then
+            failwithf "File too big to guarantee atomicity: %d bytes. Maximum supported size is %d" newLength BufferSize
 
     // Write content to a temp file in the target directory
     let writeToTempFile () =
@@ -145,7 +145,7 @@ let public serializeToBatch filepath keypairs =
 
 /// Wait until the specified file exists on disk.
 /// Note: the immediate parent directory must already exist
-let waitUntilExists (log:Logger<_,_>) filepath =
+let waitUntilExists (log:Logger.Logger<unit,'B>) filepath =
     async {
         if System.IO.File.Exists filepath then
             log.write "File %s already exists" filepath
@@ -180,3 +180,44 @@ let waitUntilExists (log:Logger<_,_>) filepath =
                 log.write "awaiting for %s" filepath
                 return! waitForFile
     }
+
+/// Deletes the directory if it exists.
+let deleteDirIfExists dir =
+    if Directory.Exists(dir) then
+        Directory.Delete(dir, true)
+
+/// Check if the target directory exists, if not, create it.
+let createDirIfNotExists dir =
+    if not <| Directory.Exists(dir) then
+        Directory.CreateDirectory(dir) |> ignore
+
+/// Create the target directory exists, deleting it first if it already exists.
+let recreateDir dir =
+    if Directory.Exists(dir) then
+        Directory.Delete(dir, true)
+    Directory.CreateDirectory(dir) |> ignore
+
+/// Directory copy (ported from MSDN https://msdn.microsoft.com/en-us/library/system.io.directoryinfo.aspx)
+/// Usage:
+///
+///   CopyDirectory (DirectoryInfo(sourceDirectory)) (DirectoryInfo(targetDirectory))
+///
+let copyDirectory sourcePath targetPath =
+    let rec aux (source:DirectoryInfo) (target:DirectoryInfo) =
+        if System.String.Compare(source.FullName, target.FullName, true) <> 0 then
+            createDirIfNotExists target.FullName
+
+            // Copy each file into it's new directory.
+            source.GetFiles()
+            |> Seq.iter
+                (fun fi ->
+                    // printf @"Copying %s\%s" target.FullName fi.Name
+                    fi.CopyTo(Path.Combine(target.ToString(), fi.Name), true) |> ignore)
+
+            // Copy each subdirectory using recursion.
+            source.GetDirectories()
+            |> Seq.iter(fun diSourceSubDir ->
+                            let nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name)
+                            aux diSourceSubDir nextTargetSubDir)
+
+    in aux (DirectoryInfo(sourcePath)) (DirectoryInfo(targetPath))

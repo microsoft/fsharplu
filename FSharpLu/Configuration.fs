@@ -1,12 +1,12 @@
 ﻿////
-//// .Net configuration file
+//// Accessing settings from .Net app.config configuration
 ////
 module Microsoft.FSharpLu.Configuration
 
 open System.Configuration
-open Microsoft.FSharpLu
 open System.Reflection
 open System.Runtime.CompilerServices
+open Microsoft.FSharpLu
 
 /// Read a configuration value.
 /// Default implementation: read from the application configuration manager

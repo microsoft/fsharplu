@@ -21,6 +21,7 @@ type AsyncTest() =
             printfn "Done"
         }
         |> Async.RunSynchronously
+
     [<TestMethod>]
     [<Description("Cancelling the parent worfklow should cancel competing worfklows started with Async.Compete")>]
     member __.CompeteCancellable () =
@@ -55,6 +56,7 @@ type AsyncTest() =
         Async.RunSynchronously main
         Assert.IsTrue !task1Cancelled
         Assert.IsTrue !task2Cancelled
+
     [<TestMethod>]
     [<Description("Async created with Async.CompeteWithThreadingObject returns expected result when the threading object is acquired")>]
     member __.``CompeteWithThreadingObject when semaphore wins``() =
@@ -80,6 +82,7 @@ type AsyncTest() =
                 | Choice2Of3 y -> y.Dispose()
             }
         Async.RunSynchronously main
+
     [<TestMethod>]
     [<Description("Async created with Async.CompeteWithThreadingObject returns expected result when the threading object is acquired")>]
     member __.``CompeteWithThreadingObject when workflow wins``() =
@@ -99,6 +102,7 @@ type AsyncTest() =
                 | Choice1Of3 y -> Assert.AreEqual(y, 7)
             }
         Async.RunSynchronously main
+
     [<TestMethod>]
     [<Description("It should be possible to cancel a workflow created with Async.CompeteWithThreadingObject and the underlying computations should also be cancelled")>]
     member __.``CompeteWithThreadingObject propagates cancellation`` () =
