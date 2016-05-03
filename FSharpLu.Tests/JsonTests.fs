@@ -14,21 +14,24 @@ type Color = Red | Blue
 type Shape = Circle of int * int | Rectangle
 type 'a Tree = Leaf of 'a | Node of 'a Tree * 'a Tree
 type 'a Test = Case1 | Case2 of int | Case3 of int * string * 'a
+type MapType = Map<string,Color>
+type 'a NestedOptions = 'a option option option option
 
+type 'a Ambiguous = { Some : 'a }
 
-let serialize = Union.serialize
-let deserialize = Union.deserialize
+let inline serialize< ^T> x = Union.serialize< ^T> x
+let inline deserialize x = Union.deserialize x
 
-let reciprocal<'T when 'T:equality> (x:'T) =
+let inline reciprocal< ^T when ^T:equality> (x: ^T) =
     // theoretically one round trip is sufficient; we perform 
     // two round trips here to test for possible side-effects
     // in the serialization functions
     x |> serialize |> deserialize |> serialize |> deserialize = x
 
-let areReciprocal (x:'T) = 
+let inline areReciprocal (x:'T) = 
     Assert.IsTrue(reciprocal x)
 
-let serializedAs json o = 
+let inline serializedAs json o = 
     Assert.AreEqual(json, serialize o)
 
 let conv = DiscriminatedUnionJsonConverter()
@@ -47,6 +50,14 @@ type FuzzList () =
     static member x11 = reciprocal<int Tree Test>
     static member x12 = reciprocal<int Test>
     static member x13 = reciprocal<int list Tree>
+    static member x14 = reciprocal<string NestedOptions>
+    static member x15 = reciprocal<string>
+    static member x16 = reciprocal<string option>
+    static member x17 = reciprocal<string option option>
+    static member x18 = reciprocal<string option option option option>
+    static member x19 = reciprocal<int NestedOptions>
+    static member x20 = reciprocal<Ambiguous<string>>
+    static member x21 = reciprocal<Ambiguous<SimpleDu>>
 
 [<TestClass>]
 type JsonSerializerTests() =
@@ -83,6 +94,7 @@ type JsonSerializerTests() =
         Assert.IsTrue(conv.CanConvert(typeof<_ Tree>))
         Assert.IsTrue(conv.CanConvert(typeof<Shape>))
         Assert.IsFalse(conv.CanConvert(typeof<_ list>))
+        Assert.IsFalse(conv.CanConvert(typeof<Map<_,_>>))
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json")>]
@@ -121,6 +133,20 @@ type JsonSerializerTests() =
         areReciprocal <| Case3 (3,"s", "Foo")
         areReciprocal <| (["test", [3;3;4]] |> Map.ofSeq)
         areReciprocal <| ["test", [3;3;4]]
+        areReciprocal <| Some (Some (Some None))
+        areReciprocal <| Some (Some None)
+        areReciprocal <| Some null
+        areReciprocal <| Some None
+        areReciprocal <| Some (Some (Some None))
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json")>]
+    member this.``No ambiguity between records and Option type``() =
+        areReciprocal <| Some (Some (Some None))
+        areReciprocal <| { Some = null }
+        areReciprocal <| { Some = SimpleDu.Foo }
+        areReciprocal <| { Some = "test" }
+        areReciprocal <| { Some = 123 }
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json")>]
