@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Microsoft.FSharpLu</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>william.blum@microsoft.com</authors>
+    <owners>william.blum@microsoft.com</owners>
+    <projectUrl>https://github.com/Microsoft/fsharplu</projectUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+    <description>Utilities and .Net library wrappers for F#</description>
+    <releaseNotes>Fix leak in atomicFileWrite.</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>F#, FSharp, FSharp utilities, collection, logging, diagnostic, async, Json</tags>
+  </metadata>
+</package>

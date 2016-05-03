@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>william.blum@microsoft.com</authors>
+    <owners>william.blum@microsoft.com</owners>
+    <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+    <projectUrl>hhttps://github.com/Microsoft/fsharplu</projectUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <description>Json serialization converters for F# option types and discriminated unions.</description>
+    <releaseNotes>Initial release</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>F#, FSharp, Utilities, Json, discriminated unions</tags>
+  </metadata>
+</package>

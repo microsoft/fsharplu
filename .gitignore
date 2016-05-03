@@ -122,3 +122,5 @@ ModelManifest.xml
 .nuget/lib/
 .nuget/*.nupkg
 .nuget/NuGet.exe
+.vs/*
+*FSharpLu.*.nupkg

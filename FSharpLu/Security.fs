@@ -80,7 +80,7 @@ type LOGON32 =
     | LOGON_NEW_CREDENTIALS   = 9
 
 [<PermissionSetAttribute(SecurityAction.Demand, Name = "FullTrust")>]
-let public impersonate (log:Logging.Logger<_,_>) logonType alias domain getPwd f =
+let public impersonate (log:Logger.Logger<_,_>) logonType alias domain getPwd f =
     let mutable safeTokenHandle = Unchecked.defaultof<_>
         
     let logonType = defaultArg logonType LOGON32.LOGON_INTERACTIVE
