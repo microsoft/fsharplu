@@ -53,8 +53,8 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Json.fs" />
-    <Compile Include="DiscriminatedUnions.fs" />
     <Content Include="packages.config" />
+    <Compile Include="DiscriminatedUnions.fs" />
     <None Include="FSharpLu.Json.nuspec" />
   </ItemGroup>
   <ItemGroup>
