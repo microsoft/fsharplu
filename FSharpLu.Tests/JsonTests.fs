@@ -19,8 +19,8 @@ type 'a NestedOptions = 'a option option option option
 
 type 'a Ambiguous = { Some : 'a }
 
-let inline serialize< ^T> x = Union.serialize< ^T> x
-let inline deserialize x = Union.deserialize x
+let inline serialize< ^T> x = Compact.serialize< ^T> x
+let inline deserialize x = Compact.deserialize x
 
 let inline reciprocal< ^T when ^T:equality> (x: ^T) =
     // theoretically one round trip is sufficient; we perform 
@@ -31,12 +31,38 @@ let inline reciprocal< ^T when ^T:equality> (x: ^T) =
 let inline areReciprocal (x:'T) = 
     Assert.IsTrue(reciprocal x)
 
+/// Check that given object serializes to the specified Json string
 let inline serializedAs json o = 
     Assert.AreEqual(json, serialize o)
 
-let conv = DiscriminatedUnionJsonConverter()
+/// Check that deserialization coincides with NewtonSoft's default serializer.
+/// That is: when the Json is deserializable by both deserializers Union and Default
+/// they produce the same output object.
+let inline coincidesWithDefault< ^T when ^T:equality> (x: ^T) =
+    let deserializationMustCoincide json =
+        match Default.tryDeserialize< ^T> json, Compact.tryDeserialize< ^T> json with
+        | Choice2Of2 error1, Choice2Of2 error2-> 
+            Assert.IsTrue(true, "Json not parseable by either deserializer: no ambiguity")
+        | Choice1Of2 _, Choice2Of2 error
+        | Choice2Of2 error, Choice1Of2 _ -> 
+            Assert.IsTrue(true, "Json parseable by exactly one deserializer: no ambiguity")
+        | Choice1Of2 v1, Choice1Of2 v2 when v1 <> v2 ->
+            Assert.Fail(sprintf "Deserializers do not coincide: %A <> %A" v1 v2)
+        | Choice1Of2 v1, Choice1Of2 v2 ->
+            Assert.IsTrue(true)
+    x |> Default.serialize |> deserializationMustCoincide
+    x |> Compact.serialize |> deserializationMustCoincide
 
-type FuzzList () =
+/// Check that output format of Default Json.Net serializer can be parsed by 
+/// the BackwardCompatible deserializer
+let inline backwardCompatibleWithDefault< ^T when ^T:equality> (x: ^T) =
+    let json = x |> Default.serialize 
+    let o1 = json |> Default.deserialize : ^T
+    let o2 = json |> BackwardCompatible.deserialize : ^T
+    Assert.AreEqual(o1, o2,
+        sprintf "BackwardCompatible should coincide with Json.Net when deserializing default Json format. %A <> %A" o1 o2)
+
+type Reciprocality () =
     static member x1 = reciprocal<ComplexDu>
     static member x2 = reciprocal<ComplexDu RecursiveList>
     static member x3 = reciprocal<WithFields>
@@ -58,6 +84,53 @@ type FuzzList () =
     static member x19 = reciprocal<int NestedOptions>
     static member x20 = reciprocal<Ambiguous<string>>
     static member x21 = reciprocal<Ambiguous<SimpleDu>>
+
+type CoincidesWithJsonNetOnDeserialization () =
+    static member x1 = coincidesWithDefault<ComplexDu>
+    static member x2 = coincidesWithDefault<ComplexDu RecursiveList>
+    static member x3 = coincidesWithDefault<WithFields>
+    static member x4 = coincidesWithDefault<SimpleDu>
+    static member x5 = coincidesWithDefault<ComplexDu>
+    static member x6 = coincidesWithDefault<OptionOfBase>
+    static member x7 = coincidesWithDefault<OptionOfDu>
+    static member x8 = coincidesWithDefault<Color>
+    static member x9 = coincidesWithDefault<Shape>
+    static member x10 = coincidesWithDefault<int Tree>
+    static member x11 = coincidesWithDefault<int Tree Test>
+    static member x12 = coincidesWithDefault<int Test>
+    static member x13 = coincidesWithDefault<int list Tree>
+    static member x14 = coincidesWithDefault<string NestedOptions>
+    static member x15 = coincidesWithDefault<string>
+    static member x16 = coincidesWithDefault<string option>
+    static member x17 = coincidesWithDefault<string option option>
+    static member x18 = coincidesWithDefault<string option option option option>
+    static member x19 = coincidesWithDefault<int NestedOptions>
+    static member x20 = coincidesWithDefault<Ambiguous<string>>
+    static member x21 = coincidesWithDefault<Ambiguous<SimpleDu>>
+
+type BackwardCompatibility () =
+    static member x1 = backwardCompatibleWithDefault<ComplexDu>
+    static member x2 = backwardCompatibleWithDefault<ComplexDu RecursiveList>
+    static member x3 = backwardCompatibleWithDefault<WithFields>
+    static member x4 = backwardCompatibleWithDefault<SimpleDu>
+    static member x5 = backwardCompatibleWithDefault<ComplexDu>
+    static member x6 = backwardCompatibleWithDefault<OptionOfBase>
+    static member x7 = backwardCompatibleWithDefault<OptionOfDu>
+    static member x8 = backwardCompatibleWithDefault<Color>
+    static member x9 = backwardCompatibleWithDefault<Shape>
+    static member x10 = backwardCompatibleWithDefault<int Tree>
+    static member x11 = backwardCompatibleWithDefault<int Tree Test>
+    static member x12 = backwardCompatibleWithDefault<int Test>
+    static member x13 = backwardCompatibleWithDefault<int list Tree>
+    static member x14 = backwardCompatibleWithDefault<string NestedOptions>
+    static member x15 = backwardCompatibleWithDefault<string>
+    static member x16 = backwardCompatibleWithDefault<string option>
+    static member x17 = backwardCompatibleWithDefault<string option option>
+    static member x18 = backwardCompatibleWithDefault<string option option option option>
+    static member x19 = backwardCompatibleWithDefault<int NestedOptions>
+    static member x20 = backwardCompatibleWithDefault<Ambiguous<string>>
+    static member x21 = backwardCompatibleWithDefault<Ambiguous<SimpleDu>>
+
 
 [<TestClass>]
 type JsonSerializerTests() =
@@ -88,6 +161,7 @@ type JsonSerializerTests() =
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json")>]
     member __.``Handles just the expected types``() =
+        let conv = CompactUnionJsonConverter()
         Assert.IsTrue(conv.CanConvert(Color.Red.GetType()))
         Assert.IsTrue(conv.CanConvert(typeof<Color>))
         Assert.IsTrue(conv.CanConvert(typeof<_ option>))
@@ -149,6 +223,16 @@ type JsonSerializerTests() =
         areReciprocal <| { Some = 123 }
 
     [<TestMethod>]
-    [<TestCategory("FSharpLu.Json")>]
-    member __.Fuzzing () =
-        Check.VerboseThrowOnFailureAll<FuzzList>()
+    [<TestCategory("FSharpLu.Json.Fuzzing")>]
+    member __.``Fuzzing Reciprocal`` () =
+        Check.VerboseThrowOnFailureAll<Reciprocality>()
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.Fuzzing")>]
+    member __.``Deserialization coincides with JSon.Net (Fuzzing)`` () =
+        Check.VerboseThrowOnFailureAll<CoincidesWithJsonNetOnDeserialization>()
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.Fuzzing")>]
+    member __.``BackwardCompatible deserializes default Json.Net format and returns same object`` () =
+        Check.VerboseThrowOnFailureAll<BackwardCompatibility>()
