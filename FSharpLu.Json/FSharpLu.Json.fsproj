@@ -52,10 +52,14 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Json.fs" />
+    <Compile Include="Helpers.fs" />
+    <Compile Include="WithFunctor.fs" />
+    <Compile Include="NewtonSoft.fs" />
+    <Compile Include="Compact.fs" />
+    <Compile Include="BackwardCompatible.fs" />
     <Content Include="packages.config" />
-    <Compile Include="DiscriminatedUnions.fs" />
     <None Include="FSharpLu.Json.nuspec" />
+    <None Include="Script.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

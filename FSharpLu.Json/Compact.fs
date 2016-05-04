@@ -1,15 +1,13 @@
 ﻿namespace Microsoft.FSharpLu.Json
 
+open Newtonsoft.Json
+open Microsoft.FSharp.Reflection
+
 /// Serializers for F# discriminated unions improving upon the stock implementation by JSon.Net
 /// The default formatting used by Json.Net to serialize F# discriminated unions
 /// and Option types is too verbose. This module implements a more succinct serialization
 /// for those data types.
-
-open Newtonsoft.Json
-open Microsoft.FSharp.Reflection
-
-/// Improved Json converter for discriminated unions and option types ('a option). 
-type DiscriminatedUnionJsonConverter() =
+type CompactUnionJsonConverter() =
     inherit Newtonsoft.Json.JsonConverter()
 
     let isOptionType (t:System.Type) = 
@@ -186,13 +184,12 @@ type DiscriminatedUnionJsonConverter() =
             else
                 failwithf "Unexpected Json token type %O: %O" jToken.Type jToken
 
-/// Serialization settings for our custom Json converter
-type UnionSettings =
+/// Serialization settings for our custom compact Json converter
+type CompactSettings =
     static member settings =
-        let converter = DiscriminatedUnionJsonConverter()
         let s = JsonSerializerSettings(NullValueHandling = NullValueHandling.Ignore)
-        s.Converters.Add(converter)
+        s.Converters.Add(CompactUnionJsonConverter())
         s
 
 /// Our Json serializer
-type Union = With<UnionSettings>
+type Compact = With<CompactSettings>

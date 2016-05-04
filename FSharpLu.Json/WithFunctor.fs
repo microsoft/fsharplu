@@ -2,7 +2,7 @@
 
 open Newtonsoft.Json
 
-/// Json serialization helpers for specific serializer settings
+/// Functor used to create Json serialization helpers for specific serializer settings
 type With< ^S when ^S : (static member settings : JsonSerializerSettings) > =
 
     /// Serialize an object to Json with the specified converter
@@ -17,7 +17,7 @@ type With< ^S when ^S : (static member settings : JsonSerializerSettings) > =
         System.IO.File.WriteAllText(file, json)
 
     /// Deserialize a Json to an object of type 'T
-    static member inline public deserialize< ^T> json  =
+    static member inline public deserialize< ^T> json :^T =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())
         JsonConvert.DeserializeObject< ^T>(json, settings)
 
@@ -30,63 +30,24 @@ type With< ^S when ^S : (static member settings : JsonSerializerSettings) > =
         serializer.Deserialize< ^T>(jsonTextReader)
 
     /// Read Json from a file and desrialized it to an object of type ^T
-    static member inline deserializeFile< ^T> file =
+    static member inline deserializeFile< ^T> file :^T =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())
         System.IO.File.ReadAllText file |> With< ^S>.deserialize
 
     /// Try to deserialize a stream to an object of type ^T
     static member inline tryDeserializeStream< ^T> stream =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())
-        try
-            let o = With< ^S>.deserializeStream< ^T> stream
-            if obj.ReferenceEquals(o, null) then
-                Choice2Of2 <| "Deserialization returned null"
-            else
-                Choice1Of2 o
-        with
-        | :? JsonReaderException
-        | :? JsonSerializationException as exn ->
-            Choice2Of2 <| sprintf "Json exception thrown while deserializing stream: %O" exn
-        | exn ->
-            Choice2Of2 <| sprintf "Exception while deserializing stream: %O" exn
+        Helpers.tryCatchJsonSerializationException< ^T, System.IO.Stream> false (With< ^S>.deserializeStream) stream
+        |> Helpers.exceptionToString
 
     /// Try to deserialize json to an object of type ^T
     static member inline tryDeserialize< ^T> json =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())
-        try
-            let o = With< ^S>.deserialize< ^T> json
-            if obj.ReferenceEquals(o, null) then
-                Choice2Of2 <| "Deserialization returned null"
-            else
-                Choice1Of2 o
-        with
-        | :? JsonReaderException
-        | :? JsonSerializationException as exn ->
-            Choice2Of2 <| sprintf "Json exception thrown while deserializing string: %O" exn
-        | exn ->
-            Choice2Of2 <| sprintf "Exception while deserializing string: %O" exn
+        Helpers.tryCatchJsonSerializationException< ^T, string> false (With< ^S>.deserialize) json
+        |> Helpers.exceptionToString
 
     /// Try to read Json from a file and desrialized it to an object of type 'T
     static member inline tryDeserializeFile< ^T> file =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())
-        try
-            let o = With< ^S>.deserializeFile< ^T> file
-            if obj.ReferenceEquals(o, null) then
-                Choice2Of2 <| sprintf "Deserialization of %s returned null" file
-            else
-                Choice1Of2 o
-        with
-        | :? JsonReaderException
-        | :? JsonSerializationException as exn ->
-            Choice2Of2 <| sprintf "Json exception thrown while deserializing file %s: %O" file exn
-        | exn ->
-            Choice2Of2 <| sprintf "Exception while deserializing file %s: %O" file exn
-
-/// Default serialization settings
-type DefaultSettings =
-    static member settings =
-        let s = JsonSerializerSettings(NullValueHandling = NullValueHandling.Ignore)
-        s.Converters.Add(Converters.StringEnumConverter())
-        s
-
-type Default = With<DefaultSettings> 
+        Helpers.tryCatchJsonSerializationException< ^T, string> false (With< ^S>.deserializeFile) file
+        |> Helpers.exceptionToString
