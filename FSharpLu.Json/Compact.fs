@@ -184,12 +184,41 @@ type CompactUnionJsonConverter() =
             else
                 failwithf "Unexpected Json token type %O: %O" jToken.Type jToken
 
-/// Serialization settings for our custom compact Json converter
-type CompactSettings =
-    static member settings =
-        let s = JsonSerializerSettings(NullValueHandling = NullValueHandling.Ignore)
-        s.Converters.Add(CompactUnionJsonConverter())
-        s
+/// Default NetwonSoft Json.Net serializer
+module Compact =
+    open System.Runtime.CompilerServices
 
-/// Our Json serializer
-type Compact = With<CompactSettings>
+    module Internal =
+        /// Serialization settings for our compact Json converter
+        type Settings =
+            static member settings =
+                let s = JsonSerializerSettings(NullValueHandling = NullValueHandling.Ignore)
+                s.Converters.Add(CompactUnionJsonConverter())
+                s
+
+    type private S = With<Internal.Settings>
+
+    /// Serialize an object to Json with the specified converter
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline serialize< ^T> x = S.serialize x
+    /// Serialize an object to Json with the specified converter and save the result to a file
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline serializeToFile< ^T> file obj = S.serializeToFile file obj
+    /// Try to deserialize json to an object of type ^T
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline tryDeserialize< ^T> json = S.tryDeserialize< ^T> json
+    /// Try to read Json from a file and desrialized it to an object of type ^T
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline tryDeserializeFile< ^T> file = S.tryDeserializeFile< ^T> file
+    /// Try to deserialize a stream to an object of type ^T
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline tryDeserializeStream< ^T> stream = S.tryDeserializeStream< ^T> stream
+    /// Deserialize a Json to an object of type ^T
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline deserialize< ^T> json : ^T = S.deserialize< ^T> json
+    /// Read Json from a file and desrialized it to an object of type ^T
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline deserializeFile< ^T> file = S.deserializeFile< ^T> file
+    /// Deserialize a stream to an object of type ^T
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream

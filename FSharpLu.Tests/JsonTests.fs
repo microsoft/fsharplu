@@ -19,8 +19,8 @@ type 'a NestedOptions = 'a option option option option
 
 type 'a Ambiguous = { Some : 'a }
 
-let inline serialize< ^T> x = Compact.serialize< ^T> x
-let inline deserialize x = Compact.deserialize x
+let inline serialize< ^T> (x: ^T) = Compact.serialize< ^T> x
+let inline deserialize< ^T> x : ^T = Compact.deserialize< ^T> x
 
 let inline reciprocal< ^T when ^T:equality> (x: ^T) =
     // theoretically one round trip is sufficient; we perform 
@@ -28,8 +28,8 @@ let inline reciprocal< ^T when ^T:equality> (x: ^T) =
     // in the serialization functions
     x |> serialize |> deserialize |> serialize |> deserialize = x
 
-let inline areReciprocal (x:'T) = 
-    Assert.IsTrue(reciprocal x)
+let inline areReciprocal< ^T when ^T:equality> (x: ^T) = 
+    Assert.IsTrue(reciprocal< ^T> x)
 
 /// Check that given object serializes to the specified Json string
 let inline serializedAs json o = 

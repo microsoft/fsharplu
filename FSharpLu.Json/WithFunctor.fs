@@ -1,8 +1,12 @@
 ﻿namespace Microsoft.FSharpLu.Json
 
 open Newtonsoft.Json
+open System.Runtime.CompilerServices
 
 /// Functor used to create Json serialization helpers for specific serializer settings
+/// Warning: Because this functor depends on type JsonSerializerSettings defined in 
+/// NewtonSoft.Json any calling assembly using this type will 
+/// also need to add a direct reference to NewtonSoft.Json.
 type With< ^S when ^S : (static member settings : JsonSerializerSettings) > =
 
     /// Serialize an object to Json with the specified converter

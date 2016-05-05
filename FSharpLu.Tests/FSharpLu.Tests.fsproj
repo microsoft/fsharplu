@@ -8,7 +8,7 @@
     <ProjectGuid>1a22180f-57c3-4415-8d1a-4ad523967251</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>FSharpLu.Tests</RootNamespace>
-    <AssemblyName>FSharpLu.Tests</AssemblyName>
+    <AssemblyName>Microsoft.FSharpLu.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
