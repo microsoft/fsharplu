@@ -1,9 +1,9 @@
 # Pack projects as Nuget packages
 param(
     $feed,
-	$key,
+    $key = 'Springfield',
     [switch]$skipBuild,
-	[switch]$push
+    [switch]$push
 )
 
 $root = Split-Path -parent $psScriptRoot
@@ -19,8 +19,15 @@ if(-not $skipBuild) {
 & $nuget pack $root\FSharpLu\FSharpLu.fsproj -Prop Configuration=Release -Prop VisualStudioVersion=14.0
 & $nuget pack $root\FSharpLu.Json\FSharpLu.Json.fsproj -Prop Configuration=Release -Prop VisualStudioVersion=14.0
 
+function pushLatest($name) {
+    $file = [string](gci "$name.*.*.*.*.nupkg" | sort -Descending -Property LastAccessTime | select -First 1)
+    Write-Host "Pushing $file"
+    & $nuget push -source $feed $file -ApiKey $key
+}
+
 if ($push) {
-    & $nuget push -source $feed *.nupkg -ApiKey $key
+    pushLatest 'Microsoft.FSharpLu'
+    pushLatest 'Microsoft.FSharpLu.Json'
 }
 
 popd

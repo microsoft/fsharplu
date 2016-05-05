@@ -8,7 +8,7 @@
     <ProjectGuid>81eaf46a-bf20-4871-bf8e-c94fd478e9e8</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>FSharpLu.Json</RootNamespace>
-    <AssemblyName>FSharpLu.Json</AssemblyName>
+    <AssemblyName>Microsoft.FSharpLu.Json</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -23,7 +23,7 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\FSharpLu.Json.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\Microsoft.FSharpLu.Json.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -32,7 +32,7 @@
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\FSharpLu.Json.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\Microsoft.FSharpLu.Json.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>

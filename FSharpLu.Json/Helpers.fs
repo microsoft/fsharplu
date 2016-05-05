@@ -39,14 +39,14 @@ let inline tryDeserializeWithBoth< ^T , ^V when ^T :equality>
         (rewind : unit -> unit)
         (v:^V)
         =
-
+    
     match tryCatchJsonSerializationException true firstDeserialize v with
-    | Choice1Of2 _ as parsedObject -> parsedObject
+    | Choice1Of2 _ as parsedObject ->
+        parsedObject
+    
     | Choice2Of2 firstException ->
- 
-    rewind()
- 
-    match tryCatchJsonSerializationException true secondDeserialize v with
-    | Choice1Of2 _ as parsedObject -> parsedObject
-    | Choice2Of2 secondException ->
-        Choice2Of2 <| (JsonSerializationException("Could not deserialize with any of the serializers. See inner exception for error reported by the first deserializer.", firstException) :> System.Exception)
+        rewind()
+        match tryCatchJsonSerializationException true secondDeserialize v with
+        | Choice1Of2 _ as parsedObject -> parsedObject
+        | Choice2Of2 secondException ->
+            Choice2Of2 <| (JsonSerializationException("Could not deserialize with any of the serializers. See inner exception for error reported by the first deserializer.", firstException) :> System.Exception)
