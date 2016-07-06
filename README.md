@@ -27,7 +27,7 @@ Here is a list of helper modules provided by FSharpLu.
 - [FSharp.Async](FSharpLu/Async.fs)
 - [FSharp.Configuration](FSharpLu/Configuration.fs)
 - [FSharp.Collection](FSharpLu/Collections.fs)
-- [FSharp.Diagnostics](FSharpLu/Diganostics.fs)
+- [FSharp.Diagnostics](FSharpLu/Diagnostics.fs)
 - [FSharp.ErrorHandling](FSharpLu/ErrorHandling.fs)
 - [FSharp.File](FSharpLu/File.fs)
 - [FSharp.Logger](FSharpLu/Logger.fs)
