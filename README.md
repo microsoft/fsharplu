@@ -9,7 +9,7 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 
 ## Documentation
 
-For the documentation polease visit the [wiki](https://github.com/Microsoft/fsharplu/wiki)
+For the documentation please visit the [Wiki](https://github.com/Microsoft/fsharplu/wiki)
 
 ## License
 
