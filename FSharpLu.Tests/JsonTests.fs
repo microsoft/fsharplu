@@ -19,6 +19,9 @@ type 'a NestedOptions = 'a option option option option
 
 type 'a Ambiguous = { Some : 'a }
 
+type NestedStructure = { subField : int }
+type NestedOptionStructure = { field : NestedStructure option }
+
 let inline serialize< ^T> (x: ^T) = Compact.serialize< ^T> x
 let inline deserialize< ^T> x : ^T = Compact.deserialize< ^T> x
 
@@ -84,6 +87,8 @@ type Reciprocality () =
     static member x19 = reciprocal<int NestedOptions>
     static member x20 = reciprocal<Ambiguous<string>>
     static member x21 = reciprocal<Ambiguous<SimpleDu>>
+    static member x22 = reciprocal<NestedOptionStructure>
+    
 
 type CoincidesWithJsonNetOnDeserialization () =
     static member x1 = coincidesWithDefault<ComplexDu>
@@ -107,6 +112,7 @@ type CoincidesWithJsonNetOnDeserialization () =
     static member x19 = coincidesWithDefault<int NestedOptions>
     static member x20 = coincidesWithDefault<Ambiguous<string>>
     static member x21 = coincidesWithDefault<Ambiguous<SimpleDu>>
+    static member x22 = coincidesWithDefault<NestedOptionStructure>
 
 type BackwardCompatibility () =
     static member x1 = backwardCompatibleWithDefault<ComplexDu>
@@ -130,7 +136,7 @@ type BackwardCompatibility () =
     static member x19 = backwardCompatibleWithDefault<int NestedOptions>
     static member x20 = backwardCompatibleWithDefault<Ambiguous<string>>
     static member x21 = backwardCompatibleWithDefault<Ambiguous<SimpleDu>>
-
+    static member x22 = backwardCompatibleWithDefault<NestedOptionStructure>
 
 [<TestClass>]
 type JsonSerializerTests() =

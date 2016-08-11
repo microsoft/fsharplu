@@ -89,7 +89,7 @@ type CompactUnionJsonConverter() =
             // Json that is not null maps to `Some _`
             else
                 let nestedType = objectType.GetGenericArguments().[0]
-                let parseBox (jToken:Linq.JToken) =
+                let parseBoxedOption (jToken:Linq.JToken) =
                     if jToken.Type <> Linq.JTokenType.Object then
                         failwith "Nested option types must be serialized as boxed Json objects"
 
@@ -107,16 +107,46 @@ type CompactUnionJsonConverter() =
                             // => we just deserialize the nested object recursively
                             unboxedValue.ToObject(nestedType, serializer)
 
+                let parseBoxedNonOptionObject (jToken:Linq.JToken) =
+                    if jToken.Type <> Linq.JTokenType.Object then
+                        failwith "Nested option types must be serialized as boxed Json objects"
+
+                    let jObject = jToken :?> Linq.JObject
+                    match jObject.TryGetValue("Some") with
+                    | false, _ ->
+                        // 'Some' field absent from Json: this must be a nested discriminated union object.
+                        // Not need to unbox: we just deserialize the Json object as is.
+                        jObject.ToObject(nestedType, serializer)
+                    | true, unboxedValue ->
+                        if unboxedValue.Type = Linq.JTokenType.Null then
+                            // Case of Json { "Some" : null } for type option<'a> where 'a is nullable
+                            // => deserialized to `Some null`
+                            null
+                        else
+                            // Case of Json { "Some" : <obj> } where <obj> is not null
+                            // => we just deserialize the nested object recursively
+                            //
+                            // NOTE: there is a possible ambuiguity here: we assume that the 'Some' field
+                            // from the Json blob corresponds to the Option type being deserialized. However, it
+                            // could just by a coincidence where 'Some' is also the name of a field in a nested 
+                            // discriminated union. (type X = { Some : string } and Y = Y option)
+                            // If this is the case the deserialization fails.
+                            unboxedValue.ToObject(nestedType, serializer)
+
                 let nestedValue = 
                     // Is the nested type an option type itself?
-                    // or is the Json to be deserialized an object Json?
-                    if isOptionType nestedType || jToken.Type = Linq.JTokenType.Object then 
+                    // or is the Json to be deserialized is an object Json?
+                    if isOptionType nestedType then 
                         // Nested option type are always boxed in Json to prevent any ambguity
-                        parseBox jToken
+                        parseBoxedOption jToken
+                    else if jToken.Type = Linq.JTokenType.Object then
+                        parseBoxedNonOptionObject jToken
                     else
-                        // type is option<'a> where 'a is not an option type
+                        // type is option<'a> where 'a is not an option type and not a 
+                        // type that would be serialized as a Json object. i.e. 'a is a base Json type (e.g. integer or string)
                         // => we can deserialize the object of type 'a directly without unboxing
                         jToken.ToObject(nestedType, serializer)
+
                 FSharpValue.MakeUnion(caseSome, [| nestedValue |])
                  
         // Discriminated union
@@ -162,7 +192,7 @@ type CompactUnionJsonConverter() =
 
                 match matchingCase with
                 | None ->
-                    failwithf "Case %s with fields does not exist for discriminated union %s" caseProperty.Name objectType.Name
+                    failwithf "Case with fields '%s' does not exist for discriminated union %s" caseProperty.Name objectType.Name
 
                 // Type 2: A union case with a single field: Case2 of 'a
                 | Some case when case.GetFields().Length = 1 ->
@@ -192,7 +222,9 @@ module Compact =
         /// Serialization settings for our compact Json converter
         type Settings =
             static member settings =
-                let s = JsonSerializerSettings(NullValueHandling = NullValueHandling.Ignore)
+                let s = JsonSerializerSettings( NullValueHandling = NullValueHandling.Ignore,
+                                                // Strict deserialization is required to avoid certain ambiguities
+                                                MissingMemberHandling = MissingMemberHandling.Error)
                 s.Converters.Add(CompactUnionJsonConverter())
                 s
 
