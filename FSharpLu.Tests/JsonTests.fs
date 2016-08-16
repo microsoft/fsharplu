@@ -17,10 +17,18 @@ type 'a Test = Case1 | Case2 of int | Case3 of int * string * 'a
 type MapType = Map<string,Color>
 type 'a NestedOptions = 'a option option option option
 
-type 'a Ambiguous = { Some : 'a }
-
 type NestedStructure = { subField : int }
 type NestedOptionStructure = { field : NestedStructure option }
+
+/// Test cases for possible ambiguity between option types and other DU or records with a 'Some' field.
+module SomeAmbiguity =
+    type 'a RecordWithFieldNamedSome = { Some : 'a }
+    type DUWithFieldlessCaseNamedSome = Some of string | Bla
+    type DUWithCaseWithFieldNamedSome = Some | Bla
+    type 'a Ambiguous1 = 'a RecordWithFieldNamedSome option
+    type Ambiguous2 = DUWithFieldlessCaseNamedSome option
+    type Ambiguous3 = DUWithCaseWithFieldNamedSome option
+
 
 let inline serialize< ^T> (x: ^T) = Compact.serialize< ^T> x
 let inline deserialize< ^T> x : ^T = Compact.deserialize< ^T> x
@@ -32,11 +40,16 @@ let inline reciprocal< ^T when ^T:equality> (x: ^T) =
     x |> serialize |> deserialize |> serialize |> deserialize = x
 
 let inline areReciprocal< ^T when ^T:equality> (x: ^T) = 
-    Assert.IsTrue(reciprocal< ^T> x)
+    let s = x |> serialize< ^T>
+    let sds = s |> deserialize< ^T> |> serialize< ^T>
+    Assert.AreEqual(s, sds, sprintf "Inconsistent serialization: 1st call: <%s> 2nd call <%s>" s sds)
+    let sdsd = sds |> deserialize< ^T>
+    Assert.AreEqual(sdsd, x, sprintf "Did not get the same object back: <%A> gave <%A>" x sdsd)
 
 /// Check that given object serializes to the specified Json string
 let inline serializedAs json o = 
-    Assert.AreEqual(json, serialize o)
+    let s = serialize o
+    Assert.AreEqual(json, s, sprintf "Object was not serialized to the expected format")
 
 /// Check that deserialization coincides with NewtonSoft's default serializer.
 /// That is: when the Json is deserializable by both deserializers Union and Default
@@ -85,9 +98,11 @@ type Reciprocality () =
     static member x17 = reciprocal<string option option>
     static member x18 = reciprocal<string option option option option>
     static member x19 = reciprocal<int NestedOptions>
-    static member x20 = reciprocal<Ambiguous<string>>
-    static member x21 = reciprocal<Ambiguous<SimpleDu>>
+    static member x20 = reciprocal<SomeAmbiguity.Ambiguous1<string>>
+    static member x21 = reciprocal<SomeAmbiguity.Ambiguous1<SimpleDu>>
     static member x22 = reciprocal<NestedOptionStructure>
+    static member x23 = reciprocal<SomeAmbiguity.Ambiguous2>
+    static member x24 = reciprocal<SomeAmbiguity.Ambiguous3>
     
 
 type CoincidesWithJsonNetOnDeserialization () =
@@ -110,9 +125,11 @@ type CoincidesWithJsonNetOnDeserialization () =
     static member x17 = coincidesWithDefault<string option option>
     static member x18 = coincidesWithDefault<string option option option option>
     static member x19 = coincidesWithDefault<int NestedOptions>
-    static member x20 = coincidesWithDefault<Ambiguous<string>>
-    static member x21 = coincidesWithDefault<Ambiguous<SimpleDu>>
+    static member x20 = coincidesWithDefault<SomeAmbiguity.Ambiguous1<string>>
+    static member x21 = coincidesWithDefault<SomeAmbiguity.Ambiguous1<SimpleDu>>
     static member x22 = coincidesWithDefault<NestedOptionStructure>
+    static member x23 = coincidesWithDefault<SomeAmbiguity.Ambiguous2>
+    static member x24 = coincidesWithDefault<SomeAmbiguity.Ambiguous3>
 
 type BackwardCompatibility () =
     static member x1 = backwardCompatibleWithDefault<ComplexDu>
@@ -134,15 +151,17 @@ type BackwardCompatibility () =
     static member x17 = backwardCompatibleWithDefault<string option option>
     static member x18 = backwardCompatibleWithDefault<string option option option option>
     static member x19 = backwardCompatibleWithDefault<int NestedOptions>
-    static member x20 = backwardCompatibleWithDefault<Ambiguous<string>>
-    static member x21 = backwardCompatibleWithDefault<Ambiguous<SimpleDu>>
+    static member x20 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous1<string>>
+    static member x21 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous1<SimpleDu>>
     static member x22 = backwardCompatibleWithDefault<NestedOptionStructure>
+    static member x23 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous2>
+    static member x24 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous3>
 
 [<TestClass>]
 type JsonSerializerTests() =
 
     [<ClassInitialize>]
-    static member init(context : TestContext) = ()
+    static member Init(context : TestContext) = ()
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json")>]
@@ -223,10 +242,14 @@ type JsonSerializerTests() =
     [<TestCategory("FSharpLu.Json")>]
     member this.``No ambiguity between records and Option type``() =
         areReciprocal <| Some (Some (Some None))
-        areReciprocal <| { Some = null }
-        areReciprocal <| { Some = SimpleDu.Foo }
-        areReciprocal <| { Some = "test" }
-        areReciprocal <| { Some = 123 }
+        areReciprocal <| { SomeAmbiguity.Some = null }
+        areReciprocal <| { SomeAmbiguity.Some = SimpleDu.Foo }
+        areReciprocal <| { SomeAmbiguity.Some = "test" }
+        areReciprocal <| { SomeAmbiguity.Some = 123 }
+        areReciprocal <| (Option.Some { SomeAmbiguity.Some = 345 })
+        areReciprocal <| (Option.Some <| SomeAmbiguity.DUWithFieldlessCaseNamedSome.Some "ambiguous")
+        areReciprocal <| (Option.Some { SomeAmbiguity.RecordWithFieldNamedSome.Some = 8 })
+        areReciprocal <| (Option.Some <| SomeAmbiguity.DUWithCaseWithFieldNamedSome.Some)
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.Fuzzing")>]
