@@ -10,8 +10,18 @@ open Microsoft.FSharp.Reflection
 type CompactUnionJsonConverter() =
     inherit Newtonsoft.Json.JsonConverter()
 
+    let SomeFieldIdentifier = "Some"
+
     let isOptionType (t:System.Type) = 
-        t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
+       t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
+
+    /// Determine if a given type has a field named 'Some' which would cause
+    /// ambiguity if nested under an option type without being boxed
+    let hasFieldNamedSome (t:System.Type) = 
+        isOptionType t // the option type itself has a 'Some' field
+        || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
+        || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
+        || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
         
     override __.CanConvert(objectType:System.Type) = 
         // Include F# discriminated unions
@@ -38,20 +48,22 @@ type CompactUnionJsonConverter() =
                 let innerValue = fields.[0]
                 if isNull innerValue then
                     writer.WriteStartObject()
-                    writer.WritePropertyName("Some")
+                    writer.WritePropertyName(SomeFieldIdentifier)
                     writer.WriteNull()
                     writer.WriteEndObject()
                 // Some v with v <> null && v <> None
                 else
-                    // Is it a nested option: `(e.g., "Some (Some ... Some ( ... )))"`?
-                    if isOptionType <| innerType then
+                    // Is it nesting another option: `(e.g., "Some (Some ... Some ( ... )))"`
+                    // or any other type with a field named 'Some'?
+                    if hasFieldNamedSome innerType then
                         // Preserved the nested structure through boxing
                         writer.WriteStartObject()
-                        writer.WritePropertyName("Some")
+                        writer.WritePropertyName(SomeFieldIdentifier)
                         serializer.Serialize(writer, innerValue)
                         writer.WriteEndObject()
                     else
-                        // Type is option<'a> where 'a is NOT an option type itself
+                        // Type is option<'a> where 'a does not have a field named 'Some
+                        // (and therfore in particular is NOT an option type itself)
                         // => we can simplify the Json by omitting the `Some` boxing
                         // and serializing the nested object directly
                         serializer.Serialize(writer, innerValue)
@@ -86,65 +98,44 @@ type CompactUnionJsonConverter() =
             if jToken.Type = Linq.JTokenType.Null then
                 FSharpValue.MakeUnion(caseNone, [||])
             
-            // Json that is not null maps to `Some _`
+            // Json that is not null must map to `Some _`
             else
                 let nestedType = objectType.GetGenericArguments().[0]
-                let parseBoxedOption (jToken:Linq.JToken) =
-                    if jToken.Type <> Linq.JTokenType.Object then
-                        failwith "Nested option types must be serialized as boxed Json objects"
 
-                    let jObject = jToken :?> Linq.JObject
-                    match jObject.TryGetValue("Some") with
-                    | false, _ ->
-                        failwith "Nested option types must be serialized as boxed Json objects with attribute 'Some'."
-                    | true, unboxedValue ->
-                        if unboxedValue.Type = Linq.JTokenType.Null then
-                            // Case of Json { "Some" : null } for type option<'a> where 'a is nullable
-                            // => deserialized to `Some null`
-                            null
-                        else
-                            // Case of Json { "Some" : <obj> } where <obj> is not null
-                            // => we just deserialize the nested object recursively
-                            unboxedValue.ToObject(nestedType, serializer)
-
-                let parseBoxedNonOptionObject (jToken:Linq.JToken) =
-                    if jToken.Type <> Linq.JTokenType.Object then
-                        failwith "Nested option types must be serialized as boxed Json objects"
-
-                    let jObject = jToken :?> Linq.JObject
-                    match jObject.TryGetValue("Some") with
-                    | false, _ ->
-                        // 'Some' field absent from Json: this must be a nested discriminated union object.
-                        // Not need to unbox: we just deserialize the Json object as is.
-                        jObject.ToObject(nestedType, serializer)
-                    | true, unboxedValue ->
-                        if unboxedValue.Type = Linq.JTokenType.Null then
-                            // Case of Json { "Some" : null } for type option<'a> where 'a is nullable
-                            // => deserialized to `Some null`
-                            null
-                        else
-                            // Case of Json { "Some" : <obj> } where <obj> is not null
-                            // => we just deserialize the nested object recursively
-                            //
-                            // NOTE: there is a possible ambuiguity here: we assume that the 'Some' field
-                            // from the Json blob corresponds to the Option type being deserialized. However, it
-                            // could just by a coincidence where 'Some' is also the name of a field in a nested 
-                            // discriminated union. (type X = { Some : string } and Y = Y option)
-                            // If this is the case the deserialization fails.
-                            unboxedValue.ToObject(nestedType, serializer)
+                // If the specified Json an object of the form `{ "Some" = token }`
+                // then return `Some token`, otherwise returns `None`.
+                let tryGetSomeAttributeValue (jToken:Linq.JToken) =
+                    if jToken.Type = Linq.JTokenType.Object then
+                        let jObject = jToken :?> Linq.JObject
+                        match jObject.TryGetValue SomeFieldIdentifier with
+                        | true, token -> Some token
+                        | false, _ -> None
+                    else
+                        None
 
                 let nestedValue = 
-                    // Is the nested type an option type itself?
-                    // or is the Json to be deserialized is an object Json?
-                    if isOptionType nestedType then 
-                        // Nested option type are always boxed in Json to prevent any ambguity
-                        parseBoxedOption jToken
-                    else if jToken.Type = Linq.JTokenType.Object then
-                        parseBoxedNonOptionObject jToken
-                    else
+                    match tryGetSomeAttributeValue jToken with
+                    | Some someAttributeValue when someAttributeValue.Type = Linq.JTokenType.Null ->
+                        // The Json object is { "Some" : null } for type option<'a>
+                        // where 'a is nullable => deserialized to `Some null`
+                        null
+                    
+                    | Some someAttributeValue when hasFieldNamedSome nestedType ->
+                        // Case of Json { "Some" : <obj> } where <obj> is not null
+                        // => we just deserialize the nested object recursively
+                        someAttributeValue.ToObject(nestedType, serializer)
+                    
+                    | Some someAttributeValue ->
+                        failwithf "Unexpected Json 'Some' attribute set to %O" someAttributeValue
+
+                    | None when hasFieldNamedSome nestedType ->
+                        failwith "Types with a field named 'Some' and nested under an option type must be boxed under a 'Some' attribute when serialized to Json."
+                    
+                    | None ->
                         // type is option<'a> where 'a is not an option type and not a 
-                        // type that would be serialized as a Json object. i.e. 'a is a base Json type (e.g. integer or string)
-                        // => we can deserialize the object of type 'a directly without unboxing
+                        // type that would be serialized as a Json object. 
+                        // i.e. 'a is either a base Json type (e.g. integer or string) or 
+                        // a Json array => we can deserialize the object of type 'a directly without unboxing
                         jToken.ToObject(nestedType, serializer)
 
                 FSharpValue.MakeUnion(caseSome, [| nestedValue |])
@@ -224,7 +215,8 @@ module Compact =
             static member settings =
                 let s = JsonSerializerSettings( NullValueHandling = NullValueHandling.Ignore,
                                                 // Strict deserialization is required to avoid certain ambiguities
-                                                MissingMemberHandling = MissingMemberHandling.Error)
+                                                MissingMemberHandling = MissingMemberHandling.Error
+                                                )
                 s.Converters.Add(CompactUnionJsonConverter())
                 s
 

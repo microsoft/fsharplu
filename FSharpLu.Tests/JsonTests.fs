@@ -42,9 +42,9 @@ let inline reciprocal< ^T when ^T:equality> (x: ^T) =
 let inline areReciprocal< ^T when ^T:equality> (x: ^T) = 
     let s = x |> serialize< ^T>
     let sds = s |> deserialize< ^T> |> serialize< ^T>
-    Assert.AreEqual(s, sds, sprintf "Inconsistent serialization: 1st call: <%s> 2nd call <%s>" s sds)
+    Assert.AreEqual(s, sds, sprintf "Inconsistent serialization: 1st call: <%s> 2nd call <%s>. Type %A" s sds (typeof< ^T>))
     let sdsd = sds |> deserialize< ^T>
-    Assert.AreEqual(sdsd, x, sprintf "Did not get the same object back: <%A> gave <%A>" x sdsd)
+    Assert.AreEqual(sdsd, x, sprintf "Did not get the same object back: <%A> gave back <%A> for type %A" x sdsd (typeof< ^T>))
 
 /// Check that given object serializes to the specified Json string
 let inline serializedAs json o = 
