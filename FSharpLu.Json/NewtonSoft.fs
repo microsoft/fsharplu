@@ -17,6 +17,7 @@ module Default =
                 let s = JsonSerializerSettings(NullValueHandling = NullValueHandling.Ignore)
                 s.Converters.Add(Converters.StringEnumConverter())
                 s
+            static member formatting = Formatting.Indented
 
     type private S = With<Internal.DefaultSettings>
 
