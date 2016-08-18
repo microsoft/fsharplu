@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/Microsoft/fsharplu</projectUrl>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <description>Json serialization converters for F# option types and discriminated unions.</description>
-    <releaseNotes>Initial release</releaseNotes>
+    <releaseNotes>Fix ambiguities at deserialization for records and union nested under an option type.</releaseNotes>
     <copyright>Copyright 2016</copyright>
     <tags>F#, FSharp, Utilities, Json, discriminated unions</tags>
   </metadata>
