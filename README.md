@@ -13,7 +13,7 @@ For the documentation please visit the [Wiki](https://github.com/Microsoft/fshar
 
 ## License
 
-[MIT](LICENSE.md)
+[MIT](LICENSE.MD)
 
 ## Packages
 
