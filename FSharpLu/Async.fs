@@ -6,7 +6,7 @@ module Microsoft.FSharpLu.Async
 open System
 open System.Threading
 open System.Threading.Tasks
-open Logging
+open Microsoft.FSharpLu.Logging
 
 /// Start multiple async-workflows concurrently
 /// and return a new async that waits for the first async to return.
