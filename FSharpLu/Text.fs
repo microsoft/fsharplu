@@ -145,9 +145,9 @@ let indent count =
 
 /// Encode a string to Base64
 let encodeToBase64 (toEncode:string) =
-    toEncode |> System.Text.ASCIIEncoding.ASCII.GetBytes |> System.Convert.ToBase64String
+    toEncode |> System.Text.ASCIIEncoding.UTF8.GetBytes |> System.Convert.ToBase64String
 
 /// Decode a Base64 encoded string
-let decodeBase64 (base64Encoded:byte[]) =
+let decodeFromBase64 (base64Encoded:byte[]) =
     let decodedString = System.Text.Encoding.UTF8.GetString(base64Encoded)
     System.Convert.FromBase64String(decodedString)
