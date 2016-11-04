@@ -20,7 +20,7 @@ let Compete workflows =
         // Doing it from OnCancel() guarantees that the children
         // workflows are properly terminated if the parent workflow is cancelled.
         use! c = Async.OnCancel(fun() -> loosers.Cancel())
-        
+
         try
             let! winningTask =
                 workflows
@@ -35,28 +35,28 @@ let Compete workflows =
 
 /// Async.Compete between an Async<'A> and a Task<'B>.
 ///
-/// Create an asynchronous workflow that concurrently runs an async workflow and 
+/// Create an asynchronous workflow that concurrently runs an async workflow and
 /// a .Net Task and returns a discriminating union of three possible outcomes depending on
 /// which computation finished first or if they finished simultaneously.
-/// When one of the computation wins, the other 'loosing' computation 
+/// When one of the computation wins, the other 'loosing' computation
 /// is cancelled synchronoulsy.
 let CompeteWithTask<'A, 'B> (workflow:Async<'A>) (taskBuilder:CancellationTokenSource -> Task<'B>) =
     async {
         use looser = new System.Threading.CancellationTokenSource()
-        
+
         // The call to looser.Cancel in the finally block is not sufficient.
         // Doing it from OnCancel guarantees that the children
         // task/workflow are properly terminated if the parent workflow is cancelled.
         use! c = Async.OnCancel(fun() -> looser.Cancel())
 
-        let t1 = Async.StartAsTask(workflow, cancellationToken=looser.Token) 
+        let t1 = Async.StartAsTask(workflow, cancellationToken=looser.Token)
         let t2 = taskBuilder looser
         try
             let! competition = Tasks.Task.WhenAny [| t1:> Task; t2:> Task |] |> Async.AwaitTask
             ()
         finally
             looser.Cancel()
-        
+
         // Wait for the looser task cancellation to complete (a TaskCanceledException exception will be triggered when this happens)
         do! async {
             try
@@ -84,11 +84,11 @@ let inline private releaseOnDispose (eventObject: ^T) =
             (^T : (member Release : unit -> ^R) (eventObject)) |> ignore
     }
 
-/// Create an asynchronous workflow that concurrently runs an async workflow and 
+/// Create an asynchronous workflow that concurrently runs an async workflow and
 /// tries to acquire a given .Net threading object (e.g. SlimSemaphore, ...).
 /// It returns a discriminating union representing the task that finished first. The other one
 /// (either the workflow or the threading object) is properly terminated and disposed.
-let inline CompeteWithThreadingObject<'A, ^R, ^T when ^T: (member Release : unit -> ^R) 
+let inline CompeteWithThreadingObject<'A, ^R, ^T when ^T: (member Release : unit -> ^R)
                                                   and ^T: (member WaitAsync : int -> CancellationToken -> Task<bool>)>
             (workflow:Async<'A>) (threadingObject: ^T) =
     async {
@@ -178,13 +178,13 @@ module Synchronization =
 
     /// Interface for a pool-based synchronization object
     type IPool =
-        interface 
+        interface
             abstract InternalSemaphore : SemaphoreSlim
             abstract AcquireAsync : int option -> Async<System.IDisposable>
             abstract TryAcquireAsync : int option -> Async<System.IDisposable option>
         end
 
-    /// Synchronization object used to limit the total 
+    /// Synchronization object used to limit the total
     /// number of requests that can be granted concurrently.
     /// Usage:
     ///   let pool = new Pool(5)
@@ -195,7 +195,7 @@ module Synchronization =
     ///   }
     type Pool(size:int) =
         let semaphore = new SemaphoreSlim(initialCount=size, maxCount=size)
-    
+
         interface IPool with
             /// Returns the internal semaphore object
             member x.InternalSemaphore with get() = semaphore
@@ -205,20 +205,20 @@ module Synchronization =
             member x.AcquireAsync(?timeout) =
                 async {
                     let! token = Async.CancellationToken
-                    let! ok = semaphore.WaitAsync(defaultArg timeout -1, token) |> Async.AwaitTask 
+                    let! ok = semaphore.WaitAsync(defaultArg timeout -1, token) |> Async.AwaitTask
                     if ok then
-                        return releaseOnDispose semaphore                        
+                        return releaseOnDispose semaphore
                     else
                         return failwith "Could not acquire a token from the pool"
                 }
-    
+
             /// Try acquiring a token from the pool.
             /// On success returns an object that automatically releases the token
             /// once disposed. Returns None on failure to acquire the token.
             member x.TryAcquireAsync(?timeout) =
                 async {
                     let! token = Async.CancellationToken
-                    let! entered = semaphore.WaitAsync(defaultArg timeout 0, token) |> Async.AwaitTask 
+                    let! entered = semaphore.WaitAsync(defaultArg timeout 0, token) |> Async.AwaitTask
                     if entered then
                         return releaseOnDispose semaphore |> Some
                     else
@@ -229,7 +229,7 @@ module Synchronization =
     /// before acquring the token from this pool.
     type NestedPool(size:int, parent:IPool) =
         let pool = new Pool(size=size) :> IPool
-    
+
         interface IPool with
             /// Returns the internal semaphore object
             member x.InternalSemaphore with get() = pool.InternalSemaphore
@@ -247,7 +247,7 @@ module Synchronization =
                                 parent.Dispose()
                          }
                 }
-    
+
             /// Try acquiring a token from the parent pool and this pool.
             /// On success returns an object that automatically releases the tokens
             /// once disposed. Returns None on failure to acquire a token from the parent
@@ -275,11 +275,11 @@ module Synchronization =
     /// Single-use event object that can be waited on asynchronoulsy
     type SingleUseEvent() =
         let semaphore = new SemaphoreSlim(initialCount=0, maxCount=1)
-    
+
         // Signal the event
         member x.Fire() =
             semaphore.Release() |> ignore
-    
+
         // Wait for the event to occur
         member x.WaitAsync(?timeout) =
             async {
@@ -314,10 +314,10 @@ module Synchronization =
             }
 
 /// Asynchronous file copy
-let copyFile source target = 
+let copyFile source target =
     async {
         use sourceStream = System.IO.File.Open(source, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)
         use targetStream = System.IO.File.Open(target, System.IO.FileMode.Create, System.IO.FileAccess.Write)
         let task = sourceStream.CopyToAsync(targetStream)
-        return! task |> Async.AwaitIAsyncResult
+        return! task |> Async.AwaitTask
     }
