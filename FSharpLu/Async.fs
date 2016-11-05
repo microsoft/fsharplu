@@ -8,6 +8,31 @@ open System.Threading
 open System.Threading.Tasks
 open Microsoft.FSharpLu.Logging
 
+/// Extension methods to work with .Net Tasks
+type System.Threading.Tasks.Task with
+    member x.AsAsync
+        with get () = Async.AwaitTask(x)
+
+/// Extension methods to work with generic .Net Task<T>
+type System.Threading.Tasks.Task<'T> with
+    member x.AsAsync
+        with get () = Async.AwaitTask(x)
+
+/// Reraise an exception from a `catch` block of an async exception handler
+/// while preserving all the original exception stack trace.
+/// Requires .NET 4.5 (ExceptionDispatchInfo)
+let inline reraise e =
+    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e).Throw()
+    raise <| System.InvalidProgramException() // Unreachable, used only to match any generic return type
+
+/// Bind operator for Async computation
+let bind f asyncOp =
+    async.Bind(asyncOp, f)
+
+/// Map operator for Async computation
+let map f asyncOp =
+    bind (f >> async.Return) asyncOp
+
 /// Start multiple async-workflows concurrently
 /// and return a new async that waits for the first async to return.
 /// After one async has returned all the remaining ones are cancelled,
@@ -119,8 +144,9 @@ let retry (timeout:TimeSpan, retryDelay:TimeSpan, f:unit -> Async<'T>) =
         }
     loop ()
 
-/// Execute an asynchronous computation until it succeedes, an unexpected exception occurs or the specified timeout expires.
-/// The exception filter should return true for permissible exeption and false for unexpected exceptions.
+/// Perform an asynchronous computation until either it succeedes, an unexpected exception occurs, or the specified timeout expires.
+/// Until the timeout expires, any exception thrown meeting the exception filter condition will not be thrown.
+/// After the timeout expires any exception will be thrown, regardless of whether the filtering condition is met.
 let retryOnSpecificFailures (timeout:TimeSpan, retryDelay:TimeSpan, f:unit -> Async<'T>, exceptionFilter: Exception -> bool) =
     let beginPollTime = DateTime.UtcNow
     let endPollTime = beginPollTime + timeout
@@ -172,7 +198,6 @@ let retryUntilSomeOrTimeout (timeout:TimeSpan) (retryDelay:TimeSpan) (f:unit -> 
                 return r
         }
     loop ()
-
 
 module Synchronization =
 
