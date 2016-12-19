@@ -118,7 +118,6 @@ namespace Microsoft.FSharpLu.Logging
 
 /// Helper functions for System.Diagnostics
 namespace System.Diagnostics
-    open System.Diagnostics
     open System
 
     /// A strongly-typed tracer implemented with System.Diagnostics event tracing
@@ -178,7 +177,7 @@ namespace System.Diagnostics
         let registerFileTracer componentName directory =
             let directory = defaultArg directory <| System.IO.Directory.GetCurrentDirectory()
             let logFileName = sprintf "%s-%s.log" componentName (System.DateTime.Now.ToString("yyyyMMdd-hhmmss"))
-            let logFilePath = System.IO.Path.Combine (System.IO.Directory.GetCurrentDirectory(), logFileName)
+            let logFilePath = System.IO.Path.Combine (directory, logFileName)
             let fileTracer = new TextWriterTraceListener(logFilePath, Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
             fileTracer.Attributes.Add(TraceLogFilePathKey, logFilePath)
             System.Diagnostics.Trace.Listeners.Add(fileTracer) |> ignore
@@ -192,7 +191,7 @@ namespace System.Diagnostics
                     fileTracer.Flush()
 
               interface IDisposable with
-                member this.Dispose() =
+                member __.Dispose() =
                     System.Diagnostics.Trace.Listeners.Remove(fileTracer)
                     fileTracer.Flush()
                     fileTracer.Dispose()
@@ -222,7 +221,7 @@ namespace System.Diagnostics
                         member __.Flush() = ()
 
                       interface IDisposable with
-                        member this.Dispose() = ()
+                        member __.Dispose() = ()
                     }
 
             // Determine if a console listener is already registered
@@ -232,7 +231,7 @@ namespace System.Diagnostics
                 |> Seq.tryFind (fun l -> l.GetType() = typeof<ColorConsoleTraceListener>)
 
             match existingConsoleListener with
-            | Some l -> fileLogger
+            | Some _ -> fileLogger
             | None ->
                 // Create and register a new console listener
                 let consoleTracer = new ColorConsoleTraceListener(Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
@@ -252,7 +251,7 @@ namespace System.Diagnostics
                         fileLogger.Flush()
 
                   interface IDisposable with
-                    member this.Dispose() =
+                    member __.Dispose() =
                         fileLogger.Dispose()
                         System.Diagnostics.Trace.Listeners.Remove(consoleTracer)
                         consoleTracer.Dispose()
