@@ -12,32 +12,32 @@ type CompactUnionJsonConverter() =
 
     let SomeFieldIdentifier = "Some"
 
-    let isOptionType (t:System.Type) = 
+    let isOptionType (t:System.Type) =
        t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
 
     /// Determine if a given type has a field named 'Some' which would cause
     /// ambiguity if nested under an option type without being boxed
-    let hasFieldNamedSome (t:System.Type) = 
+    let hasFieldNamedSome (t:System.Type) =
         isOptionType t // the option type itself has a 'Some' field
         || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
         || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
         || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
-        
-    override __.CanConvert(objectType:System.Type) = 
+
+    override __.CanConvert(objectType:System.Type) =
         // Include F# discriminated unions
         FSharpType.IsUnion objectType
         // and exclude the standard FSharp lists (which are implemented as discriminated unions)
         && not (objectType.IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
-           
+
     override __.WriteJson(writer:JsonWriter, value:obj, serializer:JsonSerializer) =
         let t = value.GetType()
         // Option type?
         if isOptionType t then
             let cases = FSharpType.GetUnionCases(t)
             let none, some = cases.[0], cases.[1]
-    
+
             let case, fields = FSharpValue.GetUnionFields(value, t)
-            
+
             if case = none then
                 () // None is serialized as just null
 
@@ -73,7 +73,7 @@ type CompactUnionJsonConverter() =
             let case, fields = FSharpValue.GetUnionFields(value, t)
             match fields with
             // Field-less union case
-            | [||] -> 
+            | [||] ->
                 writer.WriteValue(sprintf "%A" value)
             // Case with single field
             | [|onefield|] ->
@@ -97,12 +97,13 @@ type CompactUnionJsonConverter() =
             // Json Null maps to `None`
             if jToken.Type = Linq.JTokenType.Null then
                 FSharpValue.MakeUnion(caseNone, [||])
-            
+
             // Json that is not null must map to `Some _`
             else
                 let nestedType = objectType.GetGenericArguments().[0]
 
-                // If the specified Json an object of the form `{ "Some" = token }`
+                // Try to retrieve the 'Some' attribute:
+                // if the specified Json an object of the form `{ "Some" = token }`
                 // then return `Some token`, otherwise returns `None`.
                 let tryGetSomeAttributeValue (jToken:Linq.JToken) =
                     if jToken.Type = Linq.JTokenType.Object then
@@ -113,33 +114,35 @@ type CompactUnionJsonConverter() =
                     else
                         None
 
-                let nestedValue = 
+                let nestedValue =
                     match tryGetSomeAttributeValue jToken with
                     | Some someAttributeValue when someAttributeValue.Type = Linq.JTokenType.Null ->
                         // The Json object is { "Some" : null } for type option<'a>
                         // where 'a is nullable => deserialized to `Some null`
                         null
-                    
+
                     | Some someAttributeValue when hasFieldNamedSome nestedType ->
                         // Case of Json { "Some" : <obj> } where <obj> is not null
                         // => we just deserialize the nested object recursively
                         someAttributeValue.ToObject(nestedType, serializer)
-                    
+
                     | Some someAttributeValue ->
-                        failwithf "Unexpected Json 'Some' attribute set to %O" someAttributeValue
+                        failwithf "Unexpected 'Some' Json attribute. Attribute value: %O" someAttributeValue
 
                     | None when hasFieldNamedSome nestedType ->
                         failwith "Types with a field named 'Some' and nested under an option type must be boxed under a 'Some' attribute when serialized to Json."
-                    
+
                     | None ->
-                        // type is option<'a> where 'a is not an option type and not a 
-                        // type that would be serialized as a Json object. 
-                        // i.e. 'a is either a base Json type (e.g. integer or string) or 
-                        // a Json array => we can deserialize the object of type 'a directly without unboxing
+                        // type is option<'a> where 'a is not an option type and not a
+                        // type that would be serialized as a Json object.
+                        // i.e. 'a is either a base Json type (e.g. integer or string) or
+                        // a Json array.
+                        // This means that the Json is not boxed under the `Some` attribute and we can therefore
+                        // deserialize the object of type 'a directly without performing any unboxing.
                         jToken.ToObject(nestedType, serializer)
 
                 FSharpValue.MakeUnion(caseSome, [| nestedValue |])
-                 
+
         // Discriminated union
         else
             // There are three types of union cases:
@@ -148,10 +151,10 @@ type CompactUnionJsonConverter() =
             //    "Case1"
             //    { "Case2" : value }
             //    { "Case3" : [v1, v2, ... vn] }
-                
+
             // Load JObject from stream
             let jToken = Linq.JToken.Load(reader)
-                    
+
             if isNull jToken then
                 null
 
@@ -160,7 +163,7 @@ type CompactUnionJsonConverter() =
                 let caseName = jToken.ToString()
                 let matchingCase =
                     cases
-                    |> Array.tryFind 
+                    |> Array.tryFind
                         (fun case -> case.Name.Equals(caseName, System.StringComparison.InvariantCultureIgnoreCase)
                                         && (case.GetFields() |> Array.isEmpty))
                 match matchingCase with
@@ -192,8 +195,8 @@ type CompactUnionJsonConverter() =
                     FSharpValue.MakeUnion(case, [|field|])
 
                 // Type 3: A union case with more than one field: Case3 of 'a1 * 'a2 ... * 'an
-                | Some case -> 
-                    // Here there could be an ambiguity: 
+                | Some case ->
+                    // Here there could be an ambiguity:
                     // the Json values are either the fields of the case
                     // or if the array is Use target type to resolve ambiguity
                     let fields =
@@ -213,12 +216,21 @@ module Compact =
         /// Serialization settings for our compact Json converter
         type Settings =
             static member settings =
-                let s = JsonSerializerSettings( NullValueHandling = NullValueHandling.Ignore,
-                                                // Strict deserialization is required to avoid certain ambiguities
-                                                MissingMemberHandling = MissingMemberHandling.Error
-                                                )
+                let s = JsonSerializerSettings(
+                            NullValueHandling = NullValueHandling.Ignore,
+
+                            // Strict deserialization (MissingMemberHandling) is not technically needed for
+                            // compact serialization but because it avoids certain ambiguities it guarantees
+                            // that the deserialization coincides with the default Json deserialization
+                            // ('coincides' meaning 'if the deserialization succeeds they both return the same object')
+                            // Subsequently this allows us to very easily define the BackwardCompatible serializer which
+                            // deserializes Json in both Compact and Default format.
+                            MissingMemberHandling = MissingMemberHandling.Error
+                    )
                 s.Converters.Add(CompactUnionJsonConverter())
                 s
+
+            static member formatting = Formatting.Indented
 
     type private S = With<Internal.Settings>
 

@@ -4,25 +4,32 @@ open Newtonsoft.Json
 open System.Runtime.CompilerServices
 
 /// Functor used to create Json serialization helpers for specific serializer settings
-/// Warning: Because this functor depends on type JsonSerializerSettings defined in 
-/// NewtonSoft.Json any calling assembly using this type will 
+/// Warning: Because this functor depends on type JsonSerializerSettings defined in
+/// NewtonSoft.Json any calling assembly using this type will
 /// also need to add a direct reference to NewtonSoft.Json.
-type With< ^S when ^S : (static member settings : JsonSerializerSettings) > =
+type With< ^S when ^S : (static member settings : JsonSerializerSettings)
+                and ^S : (static member formatting : Formatting) > =
+
+    static member inline public formatting () =
+        (^S:(static member formatting : Formatting)())
 
     /// Serialize an object to Json with the specified converter
     static member inline public serialize (obj:^T) =
         let settings = (^S:(static member settings : JsonSerializerSettings)())
-        JsonConvert.SerializeObject(obj, Formatting.Indented, settings)
+        let formatting = (^S:(static member formatting : Formatting)())
+        JsonConvert.SerializeObject(obj, formatting, settings)
 
     /// Serialize an object to Json with the specified converter and save the result to a file
     static member inline public serializeToFile file (obj:^T) =
         let settings = (^S:(static member settings : JsonSerializerSettings)())
-        let json = JsonConvert.SerializeObject(obj, Formatting.Indented, settings)
+        let formatting = (^S:(static member formatting : Formatting)())
+        let json = JsonConvert.SerializeObject(obj, formatting, settings)
         System.IO.File.WriteAllText(file, json)
 
     /// Deserialize a Json to an object of type 'T
     static member inline public deserialize< ^T> json :^T =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())
+        let formatting = (^S:(static member formatting : Formatting)())
         JsonConvert.DeserializeObject< ^T>(json, settings)
 
     /// Deserialize a stream to an object of type 'T
