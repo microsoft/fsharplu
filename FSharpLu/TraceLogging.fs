@@ -134,7 +134,7 @@ namespace System.Diagnostics
 
     /// A System.Diagnostics trace listener redirecting messages to 
     /// the Console with nice colors for errors and warnings.
-    type ColorConsoleTraceListener() =
+    type ColorConsoleTraceListener() as this =
         inherit ConsoleTraceListener()
 
         let colorByEvent =
@@ -147,14 +147,34 @@ namespace System.Diagnostics
                       TraceEventType.Start,       ConsoleColor.DarkCyan
                       TraceEventType.Stop,        ConsoleColor.DarkCyan ]
 
-        override x.TraceEvent(eventCache:TraceEventCache, source:string,  eventType:TraceEventType, id:int, message:string) =
-            x.TraceEvent(eventCache, source, eventType, id, "{0}", message)
+
+        let shouldTraceEvent (eventType:TraceEventType) =
+            let isEnabled (e: TraceEventType) = eventType &&& e <> enum<TraceEventType> 0
+            if this.Attributes.ContainsKey "level" then
+                match TraceLevel.TryParse<TraceLevel>(this.Attributes.["level"]) with
+                | true, TraceLevel.Off -> false
+                | true, TraceLevel.Error -> 
+                    isEnabled (TraceEventType.Critical ||| TraceEventType.Error)
+                | true, TraceLevel.Warning -> 
+                    isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning)
+                | true, TraceLevel.Info -> 
+                    isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning ||| TraceEventType.Information)
+                | true, TraceLevel.Verbose -> 
+                    isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning ||| TraceEventType.Information ||| TraceEventType.Verbose)
+                | _ -> true
+            else
+                true
+
+        override x.TraceEvent(eventCache:TraceEventCache, source:string, eventType:TraceEventType, id:int, message:string) =
+            if shouldTraceEvent eventType then
+                x.TraceEvent(eventCache, source, eventType, id, "{0}", message)
 
         override __.TraceEvent(eventCache:TraceEventCache, source:string, eventType:TraceEventType, id:int, format:string, [<ParamArray>] args:obj[]) =
-            let originalColor = Console.ForegroundColor
-            Console.ForegroundColor <- defaultArg (colorByEvent.TryFind eventType) originalColor
-            base.TraceEvent(eventCache, source, eventType, id, format, args)
-            Console.ForegroundColor <- originalColor
+            if shouldTraceEvent eventType then
+                let originalColor = Console.ForegroundColor
+                Console.ForegroundColor <- defaultArg (colorByEvent.TryFind eventType) originalColor
+                base.TraceEvent(eventCache, source, eventType, id, format, args)
+                Console.ForegroundColor <- originalColor
 
     /// Interface for anything that can be flushed (e.g., stream)
     type IFlushable =
@@ -197,10 +217,12 @@ namespace System.Diagnostics
                     fileTracer.Dispose()
             }
 
-        /// Register a System.Diagnostics trace listener that redirects all tracing functions
+
+        /// Register a System.Diagnostics trace listener that redirects tracing functions with specified TraceLevels
         /// to the console and to a log file on disk.
         /// Returns an IDisposable that, when disposed, unregisters the listners.
-        let registerFileAndConsoleTracer componentName directory =
+        let registerFileAndConsoleTracerWithTraceLevel (consoleTraceLevel:TraceLevel) componentName directory =
+
             let fileLogger = 
                 // Reuse existing console listener if one is already registered
                 let existingFileListener =
@@ -231,10 +253,13 @@ namespace System.Diagnostics
                 |> Seq.tryFind (fun l -> l.GetType() = typeof<ColorConsoleTraceListener>)
 
             match existingConsoleListener with
-            | Some _ -> fileLogger
+            | Some consoleTracer ->
+                consoleTracer.Attributes.Add("level", consoleTraceLevel.ToString())
+                fileLogger
             | None ->
                 // Create and register a new console listener
                 let consoleTracer = new ColorConsoleTraceListener(Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
+                consoleTracer.Attributes.Add("level", consoleTraceLevel.ToString())
                 consoleTracer.WriteLine(sprintf "%O + [%s] - Starting output to trace listener." System.DateTime.Now consoleTracer.Name)
                 System.Diagnostics.Trace.Listeners.Add(consoleTracer) |> ignore
                 Trace.WriteLine (sprintf "%s - Copyright Microsoft 2015-2016" componentName)
@@ -256,6 +281,13 @@ namespace System.Diagnostics
                         System.Diagnostics.Trace.Listeners.Remove(consoleTracer)
                         consoleTracer.Dispose()
                 }
+
+
+        /// Register a System.Diagnostics trace listener that redirects all tracing functions
+        /// to the console and to a log file on disk.
+        /// Returns an IDisposable that, when disposed, unregisters the listners.
+        let registerFileAndConsoleTracer componentName directory =
+            registerFileAndConsoleTracerWithTraceLevel TraceLevel.Verbose componentName directory
 
 namespace Microsoft.FSharpLu.Logging
     /// Strongly-typed wrappers for System.Diagnostics event tracing
