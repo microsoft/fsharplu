@@ -132,7 +132,7 @@ namespace System.Diagnostics
         static member inline indent () =  Trace.Indent()
         static member inline unindent () = Trace.Unindent()
 
-    /// A System.Diagnostics trace listener redirecting messages to 
+    /// A System.Diagnostics trace listener redirecting messages to
     /// the Console with nice colors for errors and warnings.
     type ColorConsoleTraceListener() as this =
         inherit ConsoleTraceListener()
@@ -150,16 +150,16 @@ namespace System.Diagnostics
 
         let shouldTraceEvent (eventType:TraceEventType) =
             let isEnabled (e: TraceEventType) = eventType &&& e <> enum<TraceEventType> 0
-            if this.Attributes.ContainsKey "level" then
-                match TraceLevel.TryParse<TraceLevel>(this.Attributes.["level"]) with
+            if this.Attributes.ContainsKey "traceLevel" then
+                match TraceLevel.TryParse<TraceLevel>(this.Attributes.["traceLevel"]) with
                 | true, TraceLevel.Off -> false
-                | true, TraceLevel.Error -> 
+                | true, TraceLevel.Error ->
                     isEnabled (TraceEventType.Critical ||| TraceEventType.Error)
-                | true, TraceLevel.Warning -> 
+                | true, TraceLevel.Warning ->
                     isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning)
-                | true, TraceLevel.Info -> 
+                | true, TraceLevel.Info ->
                     isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning ||| TraceEventType.Information)
-                | true, TraceLevel.Verbose -> 
+                | true, TraceLevel.Verbose ->
                     isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning ||| TraceEventType.Information ||| TraceEventType.Verbose)
                 | _ -> true
             else
@@ -223,15 +223,15 @@ namespace System.Diagnostics
         /// Returns an IDisposable that, when disposed, unregisters the listners.
         let registerFileAndConsoleTracerWithTraceLevel (consoleTraceLevel:TraceLevel) componentName directory =
 
-            let fileLogger = 
+            let fileLogger =
                 // Reuse existing console listener if one is already registered
                 let existingFileListener =
                     System.Diagnostics.Trace.Listeners
                     |> Seq.cast<TraceListener>
                     |> Seq.tryFind (fun l -> l.GetType() = typeof<TextWriterTraceListener> && l.Name = componentName)
-                
-                match existingFileListener with 
-                | None -> 
+
+                match existingFileListener with
+                | None ->
                     registerFileTracer componentName directory
                 | Some existingFileLogger ->
                     {
@@ -254,12 +254,12 @@ namespace System.Diagnostics
 
             match existingConsoleListener with
             | Some consoleTracer ->
-                consoleTracer.Attributes.Add("level", consoleTraceLevel.ToString())
+                consoleTracer.Attributes.["traceLevel"] <- consoleTraceLevel.ToString()
                 fileLogger
             | None ->
                 // Create and register a new console listener
                 let consoleTracer = new ColorConsoleTraceListener(Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
-                consoleTracer.Attributes.Add("level", consoleTraceLevel.ToString())
+                consoleTracer.Attributes.["traceLevel"] <- consoleTraceLevel.ToString()
                 consoleTracer.WriteLine(sprintf "%O + [%s] - Starting output to trace listener." System.DateTime.Now consoleTracer.Name)
                 System.Diagnostics.Trace.Listeners.Add(consoleTracer) |> ignore
                 Trace.WriteLine (sprintf "%s - Copyright Microsoft 2015-2016" componentName)
