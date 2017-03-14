@@ -10,8 +10,7 @@
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <licenseUrl>https://github.com/Microsoft/fsharplu/blob/master/LICENSE.MD</licenseUrl>
     <description>Utilities and .Net library wrappers for F#</description>
-    <releaseNotes>Prevent console listener from being registered more than once.
-Fix minor issue in TraceLogging where specified log output directory was ignore.</releaseNotes>
+    <releaseNotes>Upgrade to F# compiler 4.1.</releaseNotes>
     <copyright>Copyright 2016</copyright>
     <tags>F#, FSharp, FSharp utilities, collection, logging, diagnostic, async, Json</tags>
   </metadata>
