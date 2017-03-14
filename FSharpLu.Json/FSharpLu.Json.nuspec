@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/Microsoft/fsharplu</projectUrl>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <description>Json serialization converters for F# option types and discriminated unions.</description>
-    <releaseNotes>Add indent setting in Json serializer.</releaseNotes>
+    <releaseNotes>Strong-name signing</releaseNotes>
     <copyright>Copyright 2016</copyright>
     <tags>F#, FSharp, Utilities, Json, discriminated unions</tags>
   </metadata>
