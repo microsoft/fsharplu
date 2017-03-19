@@ -126,7 +126,7 @@ ModelManifest.xml
 *FSharpLu.*.nupkg
 .nuget/CredentialProvider.VSS.exe
 
+.fake/*
 # Scripts for FSI
-FSharpLu.Json/Scripts
-/.ionide/symbolCache.db
+FSharpLu.Json/Scripts/.ionide/symbolCache.db
 /FSharpLu.Azure.Test/Properties/launchSettings.json
