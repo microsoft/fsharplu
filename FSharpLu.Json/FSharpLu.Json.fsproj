@@ -25,6 +25,9 @@
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Debug\Microsoft.FSharpLu.Json.XML</DocumentationFile>
   </PropertyGroup>
+  <PropertyGroup>
+    <OtherFlags Condition=" '$(EmbedJsonNet)' == 'true' ">--staticlink:Newtonsoft.Json</OtherFlags>
+  </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
@@ -70,6 +73,8 @@
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\packages\Newtonsoft.Json.10.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private Condition=" '$(EmbedJsonNet)' == 'true' ">False</Private>
+      <Private Condition=" '$(EmbedJsonNet)' != 'true' ">True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
