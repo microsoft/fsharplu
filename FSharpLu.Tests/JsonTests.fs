@@ -3,6 +3,8 @@
 open Microsoft.VisualStudio.TestTools.UnitTesting
 open FsCheck
 open Microsoft.FSharpLu.Json
+open Newtonsoft.Json.Serialization
+open Newtonsoft.Json
 
 type WithFields = SomeField of int * int
 type SimpleDu = Foo | FooBar | Bar
@@ -17,6 +19,7 @@ type 'a Test = Case1 | Case2 of int | Case3 of int * string * 'a
 type MapType = Map<string,Color>
 type 'a NestedOptions = 'a option option option option
 
+type 'a Wrapper = { WrappedField : 'a }
 type NestedStructure = { subField : int }
 type NestedOptionStructure = { field : NestedStructure option }
 
@@ -157,6 +160,19 @@ type BackwardCompatibility () =
     static member x23 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous2>
     static member x24 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous3>
 
+type CamelCaseSettings =
+    static member settings =
+        let s = 
+            JsonSerializerSettings(
+                NullValueHandling = NullValueHandling.Ignore,
+                MissingMemberHandling = MissingMemberHandling.Error,
+                ContractResolver = Serialization.CamelCasePropertyNamesContractResolver())
+        s.Converters.Add(CompactUnionJsonConverter())
+        s
+    static member formatting = Formatting.None
+
+type CamelCaseSerializer = With<CamelCaseSettings>
+
 [<TestClass>]
 type JsonSerializerTests() =
 
@@ -250,6 +266,20 @@ type JsonSerializerTests() =
         areReciprocal <| (Option.Some <| SomeAmbiguity.DUWithFieldlessCaseNamedSome.Some "ambiguous")
         areReciprocal <| (Option.Some { SomeAmbiguity.RecordWithFieldNamedSome.Some = 8 })
         areReciprocal <| (Option.Some <| SomeAmbiguity.DUWithCaseWithFieldNamedSome.Some)
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.CamelCase")>]
+    member __.``CamelCaseSerializer handles discriminated unions`` () =
+        let du = ComplexDu <| SomeField (2, 3)
+        let str = CamelCaseSerializer.serialize du
+        Assert.AreEqual("""{"complexDu":{"someField":[2,3]}}""", str)
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.CamelCase")>]
+    member __.``CamelCaseSerializer handles option type`` () =
+        let du = { WrappedField = Some Red } 
+        let str = CamelCaseSerializer.serialize du
+        Assert.AreEqual("""{"wrappedField":"red"}""", str)
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.Fuzzing")>]
