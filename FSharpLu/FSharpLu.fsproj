@@ -67,7 +67,6 @@
     <Compile Include="ErrorHandling.fs" />
     <Compile Include="AssemblyInfo.fs" />
     <None Include="FSharpLu.nuspec" />
-    <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

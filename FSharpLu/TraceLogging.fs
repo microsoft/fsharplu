@@ -131,22 +131,14 @@ namespace System.Diagnostics
         static member inline flush () = Trace.Flush()
         static member inline indent () =  Trace.Indent()
         static member inline unindent () = Trace.Unindent()
+    
+    /// Defines color scheme used to print each event type to the console
+    type EventColoring = Map<TraceEventType, ConsoleColor>
 
     /// A System.Diagnostics trace listener redirecting messages to
     /// the Console with nice colors for errors and warnings.
-    type ColorConsoleTraceListener() as this =
+    type ColorConsoleTraceListener(foregroundColors :EventColoring, backgroundColors :EventColoring) as this =
         inherit ConsoleTraceListener()
-
-        let colorByEvent =
-            Map.ofSeq
-                    [ TraceEventType.Verbose,     ConsoleColor.DarkGray
-                      TraceEventType.Information, ConsoleColor.White
-                      TraceEventType.Warning,     ConsoleColor.Yellow
-                      TraceEventType.Error,       ConsoleColor.DarkRed
-                      TraceEventType.Critical,    ConsoleColor.Red
-                      TraceEventType.Start,       ConsoleColor.DarkCyan
-                      TraceEventType.Stop,        ConsoleColor.DarkCyan ]
-
 
         let shouldTraceEvent (eventType:TraceEventType) =
             let isEnabled (e: TraceEventType) = eventType &&& e <> enum<TraceEventType> 0
@@ -171,10 +163,12 @@ namespace System.Diagnostics
 
         override __.TraceEvent(eventCache:TraceEventCache, source:string, eventType:TraceEventType, id:int, format:string, [<ParamArray>] args:obj[]) =
             if shouldTraceEvent eventType then
-                let originalColor = Console.ForegroundColor
-                Console.ForegroundColor <- defaultArg (colorByEvent.TryFind eventType) originalColor
+                let originalForegroundColor, originalBackgroundColor = Console.ForegroundColor, Console.BackgroundColor
+                Console.ForegroundColor <- defaultArg (foregroundColors.TryFind eventType) originalForegroundColor
+                Console.BackgroundColor <- defaultArg (backgroundColors.TryFind eventType) originalBackgroundColor
                 base.TraceEvent(eventCache, source, eventType, id, format, args)
-                Console.ForegroundColor <- originalColor
+                Console.ForegroundColor <- originalForegroundColor
+                Console.BackgroundColor <- originalBackgroundColor
 
     /// Interface for anything that can be flushed (e.g., stream)
     type IFlushable =
@@ -190,6 +184,22 @@ namespace System.Diagnostics
     module Listener =
         [<Literal>]
         let TraceLogFilePathKey = "LogFilePath"
+
+
+        /// Default console coloring scheme for events
+        let defaultForegroundColors = 
+            Map.ofSeq
+              [ TraceEventType.Verbose,     ConsoleColor.DarkGray
+                TraceEventType.Information, ConsoleColor.White
+                TraceEventType.Warning,     ConsoleColor.Yellow
+                TraceEventType.Error,       ConsoleColor.DarkRed
+                TraceEventType.Critical,    ConsoleColor.Red
+                TraceEventType.Start,       ConsoleColor.DarkCyan
+                TraceEventType.Stop,        ConsoleColor.DarkCyan ]
+
+        /// By default use the existing background color when printing events to the console
+        let defaultBackgroundColors =
+            Map.empty
 
         /// Register a trace listener that redirects all tracing functions from System.Diagnostics
         /// to an external log file on disk.
@@ -217,12 +227,10 @@ namespace System.Diagnostics
                     fileTracer.Dispose()
             }
 
-
         /// Register a System.Diagnostics trace listener that redirects tracing functions with specified TraceLevels
-        /// to the console and to a log file on disk.
+        /// to the console with specified coloring scheme, and to a log file on disk.
         /// Returns an IDisposable that, when disposed, unregisters the listners.
-        let registerFileAndConsoleTracerWithTraceLevel (consoleTraceLevel:TraceLevel) componentName directory =
-
+        let registerFileAndConsoleTracerWithTraceLevelAndColors (consoleTraceLevel:TraceLevel) (foregroundColors:EventColoring option) (backgroundColors :EventColoring option) componentName directory =
             let fileLogger =
                 // Reuse existing console listener if one is already registered
                 let existingFileListener =
@@ -258,7 +266,11 @@ namespace System.Diagnostics
                 fileLogger
             | None ->
                 // Create and register a new console listener
-                let consoleTracer = new ColorConsoleTraceListener(Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
+                let foregroundColors = defaultArg foregroundColors defaultForegroundColors
+                let backgroundColors = defaultArg backgroundColors defaultBackgroundColors
+
+
+                let consoleTracer = new ColorConsoleTraceListener(foregroundColors, backgroundColors, Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
                 consoleTracer.Attributes.["traceLevel"] <- consoleTraceLevel.ToString()
                 consoleTracer.WriteLine(sprintf "%O + [%s] - Starting output to trace listener." System.DateTime.Now consoleTracer.Name)
                 System.Diagnostics.Trace.Listeners.Add(consoleTracer) |> ignore
@@ -282,6 +294,11 @@ namespace System.Diagnostics
                         consoleTracer.Dispose()
                 }
 
+        /// Register a System.Diagnostics trace listener that redirects tracing functions with specified TraceLevels
+        /// to the console (with default coloring) and to a log file on disk.
+        /// Returns an IDisposable that, when disposed, unregisters the listners.
+        let registerFileAndConsoleTracerWithTraceLevel (consoleTraceLevel:TraceLevel) componentName directory =
+            registerFileAndConsoleTracerWithTraceLevelAndColors consoleTraceLevel None None componentName directory
 
         /// Register a System.Diagnostics trace listener that redirects all tracing functions
         /// to the console and to a log file on disk.
