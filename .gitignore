@@ -125,3 +125,6 @@ ModelManifest.xml
 .vs/*
 *FSharpLu.*.nupkg
 .nuget/CredentialProvider.VSS.exe
+
+# Scripts for FSI
+FSharpLu.Json/Scripts
