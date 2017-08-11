@@ -1,7 +1,21 @@
 ﻿namespace Microsoft.FSharpLu.Json
 
 open Newtonsoft.Json
-open Microsoft.FSharp.Reflection
+open Newtonsoft.Json.Serialization
+open Microsoft.FSharp.Reflection  
+
+module private ConverterHelpers =
+    let inline stringEq (a:string) (b:string) =
+        a.Equals(b, System.StringComparison.InvariantCultureIgnoreCase)
+
+    let inline isOptionType (t:System.Type) =
+       t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
+
+    let inline toCamel (name:string) =
+        if System.Char.IsLower (name, 0) then name
+        else string(System.Char.ToLower name.[0]) + name.Substring(1)
+
+open ConverterHelpers
 
 /// Serializers for F# discriminated unions improving upon the stock implementation by JSon.Net
 /// The default formatting used by Json.Net to serialize F# discriminated unions
@@ -12,16 +26,12 @@ type CompactUnionJsonConverter() =
 
     let SomeFieldIdentifier = "Some"
 
-    let isOptionType (t:System.Type) =
-       t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
-
     /// Determine if a given type has a field named 'Some' which would cause
     /// ambiguity if nested under an option type without being boxed
     let hasFieldNamedSome (t:System.Type) =
         isOptionType t // the option type itself has a 'Some' field
-        || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
-        || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
-        || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> r.Name = SomeFieldIdentifier))
+        || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier))
+        || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier))
 
     override __.CanConvert(objectType:System.Type) =
         // Include F# discriminated unions
@@ -30,6 +40,10 @@ type CompactUnionJsonConverter() =
         && not (objectType.IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
 
     override __.WriteJson(writer:JsonWriter, value:obj, serializer:JsonSerializer) =
+        let convertName = 
+            match serializer.ContractResolver with 
+            | :? CamelCasePropertyNamesContractResolver -> toCamel
+            | _ -> id
         let t = value.GetType()
         // Option type?
         if isOptionType t then
@@ -48,7 +62,7 @@ type CompactUnionJsonConverter() =
                 let innerValue = fields.[0]
                 if isNull innerValue then
                     writer.WriteStartObject()
-                    writer.WritePropertyName(SomeFieldIdentifier)
+                    writer.WritePropertyName(convertName SomeFieldIdentifier)
                     writer.WriteNull()
                     writer.WriteEndObject()
                 // Some v with v <> null && v <> None
@@ -58,7 +72,7 @@ type CompactUnionJsonConverter() =
                     if hasFieldNamedSome innerType then
                         // Preserved the nested structure through boxing
                         writer.WriteStartObject()
-                        writer.WritePropertyName(SomeFieldIdentifier)
+                        writer.WritePropertyName(convertName SomeFieldIdentifier)
                         serializer.Serialize(writer, innerValue)
                         writer.WriteEndObject()
                     else
@@ -74,17 +88,17 @@ type CompactUnionJsonConverter() =
             match fields with
             // Field-less union case
             | [||] ->
-                writer.WriteValue(sprintf "%A" value)
+                writer.WriteValue(convertName (sprintf "%A" value))
             // Case with single field
             | [|onefield|] ->
                 writer.WriteStartObject()
-                writer.WritePropertyName(case.Name)
+                writer.WritePropertyName(convertName case.Name)
                 serializer.Serialize(writer, onefield)
                 writer.WriteEndObject()
             // Case with list of fields
             | _ ->
                 writer.WriteStartObject()
-                writer.WritePropertyName(case.Name)
+                writer.WritePropertyName(convertName case.Name)
                 serializer.Serialize(writer, fields)
                 writer.WriteEndObject()
 
@@ -108,7 +122,7 @@ type CompactUnionJsonConverter() =
                 let tryGetSomeAttributeValue (jToken:Linq.JToken) =
                     if jToken.Type = Linq.JTokenType.Object then
                         let jObject = jToken :?> Linq.JObject
-                        match jObject.TryGetValue SomeFieldIdentifier with
+                        match jObject.TryGetValue (SomeFieldIdentifier, System.StringComparison.InvariantCultureIgnoreCase) with
                         | true, token -> Some token
                         | false, _ -> None
                     else
@@ -163,9 +177,7 @@ type CompactUnionJsonConverter() =
                 let caseName = jToken.ToString()
                 let matchingCase =
                     cases
-                    |> Array.tryFind
-                        (fun case -> case.Name.Equals(caseName, System.StringComparison.InvariantCultureIgnoreCase)
-                                        && (case.GetFields() |> Array.isEmpty))
+                    |> Array.tryFind (fun case -> stringEq case.Name caseName && (case.GetFields() |> Array.isEmpty))
                 match matchingCase with
                 | Some case -> FSharpValue.MakeUnion(case,[||])
                 | None ->
@@ -182,7 +194,7 @@ type CompactUnionJsonConverter() =
                 /// Lookup the DU case by name
                 let matchingCase =
                     cases
-                    |> Seq.tryFind (fun case -> case.Name.Equals(caseProperty.Name, System.StringComparison.InvariantCultureIgnoreCase))
+                    |> Seq.tryFind (fun case -> stringEq case.Name caseProperty.Name)
 
                 match matchingCase with
                 | None ->
@@ -208,7 +220,7 @@ type CompactUnionJsonConverter() =
             else
                 failwithf "Unexpected Json token type %O: %O" jToken.Type jToken
 
-/// Default NetwonSoft Json.Net serializer
+/// Compact serializer
 module Compact =
     open System.Runtime.CompilerServices
 
