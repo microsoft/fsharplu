@@ -33,7 +33,7 @@ let inline tryCatchJsonSerializationException< ^T, ^V>
         Choice2Of2 <| (JsonReaderException("Exception while deserializing stream: %O", exn) :> System.Exception)
 
 /// Try deserialize with two deserializers sequentially
-let inline tryDeserializeWithBoth< ^T , ^V when ^T :equality>
+let inline tryDeserializeWithBoth< ^T , ^V >
         (firstDeserialize : ^V -> ^T)
         (secondDeserialize : ^V -> ^T)
         (rewind : unit -> unit)

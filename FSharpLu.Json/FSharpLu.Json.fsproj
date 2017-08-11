@@ -54,7 +54,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Helpers.fs" />
     <Compile Include="WithFunctor.fs" />
-    <Compile Include="NewtonSoft.fs" />
+    <Compile Include="Default.fs" />
     <Compile Include="Compact.fs" />
     <Compile Include="BackwardCompatible.fs" />
     <Content Include="packages.config" />

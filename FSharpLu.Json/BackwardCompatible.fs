@@ -15,7 +15,7 @@ type BackwardCompatible =
     static member inline public serializeToFile file (obj:^T) = Compact.serializeToFile
 
     /// Try to deserialize json to an object of type ^T
-    static member inline tryDeserialize< ^T when ^T :equality> json =
+    static member inline tryDeserialize< ^T > json =
         Helpers.tryDeserializeWithBoth< ^T, string>
             Compact.deserialize
             Default.deserialize
@@ -24,7 +24,7 @@ type BackwardCompatible =
         |> Helpers.exceptionToString
 
     /// Try to read Json from a file and desrialized it to an object of type ^T
-    static member inline tryDeserializeFile< ^T when ^T :equality> file =
+    static member inline tryDeserializeFile< ^T > file =
         Helpers.tryDeserializeWithBoth< ^T, string>
             Compact.deserializeFile
             Default.deserializeFile
@@ -33,7 +33,7 @@ type BackwardCompatible =
         |> Helpers.exceptionToString
             
     /// Try to deserialize a stream to an object of type ^T
-    static member inline tryDeserializeStream< ^T when ^T :equality> (stream:System.IO.Stream) =
+    static member inline tryDeserializeStream< ^T > (stream:System.IO.Stream) =
         if not <| stream.CanSeek then
             failwith "BackwardCompat.deserializeStream only works with stream supporting the Seek() operator."
         Helpers.tryDeserializeWithBoth< ^T, System.IO.Stream>
@@ -44,7 +44,7 @@ type BackwardCompatible =
         |> Helpers.exceptionToString
 
     /// Deserialize a Json to an object of type ^T
-    static member inline deserialize< ^T when ^T :equality> (json:string) : ^T =
+    static member inline deserialize< ^T > (json:string) : ^T =
         Helpers.tryDeserializeWithBoth< ^T, string>
             Compact.deserialize
             Default.deserialize
@@ -52,7 +52,7 @@ type BackwardCompatible =
             json |> Helpers.unboxOrRaise
 
     /// Read Json from a file and desrialized it to an object of type ^T
-    static member inline deserializeFile< ^T when ^T :equality> file =
+    static member inline deserializeFile< ^T > file =
         Helpers.tryDeserializeWithBoth< ^T, string>
             Compact.deserializeFile
             Default.deserializeFile
@@ -60,7 +60,7 @@ type BackwardCompatible =
             file |> Helpers.unboxOrRaise
 
     /// Deserialize a stream to an object of type ^T
-    static member inline public deserializeStream< ^T when ^T :equality> (stream:System.IO.Stream) =
+    static member inline public deserializeStream< ^T > (stream:System.IO.Stream) =
         if not <| stream.CanSeek then
             failwith "BackwardCompat.deserializeStream only works with stream supporting the Seek() operator."
         Helpers.tryDeserializeWithBoth< ^T, System.IO.Stream>
