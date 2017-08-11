@@ -7,6 +7,10 @@ This is by no means a full-fledged utility library for F#, but rather a small co
 Some of the provided utilities are just thin `let`-bindings wrappers around existing .Net libraries (e.g. module `FSharpLu.Text` or `FSharpLu.Parsing`) whereas some provide additional features (e.g. Json serialization in module `FSharpLu.Json`).
 
 
+## Build status
+
+[![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu)
+
 ## Documentation
 
 For the documentation please visit the [Wiki](https://github.com/Microsoft/fsharplu/wiki)
