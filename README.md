@@ -14,6 +14,10 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 | current status | [![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu) |
 |master | [![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77/branch/master?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu/branch/master) |
 
+## Build requirements
+
+Install dotnet core SDK from https://www.microsoft.com/net/core
+
 ## Documentation
 
 For the documentation please visit the [Wiki](https://github.com/Microsoft/fsharplu/wiki)

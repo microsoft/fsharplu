@@ -4,14 +4,16 @@
 #   Rebuild the solution instead of just building
 #.PARAMETER delaysign
 #   Delay-sign the assemblies after running the build
+#.PARAMETER configuration
+#   Build configuration
 param(
     [switch]$delaysign,
-    [switch]$rebuild
+    [switch]$rebuild,
+    [ValidateSet('release', 'debug', IgnoreCase = $true)]
+    $configuration='Release'
 )
 
 $ErrorActionPreference = 'stop'
-$root = Split-Path -parent $psScriptRoot
-$msbuild = "${env:ProgramFiles(x86)}\MSBuild\14.0\Bin\amd64\msbuild.exe"
 
 if($delaysign) {
     $options = "/p:CompilationSymbols=DELAYSIGNING"
@@ -27,7 +29,7 @@ if($rebuild) {
     $target = 'Build'
 }
 
-& $msbuild $root\FSharpLu.sln /t:$target /p:Configuration=Release /p:Platform="Any CPU" $options
+dotnet build --no-incremental /t:$target /p:Configuration="$configuration" $options #/v:detailed
 
 if($delaysign) {
     Write-Host "Assemblies have been built and delay-signed. You can now submit them for strong name signing." -ForegroundColor Green
