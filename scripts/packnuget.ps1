@@ -10,24 +10,30 @@
 #   Name of the key used to connect to the Nuget feed
 #.PARAMETER signed
 #   Indicates that the assemblies have been signed and therefore should not be rebuilt prior to packaging
+#.PARAMETER version
+#   Package version number (following semantic versioning http://semver.org/spec/v2.0.0.html)
+#.PARAMETER configuration
+#   Build configuration
 param(
-    [switch]$skipBuild,
+    [switch]$build,
     [Parameter(ParameterSetName = "pack")][switch]$pack,
     [Parameter(ParameterSetName = "push")][switch]$push,
     [Parameter(ParameterSetName = "push", Mandatory=$true)]$feed,
     [Parameter(ParameterSetName = "push")]$key = 'Springfield',
-    [switch]$signed
+    [switch]$signed,
+    [Parameter(Mandatory=$true)][string]$version,
+    [ValidateSet('release', 'debug', IgnoreCase = $true)]$configuration='Release'
 )
 
 $ErrorActionPreference = 'stop'
 $root = Split-Path -parent $PsScriptRoot
-$nuget = "$root\.nuget\nuget.exe"
+$outputDir = "$root\nugetouput"
 
-pushd $root
+Push-Location $root
 
 try {
     if($signed) {
-        if(-not $skipBuild) {
+        if($build) {
             Write-Warning "Packing signed assemblies: skipping build..."
         }
 
@@ -39,8 +45,9 @@ Before proceeding please make sure to manually place the signed assemblies under
     $output2
 "@
         pause
-    } elseif(-not $skipBuild) {
-        & $PSScriptRoot/build.ps1
+    } elseif($build) {
+        & $PSScriptRoot/Update-AssemblyVersion.ps1 -version $version
+        & $PSScriptRoot/build.ps1 -configuration $configuration
     }
 
     function checkSigned($assembly) {
@@ -57,9 +64,17 @@ Before proceeding please make sure to manually place the signed assemblies under
     }
 
     function pushLatest($name) {
-        $file = [string](gci "$name.[0-9]*.[0-9].[0-9]*.[0-9]*.nupkg" | sort -Descending -Property LastAccessTime | select -First 1)
+        $file = [string](Get-ChildItem "$outputDir\$name.[0-9]*.[0-9]*.[0-9]*.nupkg" | Sort-Object -Descending -Property LastAccessTime | Select-Object -First 1)
+        if(-not $file) {
+            throw "Could not locate the nuget package to push under $outputDir"
+        }
         Write-Host "Pushing $file" -ForegroundColor Cyan
-        & $nuget push -source $feed $file -ApiKey $key
+        if($withdotnet) {
+            # Note: `dotnet nuget` does not yet support CredentialProviders!
+            dotnet nuget push --source $feed $file --api-key $key
+        } else {
+            & "$PSScriptRoot\..\.nuget\nuget.exe" push -source $feed -apikey $key $file
+        }
     }
 
     if($signed) {
@@ -67,13 +82,17 @@ Before proceeding please make sure to manually place the signed assemblies under
         checkSigned $PSScriptRoot\..\FSharpLu.Json\bin\release\Microsoft.FSharpLu.Json.dll
     }
 
-    & $nuget pack $root\FSharpLu\FSharpLu.fsproj -Prop Configuration=Release -Prop VisualStudioVersion=14.0
-    & $nuget pack $root\FSharpLu.Json\FSharpLu.Json.fsproj -Prop Configuration=Release -Prop VisualStudioVersion=14.0
+    Write-Host "Packing nuget packages"
+    # NOTE: Using --include-symbols to include symbols in Nuget package does not work due to a bug with
+    # `dotnet build` where the symbol files gets automatically deleted when the build completes. 
+    # There is no known workaround for now.
+    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration --no-build $root\FSharpLu\FSharpLu.fsproj 
+    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration --no-build $root\FSharpLu.Json\FSharpLu.Json.fsproj 
 
     if ($push) {
         pushLatest 'Microsoft.FSharpLu'
         pushLatest 'Microsoft.FSharpLu.Json'
     }
 } finally {
-    popd
+    Pop-Location
 }

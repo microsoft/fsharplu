@@ -1,17 +1,16 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.25123.0
+VisualStudioVersion = 15.0.26730.10
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu", "FSharpLu\FSharpLu.fsproj", "{77C664BE-DD18-476D-AB71-1144107DE408}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu", "FSharpLu\FSharpLu.fsproj", "{77C664BE-DD18-476D-AB71-1144107DE408}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu.Tests", "FSharpLu.Tests\FSharpLu.Tests.fsproj", "{1A22180F-57C3-4415-8D1A-4AD523967251}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Tests", "FSharpLu.Tests\FSharpLu.Tests.fsproj", "{1A22180F-57C3-4415-8D1A-4AD523967251}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1FF1118A-322F-4F49-AF9A-ED825DE70260}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		FSharpLu.Json.md = FSharpLu.Json.md
-		FSharpLu\FSharpLu.nuspec = FSharpLu\FSharpLu.nuspec
 		LICENSE.MD = LICENSE.MD
 		msft-StrongName.pub = msft-StrongName.pub
 		README.md = README.md
@@ -25,11 +24,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{EE6A3D
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu.Json", "FSharpLu.Json\FSharpLu.Json.fsproj", "{81EAF46A-BF20-4871-BF8E-C94FD478E9E8}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Json", "FSharpLu.Json\FSharpLu.Json.fsproj", "{81EAF46A-BF20-4871-BF8E-C94FD478E9E8}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A76DC263-365A-457C-A1C2-E4C05986061B}"
 	ProjectSection(SolutionItems) = preProject
+		scripts\build.ps1 = scripts\build.ps1
 		scripts\packnuget.ps1 = scripts\packnuget.ps1
+		scripts\Update-AssemblyVersion.ps1 = scripts\Update-AssemblyVersion.ps1
 	EndProjectSection
 EndProject
 Global
@@ -53,5 +54,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6F75AF17-842A-4A81-ACE4-78856BE9BA77}
 	EndGlobalSection
 EndGlobal

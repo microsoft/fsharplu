@@ -12,7 +12,7 @@ open System.Runtime.InteropServices
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("Microsoft")>]
 [<assembly: AssemblyProduct("FSharpLu.Json")>]
-[<assembly: AssemblyCopyright("Copyright ©  2016")>]
+[<assembly: AssemblyCopyright("Copyright © Microsoft")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
 
@@ -33,9 +33,10 @@ open System.Runtime.InteropServices
 //
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
-// [<assembly: AssemblyVersion("1.0.*")>]
-[<assembly: AssemblyVersion("0.9.*")>]
-[<assembly: AssemblyFileVersion("0.9.*")>]
+// [<assembly: AssemblyVersion("0.10.*")>]
+[<assembly: AssemblyVersion("0.10.*")>]
+[<assembly: AssemblyFileVersion("0.10.*")>]
+[<assembly: AssemblyInformationalVersion("0.10.*")>]
 
 #if DELAYSIGNING
 [<assembly:AssemblyDelaySignAttribute(true)>]
