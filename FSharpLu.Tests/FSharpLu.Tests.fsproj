@@ -12,7 +12,7 @@
   <ItemGroup>
     <PackageReference Include="MSTest.TestAdapter" Version="1.1.18" />
     <PackageReference Include="MSTest.TestFramework" Version="1.1.18" />
-    <PackageReference Include="FsCheck" Version="2.7.0" />
+    <PackageReference Include="FsCheck" Version="2.9.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FSharpLu.Json\FSharpLu.Json.fsproj" />
