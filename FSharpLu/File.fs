@@ -51,11 +51,11 @@ let public createEmptyFile filepath =
 /// Write to a text file atomically while allowing concurrent reads.
 /// **Atomicity is guaranteed only if file content is < 8kb**
 ///
-// NOTE: An implementation based on System.IO.File.Replace 
+// NOTE: An implementation based on System.IO.File.Replace
 // would not guarantee atomicity for files residing on SMB shares!
 // (http://msdn.microsoft.com/en-us/library/windows/desktop/aa365512(v=vs.85).aspx)
 let public atomaticWriteAllLines filePath lines =
-    /// Replace content of an existing file atomically using the 
+    /// Replace content of an existing file atomically using the
     /// whitespace padding hack.
     let replaceExistingContentWithPaddingHack () =
         // CAUTION: Atomicity breaks if bufferSize < |content to be written|
@@ -68,7 +68,7 @@ let public atomaticWriteAllLines filePath lines =
         let newContent = Text.join streamWriter.NewLine lines
 
         // If new content is smaller than previous content
-        // then we pad the content with spaces to 
+        // then we pad the content with spaces to
         // prevent concurrent readers to see inconsistent content
         // after we flushed and before the file is closed.
         let oldLength = fs.Length |> int64
@@ -103,9 +103,9 @@ let public atomaticWriteAllLines filePath lines =
         try
             System.IO.File.Move(tempFile, filePath)
         with
-            :? System.IO.IOException -> 
+            :? System.IO.IOException ->
                 if System.IO.File.Exists filePath then
-                    // the target file has just been created by 
+                    // the target file has just been created by
                     // another process: let the other process win
                     System.IO.File.Delete tempFile
                 else
@@ -155,8 +155,8 @@ let waitUntilExists (log:Logger.Logger<unit,'B>) filepath =
             let fileName = System.IO.Path.GetFileName filepath
             use w = new System.IO.FileSystemWatcher(parentDir, fileName, IncludeSubdirectories = false, EnableRaisingEvents = true)
 
-            let waitForFileAsync = 
-                Async.Compete 
+            let waitForFileAsync =
+                Async.Compete
                     [
                         async {
                             let! v = Async.AwaitEvent w.Created
@@ -166,13 +166,13 @@ let waitUntilExists (log:Logger.Logger<unit,'B>) filepath =
                             let! v = Async.AwaitEvent w.Renamed
                             return v.FullPath
                         }
-                    ]   
-            
+                    ]
+
             // (a) Potential race condition if the file is created here,
             // taken care of by (b).
 
             let! waitForFile = Async.StartChild(waitForFileAsync)
-            
+
             /// (b) Check again to handle race condition (a)
             if System.IO.File.Exists filepath then
                 return filepath

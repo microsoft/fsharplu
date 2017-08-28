@@ -39,10 +39,12 @@ try {
 
         $output1 = Join-Path -Resolve $PSScriptRoot "..\FSharpLu\bin\release\"
         $output2 = Join-Path -Resolve $PSScriptRoot "..\FSharpLu.Json\bin\release\"
+        $output3 = Join-Path -Resolve $PSScriptRoot "..\FSharpLu.Windows\bin\release\"
         Write-Host @"
 Before proceeding please make sure to manually place the signed assemblies under output directories:
     $output1
     $output2
+    $output3
 "@
         pause
     } elseif($build) {
@@ -80,6 +82,7 @@ Before proceeding please make sure to manually place the signed assemblies under
     if($signed) {
         checkSigned $PSScriptRoot\..\FSharpLu\bin\release\Microsoft.FSharpLu.dll
         checkSigned $PSScriptRoot\..\FSharpLu.Json\bin\release\Microsoft.FSharpLu.Json.dll
+        checkSigned $PSScriptRoot\..\FSharpLu.Json\bin\release\Microsoft.FSharpLu.Windows.dll
     }
 
     Write-Host "Packing nuget packages"
@@ -88,10 +91,12 @@ Before proceeding please make sure to manually place the signed assemblies under
     # There is no known workaround for now.
     dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration --no-build $root\FSharpLu\FSharpLu.fsproj 
     dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration --no-build $root\FSharpLu.Json\FSharpLu.Json.fsproj 
+    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration --no-build $root\FSharpLu.Windows\FSharpLu.Windows.fsproj 
 
     if ($push) {
         pushLatest 'Microsoft.FSharpLu'
         pushLatest 'Microsoft.FSharpLu.Json'
+        pushLatest 'Microsoft.FSharpLu.Windows'
     }
 } finally {
     Pop-Location

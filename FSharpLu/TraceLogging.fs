@@ -109,16 +109,40 @@ namespace Microsoft.FSharpLu.Logging
                                         and ^T : (static member indent : unit -> unit)
                                         and ^T : (static member unindent : unit -> unit)> () =
             StronglyTypedTracer< ^T>.indent()
+            #if dotnetcore16
+            StronglyTypedTracer< ^T>.writeLine "Operating system: %O" System.Runtime.InteropServices.RuntimeInformation.OSDescription
+            StronglyTypedTracer< ^T>.writeLine "Computer name: %s" System.Environment.MachineName
+            StronglyTypedTracer< ^T>.writeLine "User name: %s" System.Environment.UserName
+            StronglyTypedTracer< ^T>.writeLine "CLR runtime version: %O" System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription
+            #else
             StronglyTypedTracer< ^T>.writeLine "Operating system: %O" System.Environment.OSVersion
             StronglyTypedTracer< ^T>.writeLine "Computer name: %s" System.Environment.MachineName
             StronglyTypedTracer< ^T>.writeLine "User name: %s" System.Environment.UserName
             StronglyTypedTracer< ^T>.writeLine "CLR runtime version: %O" System.Environment.Version
+            #endif
             StronglyTypedTracer< ^T>.writeLine "Command line: %s" System.Environment.CommandLine
             StronglyTypedTracer< ^T>.unindent()
 
 /// Helper functions for System.Diagnostics
 namespace System.Diagnostics
     open System
+
+    /// Trace logging configuration passed to registerFileAndConsoleTracerWithConfiguration
+    type LoggingConfiguration<'A> =
+        {
+            /// Title printed on the console right after the registration completes
+            title : string
+            /// Name of the component using the tracing functions
+            componentName : string
+            /// Path to the directory where to write the log file
+            directory : string option
+            /// Trace options passed to the auxiliary listener
+            traceOptions : System.Diagnostics.TraceOptions
+            /// Tracing level
+            auxiliaryTraceLevel : System.Diagnostics.TraceLevel
+            /// Parameters used by the auxiliary trace listener
+            auxiliaryConfiguration : 'A
+        }
 
     /// A strongly-typed tracer implemented with System.Diagnostics event tracing
     type DiagnosticsTracer =
@@ -131,44 +155,6 @@ namespace System.Diagnostics
         static member inline flush () = Trace.Flush()
         static member inline indent () =  Trace.Indent()
         static member inline unindent () = Trace.Unindent()
-    
-    /// Defines color scheme used to print each event type to the console
-    type EventColoring = Map<TraceEventType, ConsoleColor>
-
-    /// A System.Diagnostics trace listener redirecting messages to
-    /// the Console with nice colors for errors and warnings.
-    type ColorConsoleTraceListener(foregroundColors :EventColoring, backgroundColors :EventColoring) as this =
-        inherit ConsoleTraceListener()
-
-        let shouldTraceEvent (eventType:TraceEventType) =
-            let isEnabled (e: TraceEventType) = eventType &&& e <> enum<TraceEventType> 0
-            if this.Attributes.ContainsKey "traceLevel" then
-                match TraceLevel.TryParse<TraceLevel>(this.Attributes.["traceLevel"]) with
-                | true, TraceLevel.Off -> false
-                | true, TraceLevel.Error ->
-                    isEnabled (TraceEventType.Critical ||| TraceEventType.Error)
-                | true, TraceLevel.Warning ->
-                    isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning)
-                | true, TraceLevel.Info ->
-                    isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning ||| TraceEventType.Information)
-                | true, TraceLevel.Verbose ->
-                    isEnabled (TraceEventType.Critical ||| TraceEventType.Error ||| TraceEventType.Warning ||| TraceEventType.Information ||| TraceEventType.Verbose)
-                | _ -> true
-            else
-                true
-
-        override x.TraceEvent(eventCache:TraceEventCache, source:string, eventType:TraceEventType, id:int, message:string) =
-            if shouldTraceEvent eventType then
-                x.TraceEvent(eventCache, source, eventType, id, "{0}", message)
-
-        override __.TraceEvent(eventCache:TraceEventCache, source:string, eventType:TraceEventType, id:int, format:string, [<ParamArray>] args:obj[]) =
-            if shouldTraceEvent eventType then
-                let originalForegroundColor, originalBackgroundColor = Console.ForegroundColor, Console.BackgroundColor
-                Console.ForegroundColor <- defaultArg (foregroundColors.TryFind eventType) originalForegroundColor
-                Console.BackgroundColor <- defaultArg (backgroundColors.TryFind eventType) originalBackgroundColor
-                base.TraceEvent(eventCache, source, eventType, id, format, args)
-                Console.ForegroundColor <- originalForegroundColor
-                Console.BackgroundColor <- originalBackgroundColor
 
     /// Interface for anything that can be flushed (e.g., stream)
     type IFlushable =
@@ -185,22 +171,6 @@ namespace System.Diagnostics
         [<Literal>]
         let TraceLogFilePathKey = "LogFilePath"
 
-
-        /// Default console coloring scheme for events
-        let defaultForegroundColors = 
-            Map.ofSeq
-              [ TraceEventType.Verbose,     ConsoleColor.DarkGray
-                TraceEventType.Information, ConsoleColor.White
-                TraceEventType.Warning,     ConsoleColor.Yellow
-                TraceEventType.Error,       ConsoleColor.DarkRed
-                TraceEventType.Critical,    ConsoleColor.Red
-                TraceEventType.Start,       ConsoleColor.DarkCyan
-                TraceEventType.Stop,        ConsoleColor.DarkCyan ]
-
-        /// By default use the existing background color when printing events to the console
-        let defaultBackgroundColors =
-            Map.empty
-
         /// Register a trace listener that redirects all tracing functions from System.Diagnostics
         /// to an external log file on disk.
         /// Returns an IDisposable that, when disposed, unregisters the listener.
@@ -211,7 +181,7 @@ namespace System.Diagnostics
             let directory = defaultArg directory <| System.IO.Directory.GetCurrentDirectory()
             let logFileName = sprintf "%s-%s.log" cleansedName (System.DateTime.Now.ToString("yyyyMMdd-hhmmss"))
             let logFilePath = System.IO.Path.Combine (directory, logFileName)
-            let fileTracer = new TextWriterTraceListener(logFilePath, Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
+            let fileTracer = new System.Diagnostics.TextWriterTraceListener(logFilePath, Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
             fileTracer.Attributes.Add(TraceLogFilePathKey, logFilePath)
             System.Diagnostics.Trace.Listeners.Add(fileTracer) |> ignore
             {
@@ -230,31 +200,10 @@ namespace System.Diagnostics
                     fileTracer.Dispose()
             }
 
-        /// Trace logging configuration passed to registerFileAndConsoleTracerWithConfiguration
-        type LoggingConfiguration =
-            {
-                /// Title printed on the console right after the registration completes
-                title : string
-                /// Name of the component using the tracing functions
-                componentName : string
-                /// Tracing level
-                consoleTraceLevel : TraceLevel
-                /// Foreground event color scheme
-                foregroundColors : EventColoring
-                /// Background event  color scheme
-                backgroundColors : EventColoring
-                /// Path to the directory where to write the log file
-                directory : string option
-                /// Trace options passed to the underlying ConsoleTraceListener
-                traceOptions : System.Diagnostics.TraceOptions
-            }
-
-        /// Register a System.Diagnostics trace listener that redirects tracing functions with specified TraceLevels
-        /// to the console with specified coloring scheme, and to a log file on disk.
-        /// Returns an IDisposable that, when disposed, unregisters the listners.
-        let registerFileAndConsoleTracerWithConfiguration (parameters:LoggingConfiguration) =
+        /// Registers both a file tracer as well as an auxiliary tracer constructed from the specified parameters.
+        let inline registerFileAndAuxiliaryTracerWithConfiguration< ^T, ^C when ^T :> TraceListener > (loggerConstructor:LoggingConfiguration< ^C> -> ^T) (parameters:LoggingConfiguration< ^C>) =
             let fileLogger =
-                // Reuse existing console listener if one is already registered
+                // Reuse existing auxiliary listener if one is already registered
                 let existingFileListener =
                     System.Diagnostics.Trace.Listeners
                     |> Seq.cast<TraceListener>
@@ -276,30 +225,26 @@ namespace System.Diagnostics
                         member __.Dispose() = ()
                     }
 
-            // Determine if a console listener is already registered
-            let existingConsoleListener =
+            // Determine if an auxliary listener is already registered
+            let existingAuxiliaryListener =
                 System.Diagnostics.Trace.Listeners
                 |> Seq.cast<TraceListener>
-                |> Seq.tryFind (fun l -> l.GetType() = typeof<ColorConsoleTraceListener>)
+                |> Seq.tryFind (fun l -> l.GetType() = typeof< ^T>)
 
-            match existingConsoleListener with
-            | Some consoleTracer ->
-                consoleTracer.Attributes.["traceLevel"] <- parameters.consoleTraceLevel.ToString()
+            match existingAuxiliaryListener with
+            | Some auxiliaryTracer ->
+                auxiliaryTracer.Attributes.["traceLevel"] <- parameters.auxiliaryTraceLevel.ToString()
                 fileLogger
             | None ->
-                // Create and register a new console listener
-                let consoleTracer = 
-                    new ColorConsoleTraceListener(
-                        parameters.foregroundColors,
-                        parameters.backgroundColors,
-                        Name = parameters.componentName,
-                        TraceOutputOptions = parameters.traceOptions)
-                consoleTracer.Attributes.["traceLevel"] <- parameters.consoleTraceLevel.ToString()
-                consoleTracer.WriteLine(sprintf "%O - [%s] - Starting output to trace listener." System.DateTime.Now consoleTracer.Name)
-                System.Diagnostics.Trace.Listeners.Add(consoleTracer) |> ignore
+                // Create and register the auxiliary listener
+                let auxiliaryTracer = loggerConstructor parameters
+
+                auxiliaryTracer.Attributes.["traceLevel"] <- parameters.auxiliaryTraceLevel.ToString()
+                auxiliaryTracer.WriteLine(sprintf "%O - [%s] - Starting output to trace listener." System.DateTime.Now auxiliaryTracer.Name)
+                System.Diagnostics.Trace.Listeners.Add(auxiliaryTracer) |> ignore
                 Trace.WriteLine parameters.title
                 Microsoft.FSharpLu.Logging.EnvironmentInfo.trace<DiagnosticsTracer> ()
-                // Return a disposable that will dispose both the console and file tracers
+                // Return a disposable that will dispose both the auxiliary and file tracers
                 {
                   new IFileLogger with
                     member __.LogFilePath
@@ -307,29 +252,17 @@ namespace System.Diagnostics
 
                   interface IFlushable with
                     member __.Flush() =
-                        consoleTracer.Flush()
+                        auxiliaryTracer.Flush()
                         fileLogger.Flush()
 
                   interface IDisposable with
                     member __.Dispose() =
                         fileLogger.Dispose()
-                        System.Diagnostics.Trace.Listeners.Remove(consoleTracer)
-                        consoleTracer.Dispose()
+                        System.Diagnostics.Trace.Listeners.Remove(auxiliaryTracer)
+                        auxiliaryTracer.Dispose()
                 }
 
-        /// Register a System.Diagnostics trace listener that redirects all tracing functions
-        /// to the console and to a log file on disk.
-        /// Returns an IDisposable that, when disposed, unregisters the listners.
-        let registerFileAndConsoleTracer componentName directory =
-            registerFileAndConsoleTracerWithConfiguration {
-                title = componentName
-                componentName = componentName
-                consoleTraceLevel = TraceLevel.Verbose
-                foregroundColors = defaultForegroundColors
-                backgroundColors = defaultBackgroundColors
-                directory = directory
-                traceOptions = TraceOptions.DateTime
-            }
+
 
 namespace Microsoft.FSharpLu.Logging
     /// Strongly-typed wrappers for System.Diagnostics event tracing

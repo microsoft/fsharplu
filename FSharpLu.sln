@@ -33,6 +33,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A76D
 		scripts\Update-AssemblyVersion.ps1 = scripts\Update-AssemblyVersion.ps1
 	EndProjectSection
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu.Windows", "FSharpLu.Windows\FSharpLu.Windows.fsproj", "{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,10 @@ Global
 		{81EAF46A-BF20-4871-BF8E-C94FD478E9E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{81EAF46A-BF20-4871-BF8E-C94FD478E9E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{81EAF46A-BF20-4871-BF8E-C94FD478E9E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

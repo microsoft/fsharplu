@@ -1,4 +1,4 @@
-﻿(* 
+﻿(*
 
 Copyright (c) Microsoft Corporation.
 
@@ -20,7 +20,7 @@ module Microsoft.FSharpLu.Text
 /// File path comparer
 type CaseInsensitiveComparer() =
     interface System.Collections.Generic.IComparer<string> with
-        member x.Compare(f1, f2) = 
+        member x.Compare(f1, f2) =
             System.String.Compare(f1, f2, System.StringComparison.OrdinalIgnoreCase)
 
 /// Returns true if text starts with the specified prefix
@@ -32,56 +32,56 @@ let endWith prefix (text:System.String) =
     text.EndsWith prefix
 
 /// Remove count characters from the end of the specified string
-let chop count (text:System.String) = 
+let chop count (text:System.String) =
     text.Remove(text.Length-count)
 
 /// Remove leading and trailing occurrences of a set of characters
-let trim chars (text:System.String) = 
-    text.Trim chars   
+let trim chars (text:System.String) =
+    text.Trim chars
 
 /// Remove trailing occurrences of a set of characters
-let trimEnd chars (text:System.String) = 
-    text.TrimEnd chars   
+let trimEnd chars (text:System.String) =
+    text.TrimEnd chars
 
 /// Remove leading occurrences of a set of characters
-let trimStart chars (text:System.String) = 
-    text.TrimStart chars   
+let trimStart chars (text:System.String) =
+    text.TrimStart chars
 
 /// Skip count number of characters from the specified string
-let skip (text:string) count = 
+let skip (text:string) count =
     text.Substring(count, text.Length-count)
 
 /// Remove a prefix from the specified string
-let skipPrefix prefix (text:string) = 
+let skipPrefix prefix (text:string) =
     if text.StartsWith prefix then
         skip text prefix.Length
     else
         text
 
 /// Remove a suffix from the specified string
-let removeSuffix suffix (text:string) = 
+let removeSuffix suffix (text:string) =
     if text.EndsWith suffix then
         chop suffix.Length text
     else
         text
 
 /// Remove a prefix from the specified string case insensitively
-let skipPrefixCaseInsensitive prefix (text:string) = 
-    if text.StartsWith(prefix, System.StringComparison.InvariantCultureIgnoreCase) then
+let skipPrefixCaseInsensitive prefix (text:string) =
+    if text.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase) then
         skip text prefix.Length
     else
         text
-        
+
 /// Remove a suffix case insensitively (used on file paths)
-let removeSuffixCaseInsensitive suffix (text:string) = 
-    if text.EndsWith(suffix, System.StringComparison.InvariantCultureIgnoreCase) then
+let removeSuffixCaseInsensitive suffix (text:string) =
+    if text.EndsWith(suffix, System.StringComparison.OrdinalIgnoreCase) then
         chop suffix.Length text
     else
         text
 
 /// Remove part following the the first occurrence of a given string
-let removeAfter marker (text:string) = 
-    let markPosition = text.IndexOf(marker, System.StringComparison.InvariantCultureIgnoreCase)
+let removeAfter marker (text:string) =
+    let markPosition = text.IndexOf(marker, System.StringComparison.OrdinalIgnoreCase)
     if markPosition >= 0 then
         text.Remove markPosition
     else
@@ -89,7 +89,7 @@ let removeAfter marker (text:string) =
 
 /// Return the right n-most characters from the string
 /// where n is smaller than the length of the string.
-let right n (text:string) = 
+let right n (text:string) =
     text.Substring(text.Length-n,n)
 
 /// Split a string based on the specified array of character separators

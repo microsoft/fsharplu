@@ -22,8 +22,8 @@ let public parseBoolean =
 
 /// Parse a C#-like enumeration (i.e. of the form type MyEnum = One = 1 | Two = 2)
 let public tryParseEnum<'T when 'T : struct
-                            and 'T : (new : unit -> 'T) 
-                            and 'T :> System.ValueType> e = 
+                            and 'T : (new : unit -> 'T)
+                            and 'T :> System.ValueType> e =
     System.Enum.TryParse<'T>(e, true) |> ofPair
 
 /// Lookup value from a dictionary and try to parse it with the provided parser
@@ -39,13 +39,13 @@ module Union =
     open FSharp.Reflection
 
     /// Parse a field-less discriminated union of type 'T from string
-    /// This only works with simple *field-less* discriminated union of 
+    /// This only works with simple *field-less* discriminated union of
     /// the form "type Bla = Foo | Bar"
     let tryParse<'T> (string:string) =
         let fields =
                 typeof<'T>
-                |> FSharpType.GetUnionCases 
-                |> Array.filter (fun case -> case.Name.Equals(string, System.StringComparison.InvariantCultureIgnoreCase))
+                |> FSharpType.GetUnionCases
+                |> Array.filter (fun case -> case.Name.Equals(string, System.StringComparison.OrdinalIgnoreCase))
         match fields with
         | [| case |] -> Some(FSharpValue.MakeUnion(case,[||]) :?> 'T)
         | _ -> None
