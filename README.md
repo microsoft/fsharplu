@@ -16,7 +16,7 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 
 ## Build requirements
 
-Install dotnet core SDK from https://www.microsoft.com/net/core
+Install dotnet core SDK from https://www.microsoft.com/net/core. You need 2.0.0 version of SDK or later. To build project run `dotnet build`.
 
 ## Documentation
 
