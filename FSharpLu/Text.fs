@@ -20,7 +20,7 @@ module Microsoft.FSharpLu.Text
 /// File path comparer
 type CaseInsensitiveComparer() =
     interface System.Collections.Generic.IComparer<string> with
-        member x.Compare(f1, f2) =
+        member __.Compare(f1, f2) =
             System.String.Compare(f1, f2, System.StringComparison.OrdinalIgnoreCase)
 
 /// Returns true if text starts with the specified prefix
@@ -138,7 +138,7 @@ let longestCommonPrefixLength (s1:string) (s2:string) =
 
 /// Indent lines in a text
 let indent count =
-    let prefix = new System.String(' ', count)
+    let prefix = System.String(' ', count)
     splitOnString [|System.Environment.NewLine|]
     >> Seq.map (fun line -> prefix + line)
     >> join System.Environment.NewLine
