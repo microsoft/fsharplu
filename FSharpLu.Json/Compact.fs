@@ -4,6 +4,8 @@ open Newtonsoft.Json
 open Newtonsoft.Json.Serialization
 open Microsoft.FSharp.Reflection
 open System.Reflection
+open System.Collections.Generic
+open System
 
 module private ConverterHelpers =
     let inline stringEq (a:string) (b:string) =
@@ -16,6 +18,44 @@ module private ConverterHelpers =
         if System.Char.IsLower (name, 0) then name
         else string(System.Char.ToLower name.[0]) + name.Substring(1)
 
+    let inline memorise f = 
+        let d = Dictionary<_, _>()
+        fun key -> 
+            match d.TryGetValue(key) with
+            | (true, v) -> v
+            | (false, _) -> 
+                let result = f key
+                d.[key] <- result
+                result
+
+    let getUnionCaseFieldsMemorised = memorise FSharpValue.PreComputeUnionReader
+    let getUnionTagMemorised = memorise FSharpValue.PreComputeUnionTagReader
+    let getUnionCasesByTagMemorised = memorise (fun t -> FSharpType.GetUnionCases(t) |> Array.map (fun x -> x.Tag, x) |> dict)
+    
+    let getUnionCasesMemorised = memorise (fun (t: Type) -> FSharpType.GetUnionCases t)
+
+    let getUnionTagOfValueMemorised v = 
+        let t = v.GetType()
+        getUnionTagMemorised t v
+
+    let inline getUnionFieldsMemorised v =
+        let cases = getUnionCasesByTagMemorised (v.GetType())
+        let tag = getUnionTagOfValueMemorised v
+        let case = cases.[tag]
+        let unionReader = getUnionCaseFieldsMemorised case
+        (case, unionReader v)
+
+    let SomeFieldIdentifier = "Some"
+    
+    /// Determine if a given type has a field named 'Some' which would cause
+    /// ambiguity if nested under an option type without being boxed
+    let hasFieldNamedSome =
+        memorise
+            (fun (t:System.Type) -> 
+                isOptionType t // the option type itself has a 'Some' field
+                || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier))
+                || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier)))
+
 open ConverterHelpers
 
 /// Serializers for F# discriminated unions improving upon the stock implementation by JSon.Net
@@ -25,33 +65,30 @@ open ConverterHelpers
 type CompactUnionJsonConverter() =
     inherit Newtonsoft.Json.JsonConverter()
 
-    let SomeFieldIdentifier = "Some"
+    let canConvertMemorised = 
+        memorise 
+            (fun objectType ->        
+                // Include F# discriminated unions
+                FSharpType.IsUnion objectType
+                // and exclude the standard FSharp lists (which are implemented as discriminated unions)
+                && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>))
 
-    /// Determine if a given type has a field named 'Some' which would cause
-    /// ambiguity if nested under an option type without being boxed
-    let hasFieldNamedSome (t:System.Type) =
-        isOptionType t // the option type itself has a 'Some' field
-        || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier))
-        || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier))
-
-    override __.CanConvert(objectType:System.Type) =
-        // Include F# discriminated unions
-        FSharpType.IsUnion objectType
-        // and exclude the standard FSharp lists (which are implemented as discriminated unions)
-        && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
+    override __.CanConvert(objectType:System.Type) = canConvertMemorised objectType
 
     override __.WriteJson(writer:JsonWriter, value:obj, serializer:JsonSerializer) =
+        let t = value.GetType()
+        
         let convertName =
             match serializer.ContractResolver with
             | :? CamelCasePropertyNamesContractResolver -> toCamel
             | _ -> id
-        let t = value.GetType()
+
         // Option type?
         if isOptionType t then
-            let cases = FSharpType.GetUnionCases(t)
+            let cases = getUnionCasesMemorised t
             let none, some = cases.[0], cases.[1]
 
-            let case, fields = FSharpValue.GetUnionFields(value, t)
+            let case, fields = getUnionFieldsMemorised value
 
             if case = none then
                 () // None is serialized as just null
@@ -81,11 +118,11 @@ type CompactUnionJsonConverter() =
                         // (and therfore in particular is NOT an option type itself)
                         // => we can simplify the Json by omitting the `Some` boxing
                         // and serializing the nested object directly
-                        serializer.Serialize(writer, innerValue)
-
+                        serializer.Serialize(writer, innerValue)             
         // Discriminated union
         else
-            let case, fields = FSharpValue.GetUnionFields(value, t)
+            let case, fields = getUnionFieldsMemorised value    
+
             match fields with
             // Field-less union case
             | [||] ->
