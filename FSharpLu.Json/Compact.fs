@@ -21,7 +21,7 @@ module private ConverterHelpers =
         // Item1, Item2, etc. excluding Items[n] indexer. Valid only on tuple types.
         (prop.Name.StartsWith("Item") || prop.Name = "Rest") && (Seq.isEmpty <| prop.GetIndexParameters())
 
-module Memorised = 
+module Memorised =
     let inline memorise (f: 'key -> 'result) =
         let d = ConcurrentDictionary<'key, 'result>()
         fun key -> d.GetOrAdd(key, f)
@@ -29,21 +29,20 @@ module Memorised =
     let getUnionCaseFields = memorise FSharpValue.PreComputeUnionReader
     let getUnionTag = memorise FSharpValue.PreComputeUnionTagReader
     let getUnionCasesByTag = memorise (fun t -> FSharpType.GetUnionCases(t) |> Array.map (fun x -> x.Tag, x) |> dict)
-
-    let getUnionCasesMemorised = memorise FSharpType.GetUnionCases
+    let getUnionCases = memorise FSharpType.GetUnionCases
 
     let constructUnionCase = memorise FSharpValue.PreComputeUnionConstructor
 
     let getUnionCaseProperyInfoFields = memorise (fun (case: UnionCaseInfo) -> case.GetFields())
 
-    let findNoFieldsMatchingUnionCaseByNameAndType  = 
-        memorise <| fun (objectType, caseName) -> 
-            let cases = getUnionCasesMemorised objectType
+    let findNoFieldsMatchingUnionCaseByNameAndType  =
+        memorise <| fun (objectType, caseName) ->
+            let cases = getUnionCases objectType
             cases |> Array.tryFind (fun case -> ConverterHelpers.stringEq case.Name caseName && (getUnionCaseProperyInfoFields case |> Array.isEmpty))
 
-    let findMatchingUnionCaseByNameAndType  = 
-        memorise <| fun (objectType, caseName) -> 
-            let cases = getUnionCasesMemorised objectType
+    let findMatchingUnionCaseByNameAndType  =
+        memorise <| fun (objectType, caseName) ->
+            let cases = getUnionCases objectType
             cases |> Array.tryFind (fun case -> ConverterHelpers.stringEq case.Name caseName)
 
     let getUnionTagOfValue v =
@@ -79,7 +78,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
     inherit Newtonsoft.Json.JsonConverter()
 
     ///  By default tuples are serialized as heterogeneous arrays.
-    let tupleAsHeterogeneousArray = defaultArg tupleAsHeterogeneousArray true   
+    let tupleAsHeterogeneousArray = defaultArg tupleAsHeterogeneousArray true
     ///  By default formatting is used for values
     let usePropertyFormatterForValues = defaultArg usePropertyFormatterForValues true
     let canConvertMemorised =
@@ -106,7 +105,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
 
         // Option type?
         if isOptionType t then
-            let cases = getUnionCasesMemorised t
+            let cases = getUnionCases t
             let none, some = cases.[0], cases.[1]
 
             let case, fields = getUnionFields value
@@ -170,7 +169,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
         let failreadwithf format = Printf.ksprintf failreadwith format
         // Option type?
         if isOptionType objectType then
-            let cases = getUnionCasesMemorised objectType
+            let cases = getUnionCases objectType
             let caseNone, caseSome = cases.[0], cases.[1]
             let jToken = Linq.JToken.ReadFrom(reader)
 
@@ -293,7 +292,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                 match matchingCase with
                 | Some case -> constructUnionCase case [||]
                 | None ->
-                    let cases = getUnionCasesMemorised objectType
+                    let cases = getUnionCases objectType
                     failreadwithf "Cannot parse DU field-less value: %O. Expected names: %O" caseName (System.String.Join(", ", cases |> Seq.map(fun c->c.Name)))
 
             // Type 2 or 3: Case with fields
@@ -306,11 +305,11 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                 let caseProperty = jObjectProperties |> Seq.head
                 /// Lookup the DU case by name
                 let matchingCase = findMatchingUnionCaseByNameAndType (objectType, caseProperty.Name)
-                
+
                 match matchingCase with
                 | None ->
                     failreadwithf "Case with fields '%s' does not exist for discriminated union %s" caseProperty.Name objectType.Name
-                | Some case  -> 
+                | Some case  ->
                     let propertyInfosForCase = getUnionCaseProperyInfoFields case
                     // Type 2: A union case with a single field: Case2 of 'a
                     if propertyInfosForCase.Length = 1 then
@@ -318,7 +317,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                         let field = caseProperty.Value.ToObject(fieldType, serializer)
                         constructUnionCase case [|field|]
                     // Type 3: A union case with more than one field: Case3 of 'a1 * 'a2 ... * 'an
-                    else                    
+                    else
                         // Here there could be an ambiguity:
                         // the Json values are either the fields of the case
                         // or if the array is Use target type to resolve ambiguity
@@ -344,11 +343,11 @@ module Compact =
 
                 // MissingMemberHandling is not technically needed for
                 // compact serialization but it avoids certain ambiguities
-                // that guarantee that deserialization coincides with the 
+                // that guarantee that deserialization coincides with the
                 // default Json.Net deserialization.
                 // (where 'coincides' means 'if the deserialization succeeds they both return the same object')
-                // This allows us to easily define the BackwardCompatible 
-                // serializer (that handles both Compact and Default Json format) by reusing 
+                // This allows us to easily define the BackwardCompatible
+                // serializer (that handles both Compact and Default Json format) by reusing
                 // the Compact deserializer.
                 MissingMemberHandling = MissingMemberHandling.Error,
                 Converters = [| CompactUnionJsonConverter(true) |]
@@ -426,7 +425,7 @@ module Compact =
         [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
         let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream
 
-    /// Compact serializer where desearilization requires presence of all properties 
+    /// Compact serializer where desearilization requires presence of all properties
     /// expect optional ones (of type option<_>)
     module Strict =
 
@@ -436,9 +435,9 @@ module Compact =
             inherit Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
             override __.CreateProperty(_member, memberSerialization) =
                 let property = base.CreateProperty(_member, memberSerialization)
-                let isRequired = not (property.PropertyType.GetTypeInfo().IsGenericType 
+                let isRequired = not (property.PropertyType.GetTypeInfo().IsGenericType
                                    && property.PropertyType.GetGenericTypeDefinition() = typedefof<option<_>>)
-                if isRequired then 
+                if isRequired then
                     property.Required <- Required.Always
                     property.NullValueHandling <- System.Nullable NullValueHandling.Ignore
                 property
