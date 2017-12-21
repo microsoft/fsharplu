@@ -18,41 +18,43 @@ module private ConverterHelpers =
         if System.Char.IsLower (name, 0) then name
         else string(System.Char.ToLower name.[0]) + name.Substring(1)
 
-    let inline memorise f (d: IDictionary<_, _>) key = 
-        match d.TryGetValue(key) with
-        | (true, v) -> v
-        | (false, _) -> 
-            let result = f key
-            d.[key] <- result
-            result
+    let inline memorise f = 
+        let d = Dictionary<_, _>()
+        fun key -> 
+            match d.TryGetValue(key) with
+            | (true, v) -> v
+            | (false, _) -> 
+                let result = f key
+                d.[key] <- result
+                result
 
-    let private precomputedUnionReader = Dictionary<_, _>()
-    let private precomputedUnionTagDeterminer = Dictionary<_, _>()
-    let private precomputedUnionCases = Dictionary<_, _>()
-    let private unionTagDeterminer v = 
+    let getUnionCaseFieldsMemorised = memorise FSharpValue.PreComputeUnionReader
+    let getUnionTagMemorised = memorise FSharpValue.PreComputeUnionTagReader
+    let getUnionCasesByTagMemorised = memorise (fun t -> FSharpType.GetUnionCases(t) |> Array.map (fun x -> x.Tag, x) |> dict)
+    
+    let getUnionCasesMemorised = memorise (fun (t: Type) -> FSharpType.GetUnionCases t)
+
+    let getUnionTagOfValueMemorised v = 
         let t = v.GetType()
-        memorise FSharpValue.PreComputeUnionTagReader precomputedUnionTagDeterminer t v
+        getUnionTagMemorised t v
 
-    let inline getUnionFields v =
-        let cases = memorise (fun t -> FSharpType.GetUnionCases(t) |> Array.map (fun x -> x.Tag, x) |> dict) precomputedUnionCases (v.GetType())
-        let tag = unionTagDeterminer v
+    let inline getUnionFieldsMemorised v =
+        let cases = getUnionCasesByTagMemorised (v.GetType())
+        let tag = getUnionTagOfValueMemorised v
         let case = cases.[tag]
-        let unionReader = memorise FSharpValue.PreComputeUnionReader precomputedUnionReader case
+        let unionReader = getUnionCaseFieldsMemorised case
         (case, unionReader v)
 
-    let private hasFieldNamedSomeMemorisation = Dictionary<_, _>()
     let SomeFieldIdentifier = "Some"
     
     /// Determine if a given type has a field named 'Some' which would cause
     /// ambiguity if nested under an option type without being boxed
-    let inline hasFieldNamedSome (t:System.Type) =
+    let hasFieldNamedSome =
         memorise
-            (fun t -> 
+            (fun (t:System.Type) -> 
                 isOptionType t // the option type itself has a 'Some' field
                 || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier))
                 || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier)))
-            hasFieldNamedSomeMemorisation
-            t
 
 open ConverterHelpers
 
@@ -63,10 +65,7 @@ open ConverterHelpers
 type CompactUnionJsonConverter() =
     inherit Newtonsoft.Json.JsonConverter()
 
-    let canConvertMemorisation = Dictionary<_, _>()
-    let optionTypeMemorisation = Dictionary<_, _>()
-
-    override __.CanConvert(objectType:System.Type) =
+    let canConvertMemorised = 
         memorise 
             (fun objectType ->        
                 // Include F# discriminated unions
@@ -75,33 +74,10 @@ type CompactUnionJsonConverter() =
                     // and exclude the standard FSharp lists (which are implemented as discriminated unions)
                     && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
                 result)
-            canConvertMemorisation
-            objectType
 
-    static member WriteOptionType<'t> (writer: JsonWriter) (serializer:JsonSerializer) (param: obj) = 
-        let x = param :?> 't option
+    override __.CanConvert(objectType:System.Type) = canConvertMemorised objectType
 
-        let convertName =
-            match serializer.ContractResolver with
-            | :? CamelCasePropertyNamesContractResolver -> toCamel
-            | _ -> id
-        
-        match x with
-        | None -> () // Just serialise as Null
-        // Note this is different than None. This case is to deal with C# created objects
-        | Some(v) when obj.ReferenceEquals(null, v) ->
-             writer.WriteStartObject()
-             writer.WritePropertyName(convertName SomeFieldIdentifier)
-             writer.WriteNull()
-             writer.WriteEndObject()
-        | Some(v) when v.GetType().GetTypeInfo().IsGenericType && v.GetType().GetGenericTypeDefinition() = typedefof<Option<_>> ->
-            writer.WriteStartObject()
-            writer.WritePropertyName(convertName SomeFieldIdentifier)
-            serializer.Serialize(writer, v)
-            writer.WriteEndObject()             
-        | Some(v) -> serializer.Serialize(writer, v)
-
-    override this.WriteJson(writer:JsonWriter, value:obj, serializer:JsonSerializer) =
+    override __.WriteJson(writer:JsonWriter, value:obj, serializer:JsonSerializer) =
         let t = value.GetType()
         
         let convertName =
@@ -111,18 +87,43 @@ type CompactUnionJsonConverter() =
 
         // Option type?
         if isOptionType t then
-            memorise
-                (fun (t: Type) ->                     
-                    let mi = this.GetType().GetTypeInfo().GetMethod("WriteOptionType")
-                    let gm = mi.MakeGenericMethod(t.GetTypeInfo().GetGenericArguments().[0])
-                    let d = gm.CreateDelegate(typeof<Action<JsonWriter, JsonSerializer, obj>>) :?> Action<JsonWriter, JsonSerializer, obj>
-                    d.Invoke)
-                optionTypeMemorisation
-                t   
-                (writer, serializer, value)                 
+            let cases = getUnionCasesMemorised t
+            let none, some = cases.[0], cases.[1]
+
+            let case, fields = getUnionFieldsMemorised value
+
+            if case = none then
+                () // None is serialized as just null
+
+            // Some _
+            else
+                // Handle cases `Some None` and `Some null`
+                let innerType = some.GetFields().[0].PropertyType
+                let innerValue = fields.[0]
+                if isNull innerValue then
+                    writer.WriteStartObject()
+                    writer.WritePropertyName(convertName SomeFieldIdentifier)
+                    writer.WriteNull()
+                    writer.WriteEndObject()
+                // Some v with v <> null && v <> None
+                else
+                    // Is it nesting another option: `(e.g., "Some (Some ... Some ( ... )))"`
+                    // or any other type with a field named 'Some'?
+                    if hasFieldNamedSome innerType then
+                        // Preserved the nested structure through boxing
+                        writer.WriteStartObject()
+                        writer.WritePropertyName(convertName SomeFieldIdentifier)
+                        serializer.Serialize(writer, innerValue)
+                        writer.WriteEndObject()
+                    else
+                        // Type is option<'a> where 'a does not have a field named 'Some
+                        // (and therfore in particular is NOT an option type itself)
+                        // => we can simplify the Json by omitting the `Some` boxing
+                        // and serializing the nested object directly
+                        serializer.Serialize(writer, innerValue)             
         // Discriminated union
         else
-            let case, fields = getUnionFields value    
+            let case, fields = getUnionFieldsMemorised value    
 
             match fields with
             // Field-less union case
