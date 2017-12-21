@@ -69,11 +69,9 @@ type CompactUnionJsonConverter() =
         memorise 
             (fun objectType ->        
                 // Include F# discriminated unions
-                let result = 
-                    FSharpType.IsUnion objectType
-                    // and exclude the standard FSharp lists (which are implemented as discriminated unions)
-                    && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
-                result)
+                FSharpType.IsUnion objectType
+                // and exclude the standard FSharp lists (which are implemented as discriminated unions)
+                && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>))
 
     override __.CanConvert(objectType:System.Type) = canConvertMemorised objectType
 
