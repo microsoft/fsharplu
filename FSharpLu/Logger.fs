@@ -1,11 +1,11 @@
-﻿(* 
+﻿(*
 
 Copyright (c) Microsoft Corporation.
 
 Description:
 
     A logger type to manage distributed diagnostic messages.
-    The use case is for programs consisting of multiple distributed agents where global Trace 
+    The use case is for programs consisting of multiple distributed agents where global Trace
     logging is not appropriate due to concurrency and synchronization issues.
 
 Author:
@@ -18,10 +18,10 @@ Revision history:
 *)
 module Microsoft.FSharpLu.Logger
 
-/// Writer interface definining the action to be performed 
-/// on incoming messages returning a value of type 'a, 
+/// Writer interface definining the action to be performed
+/// on incoming messages returning a value of type 'a,
 //  and the function returning the current state of type 's.
-/// The writer state can be used for instance to accumulate all incoming messages 
+/// The writer state can be used for instance to accumulate all incoming messages
 /// in an internal buffer.
 type Writer<'a,'s> =
     {
@@ -36,11 +36,11 @@ type Writer<'a,'s> =
 /// A logger type for distributed logging with strongly-typed "printf"-like writing functions.
 ///
 /// Loggers defined in this module are meant to be used locally in-context and passed around throughout
-/// the calls made in your program. This is to support the distributed setting where you have 
-/// multiple agents logging to separate output. In this setting a global logging mechanism like 
+/// the calls made in your program. This is to support the distributed setting where you have
+/// multiple agents logging to separate output. In this setting a global logging mechanism like
 /// Trace logging is not desirable as it would interleave log messages coming from different agents.
 ///
-/// Avoid sharing Logger globally: global states break compositionality, leads to concurrency issues 
+/// Avoid sharing Logger globally: global states break compositionality, leads to concurrency issues
 /// and make your code less testable. Instead just pass around your logger object throughout your progam.
 /// For global tracing prefer the TraceLogging F#Lu module based based on ETW and System.Diagnostics tracing.
 type Logger<'a,'s>(output : Writer<'a,'s>, isVerbose : bool) =
@@ -50,39 +50,39 @@ type Logger<'a,'s>(output : Writer<'a,'s>, isVerbose : bool) =
     new(output : Writer<'a,'s>) =
         Logger<'a, 's>(output, false)
 
-    /// strongly-type write function 
-    member x.write format =
+    /// strongly-type write function
+    member __.write format =
         Printf.kprintf lineAction format
 
     /// strongly-type write function witout end of line
-    member x.writeNoEndLine format =
+    member __.writeNoEndLine format =
         Printf.kprintf output.action format
 
-    /// strongly-type verbose function 
-    member x.verbose format =
+    /// strongly-type verbose function
+    member __.verbose format =
         if isVerbose then
             Printf.kprintf lineAction format
         else
             Printf.kprintf output.nop format
 
     /// return the current state of the writer
-    member x.state () =
+    member __.state () =
         output.state ()
 
     /// strongly-typed failure handler: pass the error message to the writer, write it to the console
     /// and throw an exception
-    member x.failWith format =
+    member __.failWith format =
         Printf.ksprintf (fun msg -> let oldColor = System.Console.ForegroundColor
                                     System.Console.ForegroundColor <- System.ConsoleColor.Red
                                     let msg = "FATAL: " + msg
                                     let loggerState = lineAction msg
                                     System.Console.ForegroundColor <- oldColor
                                     failwith msg) format
-    
+
     /// A dummy string write function for our C# friends
     member x.Write message =
         x.write "%s" message
-            
+
 /// Define built-in logging actions and combinators
 /// An action is a function of type string -> unit.
 module Action =
@@ -104,11 +104,11 @@ module Action =
     /// Print to both screen and output file within a critical section
     let inline outAndFileWithLock filepath lockObject s =
         let taskId = System.Threading.Tasks.Task.CurrentId
-        let line = 
+        let line =
             if taskId.HasValue then
                 sprintf "[%d] %s" taskId.Value s
-            else 
-                s 
+            else
+                s
         lock lockObject <| fun () -> append filepath line; out line
 
     /// Given a file path returns an action that thread safely write content to a file and to stdout
@@ -126,7 +126,7 @@ module Operation =
     /// Create an in-memory logger that stores all the logged messages
     /// in a string builder.
     let public makeMemoryLogger () =
-        let buff = new System.Text.StringBuilder()
+        let buff = System.Text.StringBuilder()
         let memoryWriter  =
             {
                 action = buff.Append >> ignore
@@ -141,9 +141,9 @@ module Operation =
     /// The function returns the aggregated value together with
     /// a StringBuilder with the aggregated Logger's states.
     let public aggregate aggregate seed source =
-        let aggregatedLogState = new System.Text.StringBuilder()
-        let aggregatedResult = 
-            Seq.fold (fun results (result, log:Logger<_,string>) -> 
+        let aggregatedLogState = System.Text.StringBuilder()
+        let aggregatedResult =
+            Seq.fold (fun results (result, log:Logger<_,string>) ->
                             aggregatedLogState.Append(log.state()) |> ignore
                             aggregate results result)
                         seed
@@ -175,14 +175,14 @@ module Operation =
     let makeLogger componentName fileName =
         timestampify componentName >> Action.outAndFileThreadSafe fileName
         |> makeCustomLogger
-            
+
     /// 'Logger'-aware memoization function. The 'compute' function is called at most once and its
-    /// result is "memoized". The 'compute' takes the logger object specified to the memoize function 
+    /// result is "memoized". The 'compute' takes the logger object specified to the memoize function
     /// as its first parameter.
-    let memoize (compute : Logger<'a,'b> -> 'c) = 
+    let memoize (compute : Logger<'a,'b> -> 'c) =
         let cache = ref None
         fun (log:Logger<'a,'b>) ->
-            match !cache with 
+            match !cache with
             | Some v -> v
             | None -> let v = compute log
                       cache := Some v

@@ -7,7 +7,7 @@ open System.Security.Principal
 /// Determine if the process runs elevated
 let isElevated () =
     use user = WindowsIdentity.GetCurrent()
-    let principal = new WindowsPrincipal(user)
+    let principal = WindowsPrincipal(user)
     principal.IsInRole(WindowsBuiltInRole.Administrator)
 
 /// ensure that the process runs with elevated permissions

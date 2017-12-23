@@ -1,6 +1,4 @@
-﻿////
-//// Helpers and utilities for Asynchronous workflows
-////
+﻿/// Helpers utilities for F# Asynchronous Workflows
 module Microsoft.FSharpLu.Async
 
 open System
@@ -105,7 +103,7 @@ let CompeteWithTask<'A, 'B> (workflow:Async<'A>) (taskBuilder:CancellationTokenS
 /// Return an object that when disposed automatically calls the object's Release() method
 let inline private releaseOnDispose (eventObject: ^T) =
     { new System.IDisposable with
-        member x.Dispose() =
+        member __.Dispose() =
             (^T : (member Release : unit -> ^R) (eventObject)) |> ignore
     }
 
@@ -221,13 +219,17 @@ module Synchronization =
     type Pool(size:int) =
         let semaphore = new SemaphoreSlim(initialCount=size, maxCount=size)
 
+        interface IDisposable with
+            member __.Dispose() =
+                semaphore.Dispose()
+
         interface IPool with
             /// Returns the internal semaphore object
-            member x.InternalSemaphore with get() = semaphore
+            member __.InternalSemaphore with get() = semaphore
 
             /// Wait until a token from the pool becomes available and acquire it
             /// Return an object that automatically releases the token to the pool when disposed.
-            member x.AcquireAsync(?timeout) =
+            member __.AcquireAsync(?timeout) =
                 async {
                     let! token = Async.CancellationToken
                     let! ok = semaphore.WaitAsync(defaultArg timeout -1, token) |> Async.AwaitTask
@@ -240,7 +242,7 @@ module Synchronization =
             /// Try acquiring a token from the pool.
             /// On success returns an object that automatically releases the token
             /// once disposed. Returns None on failure to acquire the token.
-            member x.TryAcquireAsync(?timeout) =
+            member __.TryAcquireAsync(?timeout) =
                 async {
                     let! token = Async.CancellationToken
                     let! entered = semaphore.WaitAsync(defaultArg timeout 0, token) |> Async.AwaitTask
@@ -255,19 +257,23 @@ module Synchronization =
     type NestedPool(size:int, parent:IPool) =
         let pool = new Pool(size=size) :> IPool
 
+        interface IDisposable with
+            member __.Dispose() =
+                (pool :?> IDisposable).Dispose()
+
         interface IPool with
             /// Returns the internal semaphore object
-            member x.InternalSemaphore with get() = pool.InternalSemaphore
+            member __.InternalSemaphore with get() = pool.InternalSemaphore
 
             /// Wait until a token from the parent pool and this pool become available and acquire them.
             /// Return an object that automatically releases the tokens when disposed.
-            member x.AcquireAsync(?timeout) =
+            member __.AcquireAsync(?timeout) =
                 async {
                     let! parent = parent.AcquireAsync(timeout)
                     let! this = pool.AcquireAsync(timeout)
                     return
                         { new System.IDisposable with
-                             member x.Dispose() =
+                             member __.Dispose() =
                                 this.Dispose()
                                 parent.Dispose()
                          }
@@ -277,7 +283,7 @@ module Synchronization =
             /// On success returns an object that automatically releases the tokens
             /// once disposed. Returns None on failure to acquire a token from the parent
             /// or from this pool.
-            member x.TryAcquireAsync(?timeout) =
+            member __.TryAcquireAsync(?timeout) =
                 async {
                     let! parent = parent.TryAcquireAsync(timeout)
                     match parent with
@@ -301,12 +307,16 @@ module Synchronization =
     type SingleUseEvent() =
         let semaphore = new SemaphoreSlim(initialCount=0, maxCount=1)
 
+        interface IDisposable with
+            member __.Dispose() =
+                semaphore.Dispose()
+
         // Signal the event
-        member x.Fire() =
+        member __.Fire() =
             semaphore.Release() |> ignore
 
         // Wait for the event to occur
-        member x.WaitAsync(?timeout) =
+        member __.WaitAsync(?timeout) =
             async {
                 let! token = Async.CancellationToken
                 let! ok = semaphore.WaitAsync((defaultArg timeout -1), token) |> Async.AwaitTask
