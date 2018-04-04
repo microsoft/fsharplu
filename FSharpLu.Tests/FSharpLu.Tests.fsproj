@@ -1,22 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net452;net461</TargetFrameworks>
+    <TargetFrameworks>netcoreapp2.0;net452;net461</TargetFrameworks>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Async.fs" />
     <Compile Include="JsonTests.fs" />
-    <Content Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="1.1.18" />
     <PackageReference Include="MSTest.TestFramework" Version="1.1.18" />
     <PackageReference Include="FsCheck" Version="2.9.2" />
+    <PackageReference Include="FSharp.Core" Version="4.3.4" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FSharpLu.Json\FSharpLu.Json.fsproj" />
     <ProjectReference Include="..\FSharpLu\FSharpLu.fsproj" />
   </ItemGroup>
-
 </Project>
