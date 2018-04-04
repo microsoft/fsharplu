@@ -4,7 +4,7 @@ open Newtonsoft.Json
 open Newtonsoft.Json.Serialization
 open Microsoft.FSharp.Reflection
 open System.Reflection
-open System.Collections.Generic
+open System.Collections.Concurrent
 open System
 
 module private ConverterHelpers =
@@ -18,21 +18,15 @@ module private ConverterHelpers =
         if System.Char.IsLower (name, 0) then name
         else string(System.Char.ToLower name.[0]) + name.Substring(1)
 
-    let inline memorise f = 
-        let d = Dictionary<_, _>()
-        fun key -> 
-            match d.TryGetValue(key) with
-            | (true, v) -> v
-            | (false, _) -> 
-                let result = f key
-                d.[key] <- result
-                result
+    let inline memorise (f: 'key -> 'result) = 
+        let d = ConcurrentDictionary<'key, 'result>()
+        fun key -> d.GetOrAdd(key, f)
 
     let getUnionCaseFieldsMemorised = memorise FSharpValue.PreComputeUnionReader
     let getUnionTagMemorised = memorise FSharpValue.PreComputeUnionTagReader
     let getUnionCasesByTagMemorised = memorise (fun t -> FSharpType.GetUnionCases(t) |> Array.map (fun x -> x.Tag, x) |> dict)
     
-    let getUnionCasesMemorised = memorise (fun (t: Type) -> FSharpType.GetUnionCases t)
+    let getUnionCasesMemorised = memorise FSharpType.GetUnionCases
 
     let getUnionTagOfValueMemorised v = 
         let t = v.GetType()
