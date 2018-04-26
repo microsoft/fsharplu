@@ -27,7 +27,7 @@ param(
 
 $ErrorActionPreference = 'stop'
 $root = Split-Path -parent $PsScriptRoot
-$outputDir = "$root\nugetouput"
+$outputDir = "$root\nugetoutput"
 
 Push-Location $root
 
@@ -87,11 +87,11 @@ Before proceeding please make sure to manually place the signed assemblies under
 
     Write-Host "Packing nuget packages"
     # NOTE: Using --include-symbols to include symbols in Nuget package does not work due to a bug with
-    # `dotnet build` where the symbol files gets automatically deleted when the build completes. 
+    # `dotnet build` where the symbol files gets automatically deleted when the build completes.
     # There is no known workaround for now.
-    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration --no-build $root\FSharpLu\FSharpLu.fsproj 
-    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration --no-build $root\FSharpLu.Json\FSharpLu.Json.fsproj 
-    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration --no-build $root\FSharpLu.Windows\FSharpLu.Windows.fsproj 
+    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration /p:Platform="AnyCPU" --no-build $root\FSharpLu\FSharpLu.fsproj
+    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration /p:Platform="AnyCPU" --no-build $root\FSharpLu.Json\FSharpLu.Json.fsproj
+    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration /p:Platform="AnyCPU" --no-build $root\FSharpLu.Windows\FSharpLu.Windows.fsproj
 
     if ($push) {
         pushLatest 'Microsoft.FSharpLu'

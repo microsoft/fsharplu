@@ -1,0 +1,45 @@
+version: 0.10.{build}
+pull_requests:
+  do_not_increment_build_number: true
+image: Visual Studio 2017
+configuration:
+- Debug
+- Release
+platform: Any CPU
+before_build:
+- cmd: nuget restore
+- ps: >-
+    nuget restore
+
+    .\scripts\Update-AssemblyVersion.ps1 -version $Env:APPVEYOR_BUILD_VERSION
+build:
+  verbosity: minimal
+after_build:
+- ps: .\scripts\packnuget.ps1 -pack -configuration $Env:CONFIGURATION -version $Env:APPVEYOR_BUILD_VERSION
+artifacts:
+  - path: FSharpLu.Json\bin\Debug\
+    name: FSharpLu.Json-Debug
+  - path: FSharpLu.Json\bin\Release\
+    name: FSharpLu.Json-Release
+  - path: FSharpLu\bin\Debug\
+    name: FSharpLu-Debug
+  - path: FSharpLu\bin\Release\
+    name: FSharpLu-Release
+  - path: '**\*.nupkg'
+    name: FSharpLu-Nuget-Packages
+    type: NuGetPackage
+
+# Deployment commented out: instead of auto-releasing to nuget
+# deployment to nuget is done manually using AppVeyor environments.
+# Configuraiton used is left here for reference:
+
+# We publish to Nuget only if building release configuration and
+# for master branch
+#deploy:
+#- provider: NuGet
+#  on:
+#    branch: master
+#    configuration: release
+#  api_key:
+#    secure: ARiE9w5iTpnkxiW6ybXq7KCD9Af7SkMmKEP/CRJZJ2eqsEvjWYrVaBMfZF5EzKWX
+#  artifact: FSharpLu-Nuget-Packages
