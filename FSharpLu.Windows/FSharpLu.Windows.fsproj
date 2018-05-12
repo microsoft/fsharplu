@@ -4,11 +4,11 @@
     <!-- This assembly does not target .net standard (either 1.6 or 2.0) due to missing APIs -->
     <TargetFrameworks>net452;net461</TargetFrameworks>
     <PackageId>Microsoft.FSharpLu.Windows</PackageId>
-    <Authors>william.blum@microsoft.com</Authors>
+    <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Product>Microsoft.FSharpLu.Windows</Product>
     <Description>Windows specific helpers requiring the full .NetFramework</Description>
-    <Copyright>Copyright Microsoft</Copyright>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, Utilities, Windows, Security, Console</PackageTags>
     <PackageReleaseNotes>Port project to .NET Core</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
@@ -45,7 +45,7 @@
     <Compile Include="Security.fs" />
     <Compile Include="TraceLoggingConsole.fs" />
   </ItemGroup>
- 
+
  <ItemGroup>
    <ProjectReference Include="..\FSharpLu\FSharpLu.fsproj" />
  </ItemGroup>

@@ -3,11 +3,11 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard1.6;netstandard2.0;net452;net461</TargetFrameworks>
     <PackageId>Microsoft.FSharpLu.Json</PackageId>
-    <Authors>william.blum@microsoft.com</Authors>
+    <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Product>Microsoft.FSharpLu.Json</Product>
     <Description>Json serialization converters for F# option types and discriminated unions.</Description>
-    <Copyright>Copyright Microsoft</Copyright>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, Utilities, Json, discriminated unions</PackageTags>
     <PackageReleaseNotes>Port project to .NET Core</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
