@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net452;net461</TargetFrameworks>
-    <Authors>william.blum@microsoft.com</Authors>
+    <Authors>Microsoft</Authors>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseUrl>https://github.com/Microsoft/fsharplu/blob/master/LICENSE.MD</PackageLicenseUrl>
     <Description>Utilities and .Net library wrappers for F#</Description>
-    <Copyright>Copyright Microsoft</Copyright>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, FSharp utilities, collection, logging, diagnostic, async, Json</PackageTags>
     <PackageReleaseNotes>Port projects to .Net core</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
@@ -85,7 +85,7 @@
     <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
     <PackageReference Include="System.Security.Principal" Version="4.3.0" />
     <PackageReference Include="System.Security.Principal.Windows" Version="4.4.0" />
-    <PackageReference Include="System.Security.Permissions" Version="4.4.0" />   
+    <PackageReference Include="System.Security.Permissions" Version="4.4.0" />
  </ItemGroup>
 
 </Project>
