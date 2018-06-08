@@ -1,0 +1,128 @@
+## VSTS pipeline to build, test, package and sign the nuget package
+
+queue:
+  name: sf-pool
+  condition: succeeded()
+  demands: vstest
+
+
+#Your build definition references the ‘NUGET_PACKAGE_VERSION’ variable, which you’ve selected to be settable at queue time. Create or edit the build definition for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
+#Your build definition references the ‘BuildConfiguration’ variable, which you’ve selected to be settable at queue time. Create or edit the build definition for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
+#Your build definition references the ‘BuildPlatform’ variable, which you’ve selected to be settable at queue time. Create or edit the build definition for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
+
+steps:
+- task: DotNetCoreInstaller@0
+  displayName: Use .NET Core sdk 2.1.200
+  inputs:
+    version: 2.1.200
+
+- powershell: . 'scripts/Update-AssemblyVersion.ps1' '-version $(NUGET_PACKAGE_VERSION)' true
+  displayName: Set assembly/nuget version number
+
+- task: DotNetCoreCLI@2
+  displayName: dotnet build for testing
+  inputs:
+    arguments: '--no-incremental /t:rebuild /p:Configuration="$(BuildConfiguration)"'
+
+- task: VSTest@2
+  displayName: Test Assemblies
+  inputs:
+    testAssemblyVer2: |
+     **\*test*.dll
+     !**\obj\**
+    vsTestVersion: 15.0
+    runInParallel: false
+    codeCoverageEnabled: false
+    platform: '$(BuildPlatform)'
+    configuration: '$(BuildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: dotnet build with delaysigning
+  inputs:
+    arguments: '--no-incremental /t:rebuild /p:Configuration="$(BuildConfiguration)" /p:CompilationSymbols=DELAYSIGNING'
+
+- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+  displayName: ESRP CodeSign .Net assemblies
+  inputs:
+    ConnectedServiceName: 'MSR Springfield Code Signing'
+    FolderPath: '$(System.DefaultWorkingDirectory)'
+    Pattern: 'microsoft.fsharplu.windows.dll,microsoft.fsharplu.dll,microsoft.fsharplu.json.dll'
+    signConfigType: inlineSignParams
+    inlineOperation: |
+     [
+         {
+             "keyCode": "CP-235845-SN",
+             "operationSetCode": "StrongNameSign",
+             "parameters": [ ],
+             "toolName": "sign",
+             "toolVersion": "1.0"
+         },
+         {
+             "keyCode": "CP-235845-SN",
+             "operationSetCode": "StrongNameVerify",
+             "parameters": [ ],
+             "toolName": "sign",
+             "toolVersion": "1.0"
+         }
+     ]
+
+- task: DotNetCoreCLI@2
+  displayName: dotnet pack nuget
+  inputs:
+    command: pack
+    packagesToPack: '**/*.fsproj'
+    packDirectory: '$(Build.ArtifactStagingDirectory)\nuget'
+    versioningScheme: byEnvVar
+    versionEnvVar: 'NUGET_PACKAGE_VERSION'
+
+- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+  displayName: ESRP CodeSign Nuget Package
+  inputs:
+    ConnectedServiceName: 'MSR Springfield Code Signing'
+    FolderPath: '$(Build.ArtifactStagingDirectory)\nuget'
+    Pattern: '*.nupkg'
+    signConfigType: inlineSignParams
+    inlineOperation: |
+     [
+         {
+             "keyCode": "CP-401405",
+             "operationSetCode": "NuGetSign",
+             "parameters": [ ],
+             "toolName": "sign",
+             "toolVersion": "1.0"
+         },
+         {
+             "keyCode": "CP-401405",
+             "operationSetCode": "NuGetVerify",
+             "parameters": [ ],
+             "toolName": "sign",
+             "toolVersion": "1.0"
+         }
+     ]
+
+- task: DotNetCoreCLI@2
+  displayName: dotnet push nuget
+  inputs:
+    command: push
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+    publishVstsFeed: '6b4e3a7d-b009-4842-b76e-fb9a587cdc50'
+  enabled: false
+
+- task: PublishSymbols@2
+  displayName: Publish symbols
+  inputs:
+    SearchPattern: '**\bin\**\*.pdb'
+    SymbolServerType: TeamServices
+    SymbolsProduct: Microsoft.FSharpLu
+    SymbolsVersion: '$( NUGET_PACKAGE_VERSION)'
+  continueOnError: true
+
+- task: CopyFiles@2
+  displayName: Binplace built assemblies
+  inputs:
+    Contents: '**\bin\**'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)\build'
+  enabled: false
+
+- task: PublishBuildArtifacts@1
+  displayName: Publish Artifact: drop
