@@ -8,7 +8,7 @@
     <Description>Utilities and .Net library wrappers for F#</Description>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, FSharp utilities, collection, logging, diagnostic, async, Json</PackageTags>
-    <PackageReleaseNotes>Port projects to .Net core</PackageReleaseNotes>
+    <PackageReleaseNotes>Signed assemblies and nuget package</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <Company>Microsoft</Company>
     <PackageId>Microsoft.FSharpLu</PackageId>

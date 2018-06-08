@@ -10,7 +10,7 @@
     <Description>Windows specific helpers requiring the full .NetFramework</Description>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, Utilities, Windows, Security, Console</PackageTags>
-    <PackageReleaseNotes>Port project to .NET Core</PackageReleaseNotes>
+    <PackageReleaseNotes>Signed assemblies and nuget package</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseUrl>https://github.com/Microsoft/fsharplu/blob/master/LICENSE.MD</PackageLicenseUrl>
     <RepositoryUrl>https://github.com/Microsoft/fsharplu/</RepositoryUrl>
