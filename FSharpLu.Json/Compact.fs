@@ -14,6 +14,10 @@ module private ConverterHelpers =
     let inline isOptionType (t:System.Type) =
        t.GetTypeInfo().IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
 
+    let inline isTupleType (t:System.Type) =
+       FSharpType.IsTuple t
+       //       t.GetTypeInfo().IsGenericType && t.GetGenericTypeDefinition() = typedefof<System.Tuple<_,_>>
+
     let inline toCamel (name:string) =
         if System.Char.IsLower (name, 0) then name
         else string(System.Char.ToLower name.[0]) + name.Substring(1)
@@ -61,11 +65,15 @@ type CompactUnionJsonConverter() =
 
     let canConvertMemorised = 
         memorise 
-            (fun objectType ->        
-                // Include F# discriminated unions
-                FSharpType.IsUnion objectType
-                // and exclude the standard FSharp lists (which are implemented as discriminated unions)
-                && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>))
+            (fun objectType ->
+                (   // Include F# discriminated unions
+                    FSharpType.IsUnion objectType
+                    // and exclude the standard FSharp lists (which are implemented as discriminated unions)
+                    && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
+                )
+                // include tuples
+                || FSharpType.IsTuple objectType
+            )
 
     override __.CanConvert(objectType:System.Type) = canConvertMemorised objectType
 
@@ -112,10 +120,15 @@ type CompactUnionJsonConverter() =
                         // (and therfore in particular is NOT an option type itself)
                         // => we can simplify the Json by omitting the `Some` boxing
                         // and serializing the nested object directly
-                        serializer.Serialize(writer, innerValue)             
+                        serializer.Serialize(writer, innerValue)
+        // Tuple
+        else if isTupleType t then
+            let v = FSharpValue.GetTupleFields value
+            serializer.Serialize(writer, v)
+
         // Discriminated union
         else
-            let case, fields = getUnionFieldsMemorised value    
+            let case, fields = getUnionFieldsMemorised value
 
             match fields with
             // Field-less union case

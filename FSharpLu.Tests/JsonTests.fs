@@ -119,6 +119,7 @@ type ReciprocalityCompact () =
     static member x22 = reciprocal<NestedOptionStructure> Compact.serialize Compact.deserialize 
     static member x23 = reciprocal<SomeAmbiguity.Ambiguous2> Compact.serialize Compact.deserialize 
     static member x24 = reciprocal<SomeAmbiguity.Ambiguous3> Compact.serialize Compact.deserialize 
+    static member x25 = reciprocal<int list> Compact.serialize Compact.deserialize 
  
 type ReciprocalityCamelCase () =
     static member x1 = reciprocal<ComplexDu> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
@@ -145,6 +146,7 @@ type ReciprocalityCamelCase () =
     static member x22 = reciprocal<NestedOptionStructure> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
     static member x23 = reciprocal<SomeAmbiguity.Ambiguous2> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
     static member x24 = reciprocal<SomeAmbiguity.Ambiguous3> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize    
+    static member x25 = reciprocal<int list> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize    
 
 type CoincidesWithJsonNetOnDeserialization () =
     static member x1 = coincidesWithDefault<ComplexDu>
@@ -171,7 +173,8 @@ type CoincidesWithJsonNetOnDeserialization () =
     static member x22 = coincidesWithDefault<NestedOptionStructure>
     static member x23 = coincidesWithDefault<SomeAmbiguity.Ambiguous2>
     static member x24 = coincidesWithDefault<SomeAmbiguity.Ambiguous3>
-
+    static member x25 = coincidesWithDefault<int list>
+    
 type BackwardCompatibility () =
     static member x1 = backwardCompatibleWithDefault<ComplexDu>
     static member x2 = backwardCompatibleWithDefault<ComplexDu RecursiveList>
@@ -197,6 +200,7 @@ type BackwardCompatibility () =
     static member x22 = backwardCompatibleWithDefault<NestedOptionStructure>
     static member x23 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous2>
     static member x24 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous3>
+    static member x25 = backwardCompatibleWithDefault<int list>
 
 let inline ``Run using all serializers``< ^T when ^T:equality> (test: (^T->string)->(string-> ^T)-> ^T->unit) (input: ^T) =
     [ 
@@ -330,3 +334,9 @@ type JsonSerializerTests() =
     [<TestCategory("FSharpLu.Json.Fuzzing")>]
     member __.``BackwardCompatible deserializes default Json.Net format and returns same object`` () =
         Check.VerboseThrowOnFailureAll<BackwardCompatibility>()
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.Tuples")>]
+    member __.``Serialize tuples as list`` () =
+        (1, 2) |> serializedAs (defaultSerialize [1; 2])
+        (1, 2, 3) |> serializedAs (defaultSerialize [1; 2; 3])
