@@ -16,23 +16,22 @@ module private ConverterHelpers =
 
     let inline isTupleType (t:System.Type) =
        FSharpType.IsTuple t
-       //       t.GetTypeInfo().IsGenericType && t.GetGenericTypeDefinition() = typedefof<System.Tuple<_,_>>
 
     let inline toCamel (name:string) =
         if System.Char.IsLower (name, 0) then name
         else string(System.Char.ToLower name.[0]) + name.Substring(1)
 
-    let inline memorise (f: 'key -> 'result) = 
+    let inline memorise (f: 'key -> 'result) =
         let d = ConcurrentDictionary<'key, 'result>()
         fun key -> d.GetOrAdd(key, f)
 
     let getUnionCaseFieldsMemorised = memorise FSharpValue.PreComputeUnionReader
     let getUnionTagMemorised = memorise FSharpValue.PreComputeUnionTagReader
     let getUnionCasesByTagMemorised = memorise (fun t -> FSharpType.GetUnionCases(t) |> Array.map (fun x -> x.Tag, x) |> dict)
-    
+
     let getUnionCasesMemorised = memorise FSharpType.GetUnionCases
 
-    let getUnionTagOfValueMemorised v = 
+    let getUnionTagOfValueMemorised v =
         let t = v.GetType()
         getUnionTagMemorised t v
 
@@ -44,12 +43,12 @@ module private ConverterHelpers =
         (case, unionReader v)
 
     let SomeFieldIdentifier = "Some"
-    
+
     /// Determine if a given type has a field named 'Some' which would cause
     /// ambiguity if nested under an option type without being boxed
     let hasFieldNamedSome =
         memorise
-            (fun (t:System.Type) -> 
+            (fun (t:System.Type) ->
                 isOptionType t // the option type itself has a 'Some' field
                 || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier))
                 || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier)))
@@ -63,8 +62,8 @@ open ConverterHelpers
 type CompactUnionJsonConverter() =
     inherit Newtonsoft.Json.JsonConverter()
 
-    let canConvertMemorised = 
-        memorise 
+    let canConvertMemorised =
+        memorise
             (fun objectType ->
                 (   // Include F# discriminated unions
                     FSharpType.IsUnion objectType
@@ -79,7 +78,7 @@ type CompactUnionJsonConverter() =
 
     override __.WriteJson(writer:JsonWriter, value:obj, serializer:JsonSerializer) =
         let t = value.GetType()
-        
+
         let convertName =
             match serializer.ContractResolver with
             | :? CamelCasePropertyNamesContractResolver -> toCamel
@@ -148,9 +147,9 @@ type CompactUnionJsonConverter() =
                 writer.WriteEndObject()
 
     override __.ReadJson(reader:JsonReader, objectType:System.Type, existingValue:obj, serializer:JsonSerializer) =
-        let cases = FSharpType.GetUnionCases(objectType)
         // Option type?
         if isOptionType objectType then
+            let cases = FSharpType.GetUnionCases(objectType)
             let caseNone, caseSome = cases.[0], cases.[1]
             let jToken = Linq.JToken.ReadFrom(reader)
             // Json Null maps to `None`
@@ -202,8 +201,39 @@ type CompactUnionJsonConverter() =
 
                 FSharpValue.MakeUnion(caseSome, [| nestedValue |])
 
+        // Tuple type?
+
+            if reader.TokenType <> JsonToken.StartArray then
+                failwithf "Expecting a JSON array, got something else"
+
+            // TODO: backward-compat with legacy tuple serialization:
+            // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
+            // and fall back on else branch.
+
+            let tupleType = objectType
+            let elementTypes = FSharpType.GetTupleElements(tupleType)
+
+            let readElement elementType =
+                let more = reader.Read()
+                if not more then
+                    failwith "Missing array element in deserialized JSON"
+
+                let jToken = Linq.JToken.ReadFrom(reader)
+                jToken.ToObject(elementType, serializer)
+
+            let deserializedAsUntypedArray =
+                elementTypes
+                |> Array.map readElement
+
+            let more = reader.Read()
+            if reader.TokenType <> JsonToken.EndArray then
+                failwith "Expecting end of array token in deserialized JSON"
+
+            FSharpValue.MakeTuple(deserializedAsUntypedArray, tupleType)
+
         // Discriminated union
         else
+            let cases = FSharpType.GetUnionCases(objectType)
             // There are three types of union cases:
             //      | Case1 | Case2 of 'a | Case3 of 'a1 * 'a2 ... * 'an
             // Those are respectively serialized to Json as

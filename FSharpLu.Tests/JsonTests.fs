@@ -211,7 +211,7 @@ let inline ``Run using all serializers``< ^T when ^T:equality> (test: (^T->strin
     ] |> List.iter (fun (s, d) -> test s d input)
 
 [<TestClass>]
-type JsonSerializerTests() =    
+type JsonSerializerTests() =
 
     [<ClassInitialize>]
     static member Init(context : TestContext) = ()
