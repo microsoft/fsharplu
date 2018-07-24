@@ -206,6 +206,10 @@ type CompactUnionJsonConverter() =
             if reader.TokenType <> JsonToken.StartArray then
                 failwithf "Expecting a JSON array, got something else"
 
+            // TODO: backward-compat with legacy tuple serialization:
+            // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
+            // and fall back on else branch.
+
             let tupleType = objectType
             let elementTypes = FSharpType.GetTupleElements(tupleType)
 
