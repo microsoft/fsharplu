@@ -59,9 +59,11 @@ open ConverterHelpers
 /// The default formatting used by Json.Net to serialize F# discriminated unions
 /// and Option types is too verbose. This module implements a more succinct serialization
 /// for those data types.
-type CompactUnionJsonConverter() =
+type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
     inherit Newtonsoft.Json.JsonConverter()
 
+    ///  By default tuples are serialized as heterogeneous arrays.
+    let tupleAsHeterogneousArray = defaultArg tupleAsHeterogneousArray true
     let canConvertMemorised =
         memorise
             (fun objectType ->
@@ -121,7 +123,7 @@ type CompactUnionJsonConverter() =
                         // and serializing the nested object directly
                         serializer.Serialize(writer, innerValue)
         // Tuple
-        else if isTupleType t then
+        else if tupleAsHeterogneousArray && isTupleType t then
             let v = FSharpValue.GetTupleFields value
             serializer.Serialize(writer, v)
 
@@ -202,7 +204,7 @@ type CompactUnionJsonConverter() =
                 FSharpValue.MakeUnion(caseSome, [| nestedValue |])
 
         // Tuple type?
-
+        else if tupleAsHeterogneousArray && isTupleType objectType then
             if reader.TokenType <> JsonToken.StartArray then
                 failwithf "Expecting a JSON array, got something else"
 
@@ -299,27 +301,36 @@ type CompactUnionJsonConverter() =
 module Compact =
     open System.Runtime.CompilerServices
 
-    module Internal =
-        /// Serialization settings for our compact Json converter
-        type Settings =
-            static member settings =
-                let s = JsonSerializerSettings(
-                            NullValueHandling = NullValueHandling.Ignore,
+    /// Create Json.Net serialization settings with specified converter
+    let createJsonNetSettings (c:JsonConverter) =
+        let s =
+            JsonSerializerSettings(
+                NullValueHandling = NullValueHandling.Ignore,
 
-                            // Strict deserialization (MissingMemberHandling) is not technically needed for
-                            // compact serialization but because it avoids certain ambiguities it guarantees
-                            // that the deserialization coincides with the default Json deserialization
-                            // ('coincides' meaning 'if the deserialization succeeds they both return the same object')
-                            // Subsequently this allows us to very easily define the BackwardCompatible serializer which
-                            // deserializes Json in both Compact and Default format.
-                            MissingMemberHandling = MissingMemberHandling.Error
-                    )
-                s.Converters.Add(CompactUnionJsonConverter())
-                s
+                // Strict deserialization (MissingMemberHandling) is not technically needed for
+                // compact serialization but because it avoids certain ambiguities it guarantees
+                // that the deserialization coincides with the default Json deserialization
+                // ('coincides' meaning 'if the deserialization succeeds they both return the same object')
+                // Subsequently this allows us to very easily define the BackwardCompatible serializer which
+                // deserializes Json in both Compact and Default format.
+                MissingMemberHandling = MissingMemberHandling.Error
+        )
+        s.Converters.Add(c)
+        s
 
+    module Settings =
+        /// Compact serialization where tuples are serialized as JSON objects
+        type TupleAsObjectSettings =
+            static member settings = createJsonNetSettings <| CompactUnionJsonConverter(false)
             static member formatting = Formatting.Indented
 
-    type private S = With<Internal.Settings>
+        /// Compact serialization where tuples are serialized as heterogeneous arrays
+        type TupleAsArraySettings =
+            static member settings = createJsonNetSettings <| CompactUnionJsonConverter(true)
+            static member formatting = Formatting.Indented
+
+
+    type private S = With<Settings.TupleAsArraySettings>
 
     /// Serialize an object to Json with the specified converter
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
@@ -345,3 +356,32 @@ module Compact =
     /// Deserialize a stream to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream
+
+    /// Legacy compact serialization where tuples are serialized as objects instead of arrays
+    module Legacy =
+        type private S = With<Settings.TupleAsObjectSettings>
+
+        /// Serialize an object to Json with the specified converter
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline serialize< ^T> x = S.serialize x
+        /// Serialize an object to Json with the specified converter and save the result to a file
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline serializeToFile< ^T> file obj = S.serializeToFile file obj
+        /// Try to deserialize json to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline tryDeserialize< ^T> json = S.tryDeserialize< ^T> json
+        /// Try to read Json from a file and desrialized it to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline tryDeserializeFile< ^T> file = S.tryDeserializeFile< ^T> file
+        /// Try to deserialize a stream to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline tryDeserializeStream< ^T> stream = S.tryDeserializeStream< ^T> stream
+        /// Deserialize a Json to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline deserialize< ^T> json : ^T = S.deserialize< ^T> json
+        /// Read Json from a file and desrialized it to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline deserializeFile< ^T> file = S.deserializeFile< ^T> file
+        /// Deserialize a stream to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream
