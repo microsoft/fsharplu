@@ -210,6 +210,14 @@ let inline ``Run using all serializers``< ^T when ^T:equality> (test: (^T->strin
         BackwardCompatible.serialize, BackwardCompatible.deserialize
     ] |> List.iter (fun (s, d) -> test s d input)
 
+let inline testBackwardCompat< ^T when ^T:equality> (x: ^T) =
+    let y =
+        x
+        |> Compact.Legacy.serialize< ^T>
+        |> Compact.deserialize< ^T>
+
+    Assert.AreEqual(x, y, "Tuple deserialization is not backward compatible!")
+
 [<TestClass>]
 type JsonSerializerTests() =
 
@@ -340,3 +348,12 @@ type JsonSerializerTests() =
     member __.``Serialize tuples as list`` () =
         (1, 2) |> serializedAs (defaultSerialize [1; 2])
         (1, 2, 3) |> serializedAs (defaultSerialize [1; 2; 3])
+        (1, 2, 3, 4, 5, 6, 7, 8, 9, 10) |> serializedAs (defaultSerialize [1; 2; 3; 4; 5; 6; 7; 8; 9; 10])
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.Tuples")>]
+    member __.``Tuple serialization is backward compatible`` () =
+        (1, 2) |> testBackwardCompat
+        (1, "test", 5) |> testBackwardCompat
+        (1, ["foo"; "bar"]) |> testBackwardCompat
+        (1, 2, 3, 4, 5, 6, 7, 8, 9, 10) |> testBackwardCompat
