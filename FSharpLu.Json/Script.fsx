@@ -25,7 +25,7 @@ module T =
 
 module T2  =
     type X = {Some :string}
-    
+     
     Option.Some { X.Some = "test"} |> Compact.serialize
 
     Option.Some { X.Some = null} |> Compact.serialize
@@ -38,6 +38,7 @@ module T2  =
 
     null  |> Compact.serialize|> Compact.deserialize<obj option option>
 
+/// Compact serialization of tuples: enhancement proposed in https://github.com/Microsoft/fsharplu/issues/31
 module Tuple =
     open Microsoft.FSharp.Reflection
 
@@ -56,7 +57,55 @@ module Tuple =
     Compact.serialize<int list> [1;2]
     |> Compact.deserialize<FSharp.Collections.List<int>>
 
+    Compact.serialize (1,2)
+    |> Compact.deserialize<int * int>
+
     (ComplexDu (SomeField (4,9)))
     |> Compact.serialize
 
     FSharpType.IsTuple <| y.GetType()
+
+    ///////
+
+    // Deserialization
+    
+    Compact.serialize<int32*int32> (1u,2u)
+    |> Compact.deserialize<int32 * int32>
+
+    Compact.serialize<int32*int32> (1u,2u)
+    |> Compact.deserialize<int32 List>
+
+    
+    FSharpValue.MakeTuple([|2;3|],typeof<int*int>)
+
+    //// 
+    module Deserialization =
+        open Newtonsoft.Json
+        open System.IO
+        let x = (1u,2u)
+        let json =  Compact.serialize<int32*int32> x
+   
+        let stringReader = new StringReader(json)
+        let reader = new JsonTextReader(stringReader)
+
+        let more = reader.Read()
+        if not more || reader.TokenType <> JsonToken.StartArray then
+            failwithf "Expecting a JSON array, got something else"
+    
+        let tupleType = x.GetType()
+        let elementTypes = FSharpType.GetTupleElements(tupleType)
+
+        let readElement elementType = 
+            let more = reader.Read()
+            if not more then
+                failwith "Missing array element in deserialized JSON"
+
+            if isNull reader.Value then
+                failwith "expeciting a JSON element, got a token instead"
+            let jToken = Linq.JToken.ReadFrom(reader)
+            jToken.ToObject(elementType)
+        
+        elementTypes 
+        |> Array.map readElement
+       
+   
