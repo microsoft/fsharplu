@@ -88,7 +88,7 @@ type CamelCaseSettings =
                 NullValueHandling = NullValueHandling.Ignore,
                 MissingMemberHandling = MissingMemberHandling.Error,
                 ContractResolver = Serialization.CamelCasePropertyNamesContractResolver())
-        s.Converters.Add(CompactUnionJsonConverter())
+        s.Converters.Add(CompactUnionJsonConverter(true))
         s
     static member formatting = Formatting.None
 
@@ -239,7 +239,7 @@ type JsonSerializerTests() =
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json")>]
     member __.``Handles just the expected types``() =
-        let conv = CompactUnionJsonConverter()
+        let conv = CompactUnionJsonConverter(true)
         Assert.IsTrue(conv.CanConvert(Color.Red.GetType()))
         Assert.IsTrue(conv.CanConvert(typeof<Color>))
         Assert.IsTrue(conv.CanConvert(typeof<_ option>))
