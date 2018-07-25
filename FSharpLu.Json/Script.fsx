@@ -18,20 +18,20 @@ let z = x |> Compact.deserialize<ComplexDu>
 module T =
     type OptionOfBase = int option
     let x = Some 5
-    // Some 5 |> Default.serialize |> Default.deserialize :> OptionOfBase 
-    // Some 5 |> Default.serialize |> BackwardCompatible.deserialize :> OptionOfBase 
+    // Some 5 |> Default.serialize |> Default.deserialize :> OptionOfBase
+    // Some 5 |> Default.serialize |> BackwardCompatible.deserialize :> OptionOfBase
     Default.deserialize<OptionOfBase> "null"
     BackwardCompatible.deserialize<OptionOfBase> "null"
 
 module T2  =
     type X = {Some :string}
-     
+
     Option.Some { X.Some = "test"} |> Compact.serialize
 
     Option.Some { X.Some = null} |> Compact.serialize
 
     let z = Option.Some { X.Some = null} |> Compact.serialize |> Compact.deserialize<X option>
-    
+
     Some (Some null) |> Compact.serialize<obj option option> |> Compact.deserialize<obj option option>
 
     Some null |> Compact.serialize<obj option> |> Compact.deserialize<obj option>
@@ -48,7 +48,7 @@ module Tuple =
     FSharpType.IsTuple t
     FSharpValue.GetTupleFields(x)
     Compact.serialize (2,3)
- 
+
     Compact.serialize (1,2,3) = Compact.serialize [1;2;3]
 
     Compact.serialize [1;2;3]
@@ -65,37 +65,42 @@ module Tuple =
 
     FSharpType.IsTuple <| y.GetType()
 
-    ///////
 
-    // Deserialization
-    
+
+    Compact.serialize (1,"a string", ["a"; "list"])
+
+    Compact.Legacy.serialize (1,"a string", ["a"; "list"])
+
+    " [ 1, 'A string' ] " |> Compact.deserialize<int * string>
+
+
     Compact.serialize<int32*int32> (1u,2u)
     |> Compact.deserialize<int32 * int32>
 
     Compact.serialize<int32*int32> (1u,2u)
     |> Compact.deserialize<int32 List>
 
-    
+
     FSharpValue.MakeTuple([|2;3|],typeof<int*int>)
 
-    //// 
+    ////
     module Deserialization =
         open Newtonsoft.Json
         open System.IO
         let x = (1u,2u)
         let json =  Compact.serialize<int32*int32> x
-   
+
         let stringReader = new StringReader(json)
         let reader = new JsonTextReader(stringReader)
 
         let more = reader.Read()
         if not more || reader.TokenType <> JsonToken.StartArray then
             failwithf "Expecting a JSON array, got something else"
-    
+
         let tupleType = x.GetType()
         let elementTypes = FSharpType.GetTupleElements(tupleType)
 
-        let readElement elementType = 
+        let readElement elementType =
             let more = reader.Read()
             if not more then
                 failwith "Missing array element in deserialized JSON"
@@ -104,8 +109,6 @@ module Tuple =
                 failwith "expeciting a JSON element, got a token instead"
             let jToken = Linq.JToken.ReadFrom(reader)
             jToken.ToObject(elementType)
-        
-        elementTypes 
+
+        elementTypes
         |> Array.map readElement
-       
-   
