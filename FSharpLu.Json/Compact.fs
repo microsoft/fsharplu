@@ -59,11 +59,11 @@ open ConverterHelpers
 /// The default formatting used by Json.Net to serialize F# discriminated unions
 /// and Option types is too verbose. This module implements a more succinct serialization
 /// for those data types.
-type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
+type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
     inherit Newtonsoft.Json.JsonConverter()
 
     ///  By default tuples are serialized as heterogeneous arrays.
-    let tupleAsHeterogneousArray = defaultArg tupleAsHeterogneousArray true
+    let tupleAsHeterogeneousArray = defaultArg tupleAsHeterogeneousArray true
     let canConvertMemorised =
         memorise
             (fun objectType ->
@@ -73,7 +73,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                     && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
                 )
                 // include tuples
-                || tupleAsHeterogneousArray && FSharpType.IsTuple objectType
+                || tupleAsHeterogeneousArray && FSharpType.IsTuple objectType
             )
 
     override __.CanConvert(objectType:System.Type) = canConvertMemorised objectType
@@ -123,10 +123,9 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                         // and serializing the nested object directly
                         serializer.Serialize(writer, innerValue)
         // Tuple
-        else if tupleAsHeterogneousArray && isTupleType t then
+        else if tupleAsHeterogeneousArray && isTupleType t then
             let v = FSharpValue.GetTupleFields value
             serializer.Serialize(writer, v)
-
         // Discriminated union
         else
             let case, fields = getUnionFieldsMemorised value
@@ -204,15 +203,34 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                 FSharpValue.MakeUnion(caseSome, [| nestedValue |])
 
         // Tuple type?
-        else if tupleAsHeterogneousArray && isTupleType objectType then
-            match reader.TokenType with 
+        else if tupleAsHeterogeneousArray && isTupleType objectType then
+            match reader.TokenType with
             // JSON is an object with one field per element of the tuple
             | JsonToken.StartObject ->
                 // backward-compat with legacy tuple serialization:
                 // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
-                // and fall back on default serializaiton
-                //base.ReadJson(reader, objectType, existingValue, serializer)
-                failwith "Backward-compat deserialization not implemented for tuples"
+                let jToken = Linq.JObject.Load(reader)
+                if jToken = null then
+                    failwithf "Expecting a legacy tuple, got null"
+                else
+                    let props = jToken.Properties()
+
+                    let readProperty (prop: PropertyInfo) =
+                        match props |> Seq.tryFind (fun p -> p.Name = prop.Name) with
+                        | None ->
+                            failwithf "Cannot parse legacy tuple value: %O. Missing property: %s" jToken prop.Name
+                        | Some(jsonProp) ->
+                            jsonProp.Value.ToObject(prop.PropertyType, serializer)
+                    let itemProperties =
+                        objectType.GetTypeInfo().DeclaredProperties
+                        |> Seq.filter (fun p -> p.Name.StartsWith("Item") && p.GetIndexParameters().Length = 0)
+                    let valuesInAlphabeticalOrder =
+                        itemProperties
+                        |> Seq.sortBy (fun p -> p.Name)
+                        |> Seq.map readProperty
+                        |> Array.ofSeq
+                    // is there any way to be sure that alphabetical order will match tuple order in every case?
+                    System.Activator.CreateInstance(objectType, valuesInAlphabeticalOrder)
 
             // JSON is an heterogeneous array
             | JsonToken.StartArray ->
@@ -238,7 +256,6 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                 FSharpValue.MakeTuple(deserializedAsUntypedArray, tupleType)
             | _ ->
                 failwithf "Expecting a JSON array or a JSON object, got something else: %A" reader.TokenType
-
         // Discriminated union
         else
             let cases = FSharpType.GetUnionCases(objectType)
