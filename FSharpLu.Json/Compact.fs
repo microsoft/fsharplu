@@ -73,7 +73,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                     && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
                 )
                 // include tuples
-                || FSharpType.IsTuple objectType
+                || tupleAsHeterogneousArray && FSharpType.IsTuple objectType
             )
 
     override __.CanConvert(objectType:System.Type) = canConvertMemorised objectType
