@@ -127,7 +127,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
                         // and serializing the nested object directly
                         serializer.Serialize(writer, innerValue)
         // Tuple
-        else if isTupleType t then
+        else if tupleAsHeterogeneousArray && isTupleType t then
             let v = FSharpValue.GetTupleFields value
             serializer.Serialize(writer, v)
         // Discriminated union
