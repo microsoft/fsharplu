@@ -348,6 +348,7 @@ type JsonSerializerTests() =
     member __.``Serialize tuples as list`` () =
         (1, 2) |> serializedAs (defaultSerialize [1; 2])
         (1, 2, 3) |> serializedAs (defaultSerialize [1; 2; 3])
+        (1, 2, 3, 4, 5, 6, 7, 8, 9, 10) |> serializedAs (defaultSerialize [1; 2; 3; 4; 5; 6; 7; 8; 9; 10])
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.Tuples")>]
@@ -356,3 +357,4 @@ type JsonSerializerTests() =
         (1, "test", 5) |> testBackwardCompat
         (1, ["foo"; "bar"]) |> testBackwardCompat
         (1, ["foo"; "bar"], 4, "hello", ("bird", 3), 2, 3, 2, 4, 7) |> testBackwardCompat
+        (1, 2, 3, 4, 5, 6, 7, 8, 9, 10) |> testBackwardCompat
