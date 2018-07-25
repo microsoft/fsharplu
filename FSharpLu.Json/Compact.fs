@@ -214,7 +214,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
                 // backward-compat with legacy tuple serialization:
                 // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
                 let jToken = Linq.JObject.Load(reader)
-                if jToken = null then
+                if isNull jToken then
                     failwithf "Expecting a legacy tuple, got null"
                 else
                     let props = jToken.Properties()
@@ -223,13 +223,11 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
                         match props |> Seq.tryFind (fun p -> p.Name = prop.Name) with
                         | None ->
                             failwithf "Cannot parse legacy tuple value: %O. Missing property: %s" jToken prop.Name
-                        | Some(jsonProp) ->
+                        | Some jsonProp ->
                             jsonProp.Value.ToObject(prop.PropertyType, serializer)
-                    let itemProperties =
+                    let valuesInAlphabeticalOrder =
                         objectType.GetTypeInfo().DeclaredProperties
                         |> Seq.filter isTupleItemProperty
-                    let valuesInAlphabeticalOrder =
-                        itemProperties
                         |> Seq.sortBy (fun p -> p.Name)
                         |> Seq.map readProperty
                         |> Array.ofSeq
