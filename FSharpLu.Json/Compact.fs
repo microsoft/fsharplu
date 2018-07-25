@@ -17,6 +17,10 @@ module private ConverterHelpers =
     let inline isTupleType (t:System.Type) =
        FSharpType.IsTuple t
 
+    let inline isTupleItemProperty (prop:System.Reflection.PropertyInfo) =
+        // Item1, Item2, etc. excluding Items[n] indexer. Valid only on tuple types.
+        (prop.Name.StartsWith("Item") || prop.Name = "Rest") && prop.GetIndexParameters().Length = 0
+
     let inline toCamel (name:string) =
         if System.Char.IsLower (name, 0) then name
         else string(System.Char.ToLower name.[0]) + name.Substring(1)
@@ -223,13 +227,12 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
                             jsonProp.Value.ToObject(prop.PropertyType, serializer)
                     let itemProperties =
                         objectType.GetTypeInfo().DeclaredProperties
-                        |> Seq.filter (fun p -> p.Name.StartsWith("Item") && p.GetIndexParameters().Length = 0)
+                        |> Seq.filter isTupleItemProperty
                     let valuesInAlphabeticalOrder =
                         itemProperties
                         |> Seq.sortBy (fun p -> p.Name)
                         |> Seq.map readProperty
                         |> Array.ofSeq
-                    // is there any way to be sure that alphabetical order will match tuple order in every case?
                     System.Activator.CreateInstance(objectType, valuesInAlphabeticalOrder)
 
             // JSON is an heterogeneous array
