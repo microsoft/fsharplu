@@ -63,11 +63,11 @@ open ConverterHelpers
 /// The default formatting used by Json.Net to serialize F# discriminated unions
 /// and Option types is too verbose. This module implements a more succinct serialization
 /// for those data types.
-type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
+type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
     inherit Newtonsoft.Json.JsonConverter()
 
     ///  By default tuples are serialized as heterogeneous arrays.
-    let tupleAsHeterogneousArray = defaultArg tupleAsHeterogneousArray true
+    let tupleAsHeterogeneousArray = defaultArg tupleAsHeterogeneousArray true
     let canConvertMemorised =
         memorise
             (fun objectType ->
@@ -77,7 +77,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                     && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
                 )
                 // include tuples
-                || tupleAsHeterogneousArray && FSharpType.IsTuple objectType
+                || tupleAsHeterogeneousArray && FSharpType.IsTuple objectType
             )
 
     override __.CanConvert(objectType:System.Type) = canConvertMemorised objectType
@@ -128,16 +128,8 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                         serializer.Serialize(writer, innerValue)
         // Tuple
         else if isTupleType t then
-            if tupleAsHeterogneousArray then
-                let v = FSharpValue.GetTupleFields value
-                serializer.Serialize(writer, v)
-            else
-                // need to serialize tuple as object format, but can't just call serializer.Serialize(writer, value) or will infinitely recur
-                writer.WriteStartObject()
-                for p in t.GetTypeInfo().DeclaredProperties |> Seq.filter isTupleItemProperty do
-                    writer.WritePropertyName(p.Name)
-                    serializer.Serialize(writer, p.GetValue(value), p.PropertyType)
-                writer.WriteEndObject()
+            let v = FSharpValue.GetTupleFields value
+            serializer.Serialize(writer, v)
         // Discriminated union
         else
             let case, fields = getUnionFieldsMemorised value
@@ -216,7 +208,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
 
         // Tuple type?
         else if isTupleType objectType then
-            if reader.TokenType = JsonToken.StartArray then
+            if reader.TokenType = JsonToken.StartArray && tupleAsHeterogeneousArray then
                 let tupleType = objectType
                 let elementTypes = FSharpType.GetTupleElements(tupleType)
 
