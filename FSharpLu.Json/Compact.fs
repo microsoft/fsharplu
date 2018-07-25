@@ -19,7 +19,7 @@ module private ConverterHelpers =
 
     let inline isTupleItemProperty (prop:System.Reflection.PropertyInfo) =
         // Item1, Item2, etc. excluding Items[n] indexer. Valid only on tuple types.
-        (prop.Name.StartsWith("Item") || prop.Name = "Rest") && prop.GetIndexParameters().Length = 0
+        (prop.Name.StartsWith("Item") || prop.Name = "Rest") && (Seq.isEmpty <| prop.GetIndexParameters())
 
     let inline toCamel (name:string) =
         if System.Char.IsLower (name, 0) then name
@@ -217,21 +217,18 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
                 if isNull jToken then
                     failwithf "Expecting a legacy tuple, got null"
                 else
-                    let props = jToken.Properties()
-
                     let readProperty (prop: PropertyInfo) =
-                        match props |> Seq.tryFind (fun p -> p.Name = prop.Name) with
-                        | None ->
+                        match jToken.TryGetValue(prop.Name) with
+                        | false,_ ->
                             failwithf "Cannot parse legacy tuple value: %O. Missing property: %s" jToken prop.Name
-                        | Some jsonProp ->
-                            jsonProp.Value.ToObject(prop.PropertyType, serializer)
-                    let valuesInAlphabeticalOrder =
+                        | true, jsonProp ->
+                            jsonProp.ToObject(prop.PropertyType, serializer)
+                    let tupleValues =
                         objectType.GetTypeInfo().DeclaredProperties
                         |> Seq.filter isTupleItemProperty
-                        |> Seq.sortBy (fun p -> p.Name)
                         |> Seq.map readProperty
                         |> Array.ofSeq
-                    System.Activator.CreateInstance(objectType, valuesInAlphabeticalOrder)
+                    System.Activator.CreateInstance(objectType, tupleValues)
 
             // JSON is an heterogeneous array
             | JsonToken.StartArray ->
