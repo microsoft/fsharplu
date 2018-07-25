@@ -123,10 +123,18 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                         // and serializing the nested object directly
                         serializer.Serialize(writer, innerValue)
         // Tuple
-        else if tupleAsHeterogneousArray && isTupleType t then
-            let v = FSharpValue.GetTupleFields value
-            serializer.Serialize(writer, v)
-
+        else if isTupleType t then
+            if tupleAsHeterogneousArray then
+                let v = FSharpValue.GetTupleFields value
+                serializer.Serialize(writer, v)
+            else
+                // need to serialize tuple as object format, but can't just call serializer.Serialize(writer, value) or will infinitely recur
+                writer.WriteStartObject()
+                for p in t.GetTypeInfo().DeclaredProperties do
+                    if p.Name.StartsWith("Item") && p.GetIndexParameters().Length = 0 then // exclude .Items indexer
+                        writer.WritePropertyName(p.Name)
+                        serializer.Serialize(writer, p.GetValue(value), p.PropertyType)
+                writer.WriteEndObject()
         // Discriminated union
         else
             let case, fields = getUnionFieldsMemorised value
@@ -204,35 +212,57 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                 FSharpValue.MakeUnion(caseSome, [| nestedValue |])
 
         // Tuple type?
-        else if tupleAsHeterogneousArray && isTupleType objectType then
-            if reader.TokenType <> JsonToken.StartArray then
-                failwithf "Expecting a JSON array, got something else"
+        else if isTupleType objectType then
+            if reader.TokenType = JsonToken.StartArray then
+                let tupleType = objectType
+                let elementTypes = FSharpType.GetTupleElements(tupleType)
 
-            // TODO: backward-compat with legacy tuple serialization:
-            // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
-            // and fall back on else branch.
+                let readElement elementType =
+                    let more = reader.Read()
+                    if not more then
+                        failwith "Missing array element in deserialized JSON"
 
-            let tupleType = objectType
-            let elementTypes = FSharpType.GetTupleElements(tupleType)
+                    let jToken = Linq.JToken.ReadFrom(reader)
+                    jToken.ToObject(elementType, serializer)
 
-            let readElement elementType =
+                let deserializedAsUntypedArray =
+                    elementTypes
+                    |> Array.map readElement
+
                 let more = reader.Read()
-                if not more then
-                    failwith "Missing array element in deserialized JSON"
+                if reader.TokenType <> JsonToken.EndArray then
+                    failwith "Expecting end of array token in deserialized JSON"
 
-                let jToken = Linq.JToken.ReadFrom(reader)
-                jToken.ToObject(elementType, serializer)
+                FSharpValue.MakeTuple(deserializedAsUntypedArray, tupleType)
 
-            let deserializedAsUntypedArray =
-                elementTypes
-                |> Array.map readElement
+            elif reader.TokenType = JsonToken.StartObject then
+                // if reader.TokenType is StartObject then we should expect legacy JSON format for tuples
 
-            let more = reader.Read()
-            if reader.TokenType <> JsonToken.EndArray then
-                failwith "Expecting end of array token in deserialized JSON"
+                let jToken = Linq.JObject.Load(reader)
 
-            FSharpValue.MakeTuple(deserializedAsUntypedArray, tupleType)
+                if jToken = null then
+                    failwithf "Expecting a legacy tuple, got null"
+                else
+                    let props = jToken.Properties()
 
+                    let readProperty (prop: PropertyInfo) =
+                        match props |> Seq.tryFind (fun p -> p.Name = prop.Name) with
+                        | None ->
+                            failwithf "Cannot parse legacy tuple value: %O. Unexpected property: %s" jToken prop.Name
+                        | Some(jsonProp) ->
+                            jsonProp.Value.ToObject(prop.PropertyType, serializer)
+                    let itemProperties =
+                        objectType.GetTypeInfo().DeclaredProperties
+                        |> Seq.filter (fun p -> p.Name.StartsWith("Item") && p.GetIndexParameters().Length = 0)
+                    let valuesInAlphabeticalOrder =
+                        itemProperties
+                        |> Seq.sortBy (fun p -> p.Name)
+                        |> Seq.map readProperty
+                        |> Array.ofSeq
+                    // is there any way to be sure that alphabetical order will match tuple order in every case?
+                    FSharpValue.MakeTuple(valuesInAlphabeticalOrder, objectType)
+            else
+                failwithf "Expecting a JSON array, got something else"
         // Discriminated union
         else
             let cases = FSharpType.GetUnionCases(objectType)
