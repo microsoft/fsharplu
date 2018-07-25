@@ -94,10 +94,10 @@ module Tuple =
 
 
     Compact.Legacy.serialize (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
-    |> Compact.Legacy.deserialize<int*int*int*int*int*int*int*int*int*int*int*int*int*int*int*int*int> 
+    |> Compact.Legacy.deserialize<int*int*int*int*int*int*int*int*int*int*int*int*int*int*int*int*int>
 
     Compact.Legacy.serialize (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
-    |> Compact.deserialize<int*int*int*int*int*int*int*int*int*int*int*int*int*int*int*int*int> 
+    |> Compact.deserialize<int*int*int*int*int*int*int*int*int*int*int*int*int*int*int*int*int>
 
     ////
     module Deserialization =
@@ -128,3 +128,25 @@ module Tuple =
 
         elementTypes
         |> Array.map readElement
+
+
+module Demo =
+
+    let x =
+        (1,"Hackathon 2008",
+         ["F#"; "Json"; "Serialization"],
+         Some "d", 1.3,
+          "FSharpLu", "rocks",
+           Some ["!"; ":-)"])
+
+    x |> Default.serialize
+
+    x |> Compact.Legacy.serialize
+
+    x |> Compact.serialize
+
+    (1,2) |> Compact.serialize
+          |> Compact.deserialize<int * int>
+
+    (1,2,3) |> Compact.Legacy.serialize
+            |> Compact.deserialize<int * int * int>
