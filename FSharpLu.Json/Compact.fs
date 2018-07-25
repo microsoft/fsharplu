@@ -251,7 +251,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                     let readProperty (prop: PropertyInfo) =
                         match props |> Seq.tryFind (fun p -> p.Name = prop.Name) with
                         | None ->
-                            failwithf "Cannot parse legacy tuple value: %O. Unexpected property: %s" jToken prop.Name
+                            failwithf "Cannot parse legacy tuple value: %O. Missing property: %s" jToken prop.Name
                         | Some(jsonProp) ->
                             jsonProp.Value.ToObject(prop.PropertyType, serializer)
                     let itemProperties =
