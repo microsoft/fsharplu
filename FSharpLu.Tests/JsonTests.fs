@@ -370,3 +370,11 @@ type JsonSerializerTests() =
         // in buckets of 7 elements maximum. Each additional bucket gets nested under a 
         // "Rest" JSON field.
         (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17) |> testBackwardCompat
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.Tuples")>]
+    member __.``Legacy tuple deserialization handles property reordering`` () =
+        let r =
+            """{ "Item3": 3, "Item2": 2, "Item1": 1 }"""
+            |> Compact.deserialize<int*int*int>
+        Assert.AreEqual(r, (1,2,3), "Tuple deserialization should handle JSON properties in any order")

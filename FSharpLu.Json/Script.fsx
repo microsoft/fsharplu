@@ -66,6 +66,15 @@ module Tuple =
     FSharpType.IsTuple <| y.GetType()
 
 
+    Compact.Legacy.serialize (1,2,3)
+
+    let order = """
+{
+  "Item3": 3,
+  "Item2": 2,
+  "Item1": 1,
+}"""
+    Compact.deserialize<int*int*int> order
 
     Compact.serialize (1,"a string", ["a"; "list"])
 
