@@ -205,33 +205,39 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
 
         // Tuple type?
         else if tupleAsHeterogneousArray && isTupleType objectType then
-            if reader.TokenType <> JsonToken.StartArray then
-                failwithf "Expecting a JSON array, got something else"
+            match reader.TokenType with 
+            // JSON is an object with one field per element of the tuple
+            | JsonToken.StartObject ->
+                // backward-compat with legacy tuple serialization:
+                // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
+                // and fall back on default serializaiton
+                //base.ReadJson(reader, objectType, existingValue, serializer)
+                failwith "Backward-compat deserialization not implemented for tuples"
 
-            // TODO: backward-compat with legacy tuple serialization:
-            // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
-            // and fall back on else branch.
+            // JSON is an heterogeneous array
+            | JsonToken.StartArray ->
+                let tupleType = objectType
+                let elementTypes = FSharpType.GetTupleElements(tupleType)
 
-            let tupleType = objectType
-            let elementTypes = FSharpType.GetTupleElements(tupleType)
+                let readElement elementType =
+                    let more = reader.Read()
+                    if not more then
+                        failwith "Missing array element in deserialized JSON"
 
-            let readElement elementType =
+                    let jToken = Linq.JToken.ReadFrom(reader)
+                    jToken.ToObject(elementType, serializer)
+
+                let deserializedAsUntypedArray =
+                    elementTypes
+                    |> Array.map readElement
+
                 let more = reader.Read()
-                if not more then
-                    failwith "Missing array element in deserialized JSON"
+                if reader.TokenType <> JsonToken.EndArray then
+                    failwith "Expecting end of array token in deserialized JSON"
 
-                let jToken = Linq.JToken.ReadFrom(reader)
-                jToken.ToObject(elementType, serializer)
-
-            let deserializedAsUntypedArray =
-                elementTypes
-                |> Array.map readElement
-
-            let more = reader.Read()
-            if reader.TokenType <> JsonToken.EndArray then
-                failwith "Expecting end of array token in deserialized JSON"
-
-            FSharpValue.MakeTuple(deserializedAsUntypedArray, tupleType)
+                FSharpValue.MakeTuple(deserializedAsUntypedArray, tupleType)
+            | _ ->
+                failwithf "Expecting a JSON array or a JSON object, got something else: %A" reader.TokenType
 
         // Discriminated union
         else
