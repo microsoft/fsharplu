@@ -35,14 +35,14 @@ module SomeAmbiguity =
 let inline defaultSerialize< ^T> (x: ^T) = Compact.serialize< ^T> x
 
 let inline reciprocal< ^T when ^T:equality> (serialize: ^T->string) (deserialize: string-> ^T) (x: ^T) =
-    // theoretically one round trip is sufficient; we perform 
+    // theoretically one round trip is sufficient; we perform
     // two round trips here to test for possible side-effects
     x |> serialize |> deserialize |> serialize |> deserialize = x
 
-let inline canBeSerialized< ^T when ^T:equality> (serialize: ^T->string) (deserialize: string-> ^T) (x: ^T) = 
+let inline canBeSerialized< ^T when ^T:equality> (serialize: ^T->string) (deserialize: string-> ^T) (x: ^T) =
     serialize x |> printfn "%A"
 
-let inline areReciprocal< ^T when ^T:equality> (serialize: ^T->string) (deserialize: string-> ^T) (x: ^T) = 
+let inline areReciprocal< ^T when ^T:equality> (serialize: ^T->string) (deserialize: string-> ^T) (x: ^T) =
     let s = x |> serialize
     let sds = s |> deserialize |> serialize
     Assert.AreEqual(s, sds, sprintf "Inconsistent serialization: 1st call: <%s> 2nd call <%s>. Type %A" s sds (typeof< ^T>))
@@ -50,7 +50,7 @@ let inline areReciprocal< ^T when ^T:equality> (serialize: ^T->string) (deserial
     Assert.AreEqual(sdsd, x, sprintf "Did not get the same object back: <%A> gave back <%A> for type %A" x sdsd (typeof< ^T>))
 
 /// Check that given object serializes to the specified Json string (using default serializer)
-let inline serializedAs json o = 
+let inline serializedAs json o =
     let s = defaultSerialize o
     Assert.AreEqual(json, s, sprintf "Object was not serialized to the expected format")
 
@@ -60,10 +60,10 @@ let inline serializedAs json o =
 let inline coincidesWithDefault< ^T when ^T:equality> (x: ^T) =
     let deserializationMustCoincide json =
         match Default.tryDeserialize< ^T> json, Compact.tryDeserialize< ^T> json with
-        | Choice2Of2 error1, Choice2Of2 error2-> 
+        | Choice2Of2 error1, Choice2Of2 error2->
             Assert.IsTrue(true, "Json not parseable by either deserializer: no ambiguity")
         | Choice1Of2 _, Choice2Of2 error
-        | Choice2Of2 error, Choice1Of2 _ -> 
+        | Choice2Of2 error, Choice1Of2 _ ->
             Assert.IsTrue(true, "Json parseable by exactly one deserializer: no ambiguity")
         | Choice1Of2 v1, Choice1Of2 v2 when v1 <> v2 ->
             Assert.Fail(sprintf "Deserializers do not coincide: %A <> %A" v1 v2)
@@ -72,10 +72,10 @@ let inline coincidesWithDefault< ^T when ^T:equality> (x: ^T) =
     x |> Default.serialize |> deserializationMustCoincide
     x |> Compact.serialize |> deserializationMustCoincide
 
-/// Check that output format of Default Json.Net serializer can be parsed by 
+/// Check that output format of Default Json.Net serializer can be parsed by
 /// the BackwardCompatible deserializer
 let inline backwardCompatibleWithDefault< ^T when ^T:equality> (x: ^T) =
-    let json = x |> Default.serialize 
+    let json = x |> Default.serialize
     let o1 = json |> Default.deserialize : ^T
     let o2 = json |> BackwardCompatible.deserialize : ^T
     Assert.AreEqual(o1, o2,
@@ -83,7 +83,7 @@ let inline backwardCompatibleWithDefault< ^T when ^T:equality> (x: ^T) =
 
 type CamelCaseSettings =
     static member settings =
-        let s = 
+        let s =
             JsonSerializerSettings(
                 NullValueHandling = NullValueHandling.Ignore,
                 MissingMemberHandling = MissingMemberHandling.Error,
@@ -106,21 +106,21 @@ type ReciprocalityCompact () =
     static member x9 = reciprocal<Shape> Compact.serialize Compact.deserialize
     static member x10 = reciprocal<int Tree> Compact.serialize Compact.deserialize
     static member x11 = reciprocal<int Tree Test> Compact.serialize Compact.deserialize
-    static member x12 = reciprocal<int Test> Compact.serialize Compact.deserialize 
-    static member x13 = reciprocal<int list Tree> Compact.serialize Compact.deserialize 
-    static member x14 = reciprocal<string NestedOptions> Compact.serialize Compact.deserialize 
-    static member x15 = reciprocal<string> Compact.serialize Compact.deserialize 
-    static member x16 = reciprocal<string option> Compact.serialize Compact.deserialize 
-    static member x17 = reciprocal<string option option> Compact.serialize Compact.deserialize 
-    static member x18 = reciprocal<string option option option option> Compact.serialize Compact.deserialize 
-    static member x19 = reciprocal<int NestedOptions> Compact.serialize Compact.deserialize 
+    static member x12 = reciprocal<int Test> Compact.serialize Compact.deserialize
+    static member x13 = reciprocal<int list Tree> Compact.serialize Compact.deserialize
+    static member x14 = reciprocal<string NestedOptions> Compact.serialize Compact.deserialize
+    static member x15 = reciprocal<string> Compact.serialize Compact.deserialize
+    static member x16 = reciprocal<string option> Compact.serialize Compact.deserialize
+    static member x17 = reciprocal<string option option> Compact.serialize Compact.deserialize
+    static member x18 = reciprocal<string option option option option> Compact.serialize Compact.deserialize
+    static member x19 = reciprocal<int NestedOptions> Compact.serialize Compact.deserialize
     static member x20 = reciprocal<SomeAmbiguity.Ambiguous1<string>> Compact.serialize Compact.deserialize
     static member x21 = reciprocal<SomeAmbiguity.Ambiguous1<SimpleDu>> Compact.serialize Compact.deserialize
-    static member x22 = reciprocal<NestedOptionStructure> Compact.serialize Compact.deserialize 
-    static member x23 = reciprocal<SomeAmbiguity.Ambiguous2> Compact.serialize Compact.deserialize 
-    static member x24 = reciprocal<SomeAmbiguity.Ambiguous3> Compact.serialize Compact.deserialize 
-    static member x25 = reciprocal<int list> Compact.serialize Compact.deserialize 
- 
+    static member x22 = reciprocal<NestedOptionStructure> Compact.serialize Compact.deserialize
+    static member x23 = reciprocal<SomeAmbiguity.Ambiguous2> Compact.serialize Compact.deserialize
+    static member x24 = reciprocal<SomeAmbiguity.Ambiguous3> Compact.serialize Compact.deserialize
+    static member x25 = reciprocal<int list> Compact.serialize Compact.deserialize
+
 type ReciprocalityCamelCase () =
     static member x1 = reciprocal<ComplexDu> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
     static member x2 = reciprocal<ComplexDu RecursiveList> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
@@ -133,20 +133,20 @@ type ReciprocalityCamelCase () =
     static member x9 = reciprocal<Shape> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
     static member x10 = reciprocal<int Tree> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
     static member x11 = reciprocal<int Tree Test> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
-    static member x12 = reciprocal<int Test> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x13 = reciprocal<int list Tree> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x14 = reciprocal<string NestedOptions> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x15 = reciprocal<string> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x16 = reciprocal<string option> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x17 = reciprocal<string option option> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x18 = reciprocal<string option option option option> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x19 = reciprocal<int NestedOptions> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
+    static member x12 = reciprocal<int Test> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x13 = reciprocal<int list Tree> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x14 = reciprocal<string NestedOptions> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x15 = reciprocal<string> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x16 = reciprocal<string option> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x17 = reciprocal<string option option> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x18 = reciprocal<string option option option option> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x19 = reciprocal<int NestedOptions> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
     static member x20 = reciprocal<SomeAmbiguity.Ambiguous1<string>> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
     static member x21 = reciprocal<SomeAmbiguity.Ambiguous1<SimpleDu>> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
-    static member x22 = reciprocal<NestedOptionStructure> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x23 = reciprocal<SomeAmbiguity.Ambiguous2> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize 
-    static member x24 = reciprocal<SomeAmbiguity.Ambiguous3> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize    
-    static member x25 = reciprocal<int list> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize    
+    static member x22 = reciprocal<NestedOptionStructure> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x23 = reciprocal<SomeAmbiguity.Ambiguous2> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x24 = reciprocal<SomeAmbiguity.Ambiguous3> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x25 = reciprocal<int list> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
 
 type CoincidesWithJsonNetOnDeserialization () =
     static member x1 = coincidesWithDefault<ComplexDu>
@@ -174,7 +174,7 @@ type CoincidesWithJsonNetOnDeserialization () =
     static member x23 = coincidesWithDefault<SomeAmbiguity.Ambiguous2>
     static member x24 = coincidesWithDefault<SomeAmbiguity.Ambiguous3>
     static member x25 = coincidesWithDefault<int list>
-    
+
 type BackwardCompatibility () =
     static member x1 = backwardCompatibleWithDefault<ComplexDu>
     static member x2 = backwardCompatibleWithDefault<ComplexDu RecursiveList>
@@ -203,7 +203,7 @@ type BackwardCompatibility () =
     static member x25 = backwardCompatibleWithDefault<int list>
 
 let inline ``Run using all serializers``< ^T when ^T:equality> (test: (^T->string)->(string-> ^T)-> ^T->unit) (input: ^T) =
-    [ 
+    [
         Compact.serialize, Compact.deserialize
         Default.serialize, Default.deserialize
         CamelCaseSerializer.serialize, CamelCaseSerializer.deserialize
@@ -228,7 +228,7 @@ type JsonSerializerTests() =
     [<TestCategory("FSharpLu.Json")>]
     member __.``Serialize field-less DU`` () =
         FooBar |> serializedAs "\"FooBar\""
-        
+
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json")>]
     member __.``Dont' touch Fsharp lists`` () =
@@ -282,7 +282,7 @@ type JsonSerializerTests() =
         ``Run using all serializers`` areReciprocal  <| Some 8
         ``Run using all serializers`` areReciprocal  <| Red
         ``Run using all serializers`` areReciprocal  <| Circle (8,10)
-        ``Run using all serializers`` areReciprocal  <| Node((Leaf "s"),(Leaf "s")) 
+        ``Run using all serializers`` areReciprocal  <| Node((Leaf "s"),(Leaf "s"))
         ``Run using all serializers`` areReciprocal  <| Leaf ["s";"s"]
         ``Run using all serializers`` areReciprocal  <| Node((Leaf 1),(Leaf 9))
         ``Run using all serializers`` areReciprocal  <| Case1
@@ -319,7 +319,7 @@ type JsonSerializerTests() =
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.CamelCase")>]
     member __.``CamelCaseSerializer handles option type`` () =
-        let du = { WrappedField = Some Red } 
+        let du = { WrappedField = Some Red }
         let str = CamelCaseSerializer.serialize du
         Assert.AreEqual("""{"wrappedField":"red"}""", str)
 
@@ -355,3 +355,4 @@ type JsonSerializerTests() =
         (1, 2) |> testBackwardCompat
         (1, "test", 5) |> testBackwardCompat
         (1, ["foo"; "bar"]) |> testBackwardCompat
+        (1, ["foo"; "bar"], 4, "hello", ("bird", 3), 2, 3, 2, 4, 7) |> testBackwardCompat
