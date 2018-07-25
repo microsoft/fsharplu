@@ -17,6 +17,10 @@ module private ConverterHelpers =
     let inline isTupleType (t:System.Type) =
        FSharpType.IsTuple t
 
+    let inline isTupleItemProperty (prop:System.Reflection.PropertyInfo) =
+        // Item1, Item2, etc. excluding Items[n] indexer. Valid only on tuple types.
+        (prop.Name.StartsWith("Item") || prop.Name = "Rest") && prop.GetIndexParameters().Length = 0
+
     let inline toCamel (name:string) =
         if System.Char.IsLower (name, 0) then name
         else string(System.Char.ToLower name.[0]) + name.Substring(1)
@@ -130,10 +134,9 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
             else
                 // need to serialize tuple as object format, but can't just call serializer.Serialize(writer, value) or will infinitely recur
                 writer.WriteStartObject()
-                for p in t.GetTypeInfo().DeclaredProperties do
-                    if p.Name.StartsWith("Item") && p.GetIndexParameters().Length = 0 then // exclude .Items indexer
-                        writer.WritePropertyName(p.Name)
-                        serializer.Serialize(writer, p.GetValue(value), p.PropertyType)
+                for p in t.GetTypeInfo().DeclaredProperties |> Seq.filter isTupleItemProperty do
+                    writer.WritePropertyName(p.Name)
+                    serializer.Serialize(writer, p.GetValue(value), p.PropertyType)
                 writer.WriteEndObject()
         // Discriminated union
         else
@@ -253,14 +256,13 @@ type CompactUnionJsonConverter(?tupleAsHeterogneousArray:bool) =
                             jsonProp.Value.ToObject(prop.PropertyType, serializer)
                     let itemProperties =
                         objectType.GetTypeInfo().DeclaredProperties
-                        |> Seq.filter (fun p -> p.Name.StartsWith("Item") && p.GetIndexParameters().Length = 0)
+                        |> Seq.filter isTupleItemProperty
                     let valuesInAlphabeticalOrder =
                         itemProperties
                         |> Seq.sortBy (fun p -> p.Name)
                         |> Seq.map readProperty
                         |> Array.ofSeq
-                    // is there any way to be sure that alphabetical order will match tuple order in every case?
-                    FSharpValue.MakeTuple(valuesInAlphabeticalOrder, objectType)
+                    System.Activator.CreateInstance(objectType, valuesInAlphabeticalOrder)
             else
                 failwithf "Expecting a JSON array, got something else"
         // Discriminated union
