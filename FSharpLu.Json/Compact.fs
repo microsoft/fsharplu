@@ -362,18 +362,33 @@ module Compact =
     /// Try to deserialize json to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline tryDeserialize< ^T> json = S.tryDeserialize< ^T> json
+    /// Try to deserialize json to an object of type targetType
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline tryDeserializeToType< ^T> targetType json = S.tryDeserializeToType< ^T> targetType json
     /// Try to read Json from a file and desrialized it to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline tryDeserializeFile< ^T> file = S.tryDeserializeFile< ^T> file
+    /// Try to read Json from a file and desrialized it to an object of type targetType
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline tryDeserializeFileToType< ^T> targetType file = S.tryDeserializeFileToType< ^T> targetType file
     /// Try to deserialize a stream to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline tryDeserializeStream< ^T> stream = S.tryDeserializeStream< ^T> stream
+    /// Try to deserialize a stream to an object of type targetType
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline tryDeserializeStreamToType< ^T> targetType stream = S.tryDeserializeStreamToType< ^T> targetType stream
     /// Deserialize a Json to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline deserialize< ^T> json : ^T = S.deserialize< ^T> json
+    /// Deserialize a Json to an object of targetType
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline deserializeToType< ^T> targetType json : ^T = S.deserializeToType targetType json 
     /// Read Json from a file and desrialized it to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline deserializeFile< ^T> file = S.deserializeFile< ^T> file
+    /// Read Json from a file and desrialized it to an object of targetType
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline deserializeFileToType< ^T> targetType file = S.deserializeFileToType< ^T> targetType file
     /// Deserialize a stream to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream
