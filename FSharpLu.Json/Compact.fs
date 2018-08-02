@@ -28,6 +28,20 @@ module private ConverterHelpers =
     
     let getUnionCasesMemorised = memorise FSharpType.GetUnionCases
 
+    let constructUnionCaseMemorised = memorise FSharpValue.PreComputeUnionConstructor
+
+    let getUnionCaseProperyInfoFieldsMemorised = memorise (fun (case: UnionCaseInfo) -> case.GetFields())
+
+    let findNoFieldsMatchingUnionCaseByNameAndType  = 
+        memorise <| fun (objectType, caseName) -> 
+            let cases = getUnionCasesMemorised objectType
+            cases |> Array.tryFind (fun case -> stringEq case.Name caseName && (getUnionCaseProperyInfoFieldsMemorised case |> Array.isEmpty))
+
+    let findMatchingUnionCaseByNameAndType  = 
+        memorise <| fun (objectType, caseName) -> 
+            let cases = getUnionCasesMemorised objectType
+            cases |> Array.tryFind (fun case -> stringEq case.Name caseName)
+
     let getUnionTagOfValueMemorised v = 
         let t = v.GetType()
         getUnionTagMemorised t v
@@ -90,7 +104,7 @@ type CompactUnionJsonConverter() =
             // Some _
             else
                 // Handle cases `Some None` and `Some null`
-                let innerType = some.GetFields().[0].PropertyType
+                let innerType = (getUnionCaseProperyInfoFieldsMemorised some).[0].PropertyType
                 let innerValue = fields.[0]
                 if isNull innerValue then
                     writer.WriteStartObject()
@@ -119,8 +133,7 @@ type CompactUnionJsonConverter() =
 
             match fields with
             // Field-less union case
-            | [||] ->
-                writer.WriteValue(convertName (sprintf "%A" value))
+            | [||] -> writer.WriteValue(convertName case.Name)
             // Case with single field
             | [|onefield|] ->
                 writer.WriteStartObject()
@@ -135,11 +148,12 @@ type CompactUnionJsonConverter() =
                 writer.WriteEndObject()
 
     override __.ReadJson(reader:JsonReader, objectType:System.Type, existingValue:obj, serializer:JsonSerializer) =
-        let cases = FSharpType.GetUnionCases(objectType)
+        let cases = getUnionCasesMemorised objectType
         // Option type?
         if isOptionType objectType then
             let caseNone, caseSome = cases.[0], cases.[1]
             let jToken = Linq.JToken.ReadFrom(reader)
+
             // Json Null maps to `None`
             if jToken.Type = Linq.JTokenType.Null then
                 FSharpValue.MakeUnion(caseNone, [||])
@@ -187,7 +201,7 @@ type CompactUnionJsonConverter() =
                         // deserialize the object of type 'a directly without performing any unboxing.
                         jToken.ToObject(nestedType, serializer)
 
-                FSharpValue.MakeUnion(caseSome, [| nestedValue |])
+                constructUnionCaseMemorised caseSome [| nestedValue |]
 
         // Discriminated union
         else
@@ -207,11 +221,9 @@ type CompactUnionJsonConverter() =
             // Type1: field-less union case
             elif jToken.Type = Linq.JTokenType.String then
                 let caseName = jToken.ToString()
-                let matchingCase =
-                    cases
-                    |> Array.tryFind (fun case -> stringEq case.Name caseName && (case.GetFields() |> Array.isEmpty))
+                let matchingCase = findNoFieldsMatchingUnionCaseByNameAndType (objectType, caseName)
                 match matchingCase with
-                | Some case -> FSharpValue.MakeUnion(case,[||])
+                | Some case -> constructUnionCaseMemorised case [||]
                 | None ->
                     failwithf "Cannot parse DU field-less value: %O. Expected names: %O" caseName (System.String.Join(", ", cases |> Seq.map(fun c->c.Name)))
 
@@ -224,31 +236,29 @@ type CompactUnionJsonConverter() =
 
                 let caseProperty = jObjectProperties |> Seq.head
                 /// Lookup the DU case by name
-                let matchingCase =
-                    cases
-                    |> Seq.tryFind (fun case -> stringEq case.Name caseProperty.Name)
-
+                let matchingCase = findMatchingUnionCaseByNameAndType (objectType, caseProperty.Name)
+                
                 match matchingCase with
                 | None ->
                     failwithf "Case with fields '%s' does not exist for discriminated union %s" caseProperty.Name objectType.Name
-
-                // Type 2: A union case with a single field: Case2 of 'a
-                | Some case when case.GetFields().Length = 1 ->
-                    let fieldType = case.GetFields().[0].PropertyType
-                    let field = caseProperty.Value.ToObject(fieldType, serializer)
-                    FSharpValue.MakeUnion(case, [|field|])
-
-                // Type 3: A union case with more than one field: Case3 of 'a1 * 'a2 ... * 'an
-                | Some case ->
-                    // Here there could be an ambiguity:
-                    // the Json values are either the fields of the case
-                    // or if the array is Use target type to resolve ambiguity
-                    let fields =
-                        case.GetFields()
-                        |> Seq.zip caseProperty.Value
-                        |> Seq.map (fun (v,t) -> v.ToObject(t.PropertyType, serializer))
-                        |> Seq.toArray
-                    FSharpValue.MakeUnion(case, fields)
+                | Some case  -> 
+                    let propertyInfosForCase = getUnionCaseProperyInfoFieldsMemorised case
+                    // Type 2: A union case with a single field: Case2 of 'a
+                    if propertyInfosForCase.Length = 1 then
+                        let fieldType = propertyInfosForCase.[0].PropertyType
+                        let field = caseProperty.Value.ToObject(fieldType, serializer)
+                        constructUnionCaseMemorised case [|field|]
+                    // Type 3: A union case with more than one field: Case3 of 'a1 * 'a2 ... * 'an
+                    else                    
+                        // Here there could be an ambiguity:
+                        // the Json values are either the fields of the case
+                        // or if the array is Use target type to resolve ambiguity
+                        let fields =
+                            propertyInfosForCase
+                            |> Seq.zip caseProperty.Value
+                            |> Seq.map (fun (v,t) -> v.ToObject(t.PropertyType, serializer))
+                            |> Seq.toArray
+                        constructUnionCaseMemorised case fields
             else
                 failwithf "Unexpected Json token type %O: %O" jToken.Type jToken
 
