@@ -392,6 +392,9 @@ module Compact =
     /// Deserialize a stream to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream
+    /// Deserialize a stream to an object of targetType
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline deserializeStreamToType< ^T> targetType stream = S.deserializeStreamToType< ^T> targetType stream
 
     /// Legacy compact serialization where tuples are serialized as objects instead of arrays
     module Legacy =
