@@ -14,21 +14,28 @@ module private ConverterHelpers =
     let inline isOptionType (t:System.Type) =
        t.GetTypeInfo().IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
 
+    let inline isTupleType (t:System.Type) =
+       FSharpType.IsTuple t
+
+    let inline isTupleItemProperty (prop:System.Reflection.PropertyInfo) =
+        // Item1, Item2, etc. excluding Items[n] indexer. Valid only on tuple types.
+        (prop.Name.StartsWith("Item") || prop.Name = "Rest") && (Seq.isEmpty <| prop.GetIndexParameters())
+
     let inline toCamel (name:string) =
         if System.Char.IsLower (name, 0) then name
         else string(System.Char.ToLower name.[0]) + name.Substring(1)
 
-    let inline memorise (f: 'key -> 'result) = 
+    let inline memorise (f: 'key -> 'result) =
         let d = ConcurrentDictionary<'key, 'result>()
         fun key -> d.GetOrAdd(key, f)
 
     let getUnionCaseFieldsMemorised = memorise FSharpValue.PreComputeUnionReader
     let getUnionTagMemorised = memorise FSharpValue.PreComputeUnionTagReader
     let getUnionCasesByTagMemorised = memorise (fun t -> FSharpType.GetUnionCases(t) |> Array.map (fun x -> x.Tag, x) |> dict)
-    
+
     let getUnionCasesMemorised = memorise FSharpType.GetUnionCases
 
-    let getUnionTagOfValueMemorised v = 
+    let getUnionTagOfValueMemorised v =
         let t = v.GetType()
         getUnionTagMemorised t v
 
@@ -40,12 +47,12 @@ module private ConverterHelpers =
         (case, unionReader v)
 
     let SomeFieldIdentifier = "Some"
-    
+
     /// Determine if a given type has a field named 'Some' which would cause
     /// ambiguity if nested under an option type without being boxed
     let hasFieldNamedSome =
         memorise
-            (fun (t:System.Type) -> 
+            (fun (t:System.Type) ->
                 isOptionType t // the option type itself has a 'Some' field
                 || (FSharpType.IsRecord t && FSharpType.GetRecordFields t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier))
                 || (FSharpType.IsUnion t && FSharpType.GetUnionCases t |> Seq.exists (fun r -> stringEq r.Name SomeFieldIdentifier)))
@@ -56,22 +63,28 @@ open ConverterHelpers
 /// The default formatting used by Json.Net to serialize F# discriminated unions
 /// and Option types is too verbose. This module implements a more succinct serialization
 /// for those data types.
-type CompactUnionJsonConverter() =
+type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
     inherit Newtonsoft.Json.JsonConverter()
 
-    let canConvertMemorised = 
-        memorise 
-            (fun objectType ->        
-                // Include F# discriminated unions
-                FSharpType.IsUnion objectType
-                // and exclude the standard FSharp lists (which are implemented as discriminated unions)
-                && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>))
+    ///  By default tuples are serialized as heterogeneous arrays.
+    let tupleAsHeterogeneousArray = defaultArg tupleAsHeterogeneousArray true
+    let canConvertMemorised =
+        memorise
+            (fun objectType ->
+                (   // Include F# discriminated unions
+                    FSharpType.IsUnion objectType
+                    // and exclude the standard FSharp lists (which are implemented as discriminated unions)
+                    && not (objectType.GetTypeInfo().IsGenericType && objectType.GetGenericTypeDefinition() = typedefof<_ list>)
+                )
+                // include tuples
+                || tupleAsHeterogeneousArray && FSharpType.IsTuple objectType
+            )
 
     override __.CanConvert(objectType:System.Type) = canConvertMemorised objectType
 
     override __.WriteJson(writer:JsonWriter, value:obj, serializer:JsonSerializer) =
         let t = value.GetType()
-        
+
         let convertName =
             match serializer.ContractResolver with
             | :? CamelCasePropertyNamesContractResolver -> toCamel
@@ -112,10 +125,14 @@ type CompactUnionJsonConverter() =
                         // (and therfore in particular is NOT an option type itself)
                         // => we can simplify the Json by omitting the `Some` boxing
                         // and serializing the nested object directly
-                        serializer.Serialize(writer, innerValue)             
+                        serializer.Serialize(writer, innerValue)
+        // Tuple
+        else if tupleAsHeterogeneousArray && isTupleType t then
+            let v = FSharpValue.GetTupleFields value
+            serializer.Serialize(writer, v)
         // Discriminated union
         else
-            let case, fields = getUnionFieldsMemorised value    
+            let case, fields = getUnionFieldsMemorised value
 
             match fields with
             // Field-less union case
@@ -135,9 +152,9 @@ type CompactUnionJsonConverter() =
                 writer.WriteEndObject()
 
     override __.ReadJson(reader:JsonReader, objectType:System.Type, existingValue:obj, serializer:JsonSerializer) =
-        let cases = FSharpType.GetUnionCases(objectType)
         // Option type?
         if isOptionType objectType then
+            let cases = FSharpType.GetUnionCases(objectType)
             let caseNone, caseSome = cases.[0], cases.[1]
             let jToken = Linq.JToken.ReadFrom(reader)
             // Json Null maps to `None`
@@ -189,8 +206,57 @@ type CompactUnionJsonConverter() =
 
                 FSharpValue.MakeUnion(caseSome, [| nestedValue |])
 
+        // Tuple type?
+        else if tupleAsHeterogeneousArray && isTupleType objectType then
+            match reader.TokenType with
+            // JSON is an object with one field per element of the tuple
+            | JsonToken.StartObject ->
+                // backward-compat with legacy tuple serialization:
+                // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
+                let jToken = Linq.JObject.Load(reader)
+                if isNull jToken then
+                    failwithf "Expecting a legacy tuple, got null"
+                else
+                    let readProperty (prop: PropertyInfo) =
+                        match jToken.TryGetValue(prop.Name) with
+                        | false,_ ->
+                            failwithf "Cannot parse legacy tuple value: %O. Missing property: %s" jToken prop.Name
+                        | true, jsonProp ->
+                            jsonProp.ToObject(prop.PropertyType, serializer)
+                    let tupleValues =
+                        objectType.GetTypeInfo().DeclaredProperties
+                        |> Seq.filter isTupleItemProperty
+                        |> Seq.map readProperty
+                        |> Array.ofSeq
+                    System.Activator.CreateInstance(objectType, tupleValues)
+
+            // JSON is an heterogeneous array
+            | JsonToken.StartArray ->
+                let tupleType = objectType
+                let elementTypes = FSharpType.GetTupleElements(tupleType)
+
+                let readElement elementType =
+                    let more = reader.Read()
+                    if not more then
+                        failwith "Missing array element in deserialized JSON"
+
+                    let jToken = Linq.JToken.ReadFrom(reader)
+                    jToken.ToObject(elementType, serializer)
+
+                let deserializedAsUntypedArray =
+                    elementTypes
+                    |> Array.map readElement
+
+                let more = reader.Read()
+                if reader.TokenType <> JsonToken.EndArray then
+                    failwith "Expecting end of array token in deserialized JSON"
+
+                FSharpValue.MakeTuple(deserializedAsUntypedArray, tupleType)
+            | _ ->
+                failwithf "Expecting a JSON array or a JSON object, got something else: %A" reader.TokenType
         // Discriminated union
         else
+            let cases = FSharpType.GetUnionCases(objectType)
             // There are three types of union cases:
             //      | Case1 | Case2 of 'a | Case3 of 'a1 * 'a2 ... * 'an
             // Those are respectively serialized to Json as
@@ -256,27 +322,36 @@ type CompactUnionJsonConverter() =
 module Compact =
     open System.Runtime.CompilerServices
 
-    module Internal =
-        /// Serialization settings for our compact Json converter
-        type Settings =
-            static member settings =
-                let s = JsonSerializerSettings(
-                            NullValueHandling = NullValueHandling.Ignore,
+    /// Create Json.Net serialization settings with specified converter
+    let createJsonNetSettings (c:JsonConverter) =
+        let s =
+            JsonSerializerSettings(
+                NullValueHandling = NullValueHandling.Ignore,
 
-                            // Strict deserialization (MissingMemberHandling) is not technically needed for
-                            // compact serialization but because it avoids certain ambiguities it guarantees
-                            // that the deserialization coincides with the default Json deserialization
-                            // ('coincides' meaning 'if the deserialization succeeds they both return the same object')
-                            // Subsequently this allows us to very easily define the BackwardCompatible serializer which
-                            // deserializes Json in both Compact and Default format.
-                            MissingMemberHandling = MissingMemberHandling.Error
-                    )
-                s.Converters.Add(CompactUnionJsonConverter())
-                s
+                // Strict deserialization (MissingMemberHandling) is not technically needed for
+                // compact serialization but because it avoids certain ambiguities it guarantees
+                // that the deserialization coincides with the default Json deserialization
+                // ('coincides' meaning 'if the deserialization succeeds they both return the same object')
+                // Subsequently this allows us to very easily define the BackwardCompatible serializer which
+                // deserializes Json in both Compact and Default format.
+                MissingMemberHandling = MissingMemberHandling.Error
+        )
+        s.Converters.Add(c)
+        s
 
+    module Settings =
+        /// Compact serialization where tuples are serialized as JSON objects
+        type TupleAsObjectSettings =
+            static member settings = createJsonNetSettings <| CompactUnionJsonConverter(false)
             static member formatting = Formatting.Indented
 
-    type private S = With<Internal.Settings>
+        /// Compact serialization where tuples are serialized as heterogeneous arrays
+        type TupleAsArraySettings =
+            static member settings = createJsonNetSettings <| CompactUnionJsonConverter(true)
+            static member formatting = Formatting.Indented
+
+
+    type private S = With<Settings.TupleAsArraySettings>
 
     /// Serialize an object to Json with the specified converter
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
@@ -302,3 +377,32 @@ module Compact =
     /// Deserialize a stream to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream
+
+    /// Legacy compact serialization where tuples are serialized as objects instead of arrays
+    module Legacy =
+        type private S = With<Settings.TupleAsObjectSettings>
+
+        /// Serialize an object to Json with the specified converter
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline serialize< ^T> x = S.serialize x
+        /// Serialize an object to Json with the specified converter and save the result to a file
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline serializeToFile< ^T> file obj = S.serializeToFile file obj
+        /// Try to deserialize json to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline tryDeserialize< ^T> json = S.tryDeserialize< ^T> json
+        /// Try to read Json from a file and desrialized it to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline tryDeserializeFile< ^T> file = S.tryDeserializeFile< ^T> file
+        /// Try to deserialize a stream to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline tryDeserializeStream< ^T> stream = S.tryDeserializeStream< ^T> stream
+        /// Deserialize a Json to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline deserialize< ^T> json : ^T = S.deserialize< ^T> json
+        /// Read Json from a file and desrialized it to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline deserializeFile< ^T> file = S.deserializeFile< ^T> file
+        /// Deserialize a stream to an object of type ^T
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream

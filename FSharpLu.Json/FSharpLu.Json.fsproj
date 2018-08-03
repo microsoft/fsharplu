@@ -45,8 +45,8 @@
     <Compile Include="WithFunctor.fs" />
     <Compile Include="Default.fs" />
     <Compile Include="Compact.fs" />
-    <Compile Include="BackwardCompatible.fs" />
     <None Include="Script.fsx" />
+    <Compile Include="BackwardCompatible.fs" />
     <None Include="Scripts\load-references-release.fsx" />
     <None Include="Scripts\load-project-release.fsx" />
   </ItemGroup>
