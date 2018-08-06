@@ -23,11 +23,29 @@ type BackwardCompatible =
             json
         |> Helpers.exceptionToString
 
+    /// Try to deserialize json to an object of targetType
+    static member inline tryDeserializeToType targetType json =
+        Helpers.tryDeserializeWithBoth< ^T, string>
+            (Compact.deserializeToType targetType)
+            (Default.deserializeToType targetType)
+            ignore
+            json
+        |> Helpers.exceptionToString
+
     /// Try to read Json from a file and desrialized it to an object of type ^T
     static member inline tryDeserializeFile< ^T > file =
         Helpers.tryDeserializeWithBoth< ^T, string>
             Compact.deserializeFile
             Default.deserializeFile
+            ignore
+            file
+        |> Helpers.exceptionToString
+
+    /// Try to read Json from a file and desrialized it to an object of targetType
+    static member inline tryDeserializeFileToType targetType file =
+        Helpers.tryDeserializeWithBoth< ^T, string>
+            (Compact.deserializeFileToType targetType)
+            (Default.deserializeFileToType targetType)
             ignore
             file
         |> Helpers.exceptionToString
@@ -42,6 +60,17 @@ type BackwardCompatible =
             (fun () -> stream.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore)
             stream 
         |> Helpers.exceptionToString
+            
+    /// Try to deserialize a stream to an object of targetType
+    static member inline tryDeserializeStreamToType targetType (stream:System.IO.Stream) =
+        if not <| stream.CanSeek then
+            failwith "BackwardCompat.deserializeStream only works with stream supporting the Seek() operator."
+        Helpers.tryDeserializeWithBoth< ^T, System.IO.Stream>
+            (Compact.deserializeStreamToType targetType)
+            (Default.deserializeStreamToType targetType)
+            (fun () -> stream.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore)
+            stream 
+        |> Helpers.exceptionToString
 
     /// Deserialize a Json to an object of type ^T
     static member inline deserialize< ^T > (json:string) : ^T =
@@ -50,12 +79,28 @@ type BackwardCompatible =
             Default.deserialize
             ignore
             json |> Helpers.unboxOrRaise
+    
+    /// Deserialize a Json to an object of targetType
+    static member inline deserializeToType targetType (json:string) =
+        Helpers.tryDeserializeWithBoth< ^T, string>
+            (Compact.deserializeToType targetType)
+            (Default.deserializeToType targetType)
+            ignore
+            json |> Helpers.unboxOrRaise
 
     /// Read Json from a file and desrialized it to an object of type ^T
     static member inline deserializeFile< ^T > file =
         Helpers.tryDeserializeWithBoth< ^T, string>
             Compact.deserializeFile
             Default.deserializeFile
+            ignore
+            file |> Helpers.unboxOrRaise
+
+    /// Read Json from a file and desrialized it to an object of targetType
+    static member inline deserializeFileToType targetType file =
+        Helpers.tryDeserializeWithBoth< ^T, string>
+            (Compact.deserializeFileToType targetType)
+            (Default.deserializeFileToType targetType)
             ignore
             file |> Helpers.unboxOrRaise
 
@@ -69,3 +114,12 @@ type BackwardCompatible =
             (fun () -> stream.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore)
             stream |> Helpers.unboxOrRaise
 
+    /// Deserialize a stream to an object of targetType
+    static member inline public deserializeStreamToType targetType (stream:System.IO.Stream) =
+        if not <| stream.CanSeek then
+            failwith "BackwardCompat.deserializeStream only works with stream supporting the Seek() operator."
+        Helpers.tryDeserializeWithBoth< ^T, System.IO.Stream>
+            (Compact.deserializeStreamToType targetType)
+            (Default.deserializeStreamToType targetType)
+            (fun () -> stream.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore)
+            stream |> Helpers.unboxOrRaise
