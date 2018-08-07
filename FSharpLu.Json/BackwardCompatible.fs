@@ -25,7 +25,7 @@ type BackwardCompatible =
 
     /// Try to deserialize json to an object of targetType
     static member inline tryDeserializeToType targetType json =
-        Helpers.tryDeserializeWithBoth< ^T, string>
+        Helpers.tryDeserializeWithBoth<obj, string>
             (Compact.deserializeToType targetType)
             (Default.deserializeToType targetType)
             ignore
@@ -43,7 +43,7 @@ type BackwardCompatible =
 
     /// Try to read Json from a file and desrialized it to an object of targetType
     static member inline tryDeserializeFileToType targetType file =
-        Helpers.tryDeserializeWithBoth< ^T, string>
+        Helpers.tryDeserializeWithBoth<obj, string>
             (Compact.deserializeFileToType targetType)
             (Default.deserializeFileToType targetType)
             ignore
@@ -65,7 +65,7 @@ type BackwardCompatible =
     static member inline tryDeserializeStreamToType targetType (stream:System.IO.Stream) =
         if not <| stream.CanSeek then
             failwith "BackwardCompat.deserializeStream only works with stream supporting the Seek() operator."
-        Helpers.tryDeserializeWithBoth< ^T, System.IO.Stream>
+        Helpers.tryDeserializeWithBoth<obj, System.IO.Stream>
             (Compact.deserializeStreamToType targetType)
             (Default.deserializeStreamToType targetType)
             (fun () -> stream.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore)
@@ -82,7 +82,7 @@ type BackwardCompatible =
     
     /// Deserialize a Json to an object of targetType
     static member inline deserializeToType targetType (json:string) =
-        Helpers.tryDeserializeWithBoth< ^T, string>
+        Helpers.tryDeserializeWithBoth<obj, string>
             (Compact.deserializeToType targetType)
             (Default.deserializeToType targetType)
             ignore
@@ -98,7 +98,7 @@ type BackwardCompatible =
 
     /// Read Json from a file and desrialized it to an object of targetType
     static member inline deserializeFileToType targetType file =
-        Helpers.tryDeserializeWithBoth< ^T, string>
+        Helpers.tryDeserializeWithBoth<obj, string>
             (Compact.deserializeFileToType targetType)
             (Default.deserializeFileToType targetType)
             ignore
@@ -118,7 +118,7 @@ type BackwardCompatible =
     static member inline public deserializeStreamToType targetType (stream:System.IO.Stream) =
         if not <| stream.CanSeek then
             failwith "BackwardCompat.deserializeStream only works with stream supporting the Seek() operator."
-        Helpers.tryDeserializeWithBoth< ^T, System.IO.Stream>
+        Helpers.tryDeserializeWithBoth<obj, System.IO.Stream>
             (Compact.deserializeStreamToType targetType)
             (Default.deserializeStreamToType targetType)
             (fun () -> stream.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore)
