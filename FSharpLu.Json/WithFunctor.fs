@@ -42,23 +42,19 @@ type With< ^S when ^S : (static member settings : JsonSerializerSettings)
 
     /// Read Json from a file and desrialized it to an object of type ^T
     static member inline deserializeFile< ^T> file :^T =
-        let settings = (^S:(static member settings :  JsonSerializerSettings)())
         System.IO.File.ReadAllText file |> With< ^S>.deserialize
 
     /// Try to deserialize a stream to an object of type ^T
     static member inline tryDeserializeStream< ^T> stream =
-        let settings = (^S:(static member settings :  JsonSerializerSettings)())
         Helpers.tryCatchJsonSerializationException< ^T, System.IO.Stream> false (With< ^S>.deserializeStream) stream
         |> Helpers.exceptionToString
 
     /// Try to deserialize json to an object of type ^T
     static member inline tryDeserialize< ^T> json =
-        let settings = (^S:(static member settings :  JsonSerializerSettings)())
         Helpers.tryCatchJsonSerializationException< ^T, string> false (With< ^S>.deserialize) json
         |> Helpers.exceptionToString
 
     /// Try to read Json from a file and desrialized it to an object of type 'T
     static member inline tryDeserializeFile< ^T> file =
-        let settings = (^S:(static member settings :  JsonSerializerSettings)())
         Helpers.tryCatchJsonSerializationException< ^T, string> false (With< ^S>.deserializeFile) file
         |> Helpers.exceptionToString
