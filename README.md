@@ -16,7 +16,19 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 
 ## Build requirements
 
-Install dotnet core SDK from https://www.microsoft.com/net/core. You need 2.0.0 version of SDK or later. To build project run `dotnet build`.
+- F# compiler. See https://fsharp.org/use/Windows and https://fsharp.org/use/linux/
+
+- Install dotnet core SDK 2.0.0 or greater from https://dotnet.microsoft.com/download/visual-studio-sdks.
+
+- Install .NET Framework Developer Packs from https://www.microsoft.com/net/download/visual-studio-sdks 
+for the following versions of .NET:
+    - .NET Framework 4.5.2
+    - .NET Framework 4.6.1
+    - .NET Framework 4.6.2
+    - .NET Framework 4.7.2
+
+
+To build project run `dotnet build` under the top-level directory or run the script `scripts\build.ps1`.
 
 ## Documentation
 
