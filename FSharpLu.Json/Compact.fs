@@ -21,10 +21,6 @@ module private ConverterHelpers =
         // Item1, Item2, etc. excluding Items[n] indexer. Valid only on tuple types.
         (prop.Name.StartsWith("Item") || prop.Name = "Rest") && (Seq.isEmpty <| prop.GetIndexParameters())
 
-    let inline toCamel (name:string) =
-        if System.Char.IsLower (name, 0) then name
-        else string(System.Char.ToLower name.[0]) + name.Substring(1)
-
 module Memorised = 
     let inline memorise (f: 'key -> 'result) =
         let d = ConcurrentDictionary<'key, 'result>()
@@ -103,7 +99,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
 
         let convertName =
             match serializer.ContractResolver with
-            | :? CamelCasePropertyNamesContractResolver -> toCamel
+            | :? DefaultContractResolver as resolver -> resolver.GetResolvedPropertyName
             | _ -> id
 
         // Option type?
