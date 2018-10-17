@@ -17,6 +17,8 @@ type 'a Tree = Leaf of 'a | Node of 'a Tree * 'a Tree
 type 'a Test = Case1 | Case2 of int | Case3 of int * string * 'a
 type MapType = Map<string,Color>
 type 'a NestedOptions = 'a option option option option
+type ConsecutiveUppercaseRecord = { BAR : int ; BAZNumber : int }
+type ConsecutiveUppercaseDu = FOO | FOOWithRecord of ConsecutiveUppercaseRecord
 
 type 'a Wrapper = { WrappedField : 'a }
 type NestedStructure = { subField : int }
@@ -323,6 +325,13 @@ type JsonSerializerTests() =
         let du = ComplexDu <| SomeField (2, 3)
         let str = CamelCaseSerializer.serialize du
         Assert.AreEqual("""{"complexDu":{"someField":[2,3]}}""", str)
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.CamelCase")>]
+    member __.``CamelCaseSerializer handles discriminated unions with consecutive uppercase characters`` () =
+        let du = [ FOO ; FOOWithRecord { BAR=2; BAZNumber=3 } ]
+        let str = CamelCaseSerializer.serialize du
+        Assert.AreEqual("""["foo",{"fooWithRecord":{"bar":2,"bazNumber":3}}]""", str)
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.CamelCase")>]
