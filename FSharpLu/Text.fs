@@ -100,7 +100,7 @@ let split charSeparators (text:string) =
 let splitOnString (stringSeparators:string[]) (text:string) =
     text.Split(stringSeparators, System.StringSplitOptions.None)
     
-let splitOnStringNoEmptyEntries (stringSeparators:char[]) (text:string) =
+let splitOnStringNoEmptyEntries (stringSeparators:string[]) (text:string) =
     text.Split(stringSeparators, System.StringSplitOptions.RemoveEmptyEntries)
 
 /// Split a string based on the specified array of character separators
