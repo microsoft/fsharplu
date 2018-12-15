@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.6;netstandard2.0;net452;net461</TargetFrameworks>
+    <TargetFrameworks>netstandard1.6;netstandard2.0;net452;net461;net462;net472</TargetFrameworks>
     <PackageId>Microsoft.FSharpLu.Json</PackageId>
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
@@ -52,6 +52,8 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
+    <PackageReference Update="FSharp.Core" Version="4.5.4" />
+    <PackageReference Update="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
 
 </Project>

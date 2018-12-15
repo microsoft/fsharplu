@@ -1,8 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- This assembly does not target .net standard (either 1.6 or 2.0) due to missing APIs -->
-    <TargetFrameworks>net452;net461</TargetFrameworks>
+    <TargetFrameworks>net452;net461;net462;net472</TargetFrameworks>
     <PackageId>Microsoft.FSharpLu.Windows</PackageId>
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
@@ -48,6 +48,11 @@
 
  <ItemGroup>
    <ProjectReference Include="..\FSharpLu\FSharpLu.fsproj" />
+ </ItemGroup>
+
+ <ItemGroup>
+   <PackageReference Update="FSharp.Core" Version="4.5.4" />
+   <PackageReference Update="System.ValueTuple" Version="4.5.0" />
  </ItemGroup>
 
 </Project>
