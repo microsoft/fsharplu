@@ -2,9 +2,7 @@
 
 queue:
   name: sf-pool
-  condition: succeeded()
   demands: vstest
-
 
 #Your build definition references the ‘NUGET_PACKAGE_VERSION’ variable, which you’ve selected to be settable at queue time. Create or edit the build definition for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
 #Your build definition references the ‘BuildConfiguration’ variable, which you’ve selected to be settable at queue time. Create or edit the build definition for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
@@ -30,7 +28,7 @@ steps:
     testAssemblyVer2: |
      **\*test*.dll
      !**\obj\**
-    vsTestVersion: 15.0
+    vsTestVersion: '15.0'
     runInParallel: false
     codeCoverageEnabled: false
     platform: '$(BuildPlatform)'
@@ -70,8 +68,8 @@ steps:
   displayName: dotnet pack nuget
   inputs:
     command: pack
-    packagesToPack: '**/*.fsproj'
-    packDirectory: '$(Build.ArtifactStagingDirectory)\nuget'
+    searchPatternPack: '**/*.fsproj'
+    packagesDirectory: '$(Build.ArtifactStagingDirectory)\nuget'
     versioningScheme: byEnvVar
     versionEnvVar: 'NUGET_PACKAGE_VERSION'
 
@@ -104,8 +102,8 @@ steps:
   displayName: dotnet push nuget
   inputs:
     command: push
-    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
-    publishVstsFeed: '6b4e3a7d-b009-4842-b76e-fb9a587cdc50'
+    searchPatternPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+    feedPublish: '6b4e3a7d-b009-4842-b76e-fb9a587cdc50'
   enabled: false
 
 - task: PublishSymbols@2
