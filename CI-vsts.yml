@@ -72,7 +72,7 @@ steps:
   inputs:
     command: pack
     searchPatternPack: '**/*.fsproj'
-    packagesDirectory: '$(Build.ArtifactStagingDirectory)\nuget'
+    outputDir: '$(Build.ArtifactStagingDirectory)\nuget'
     versioningScheme: byEnvVar
     versionEnvVar: 'NUGET_PACKAGE_VERSION'
 
