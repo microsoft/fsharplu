@@ -14,7 +14,7 @@ steps:
   inputs:
     version: 2.1.200
 
-- powershell: . 'scripts/Update-AssemblyVersion.ps1' '-version $(NUGET_PACKAGE_VERSION)' true
+- powershell: . scripts/Update-AssemblyVersion.ps1 -version $(NUGET_PACKAGE_VERSION) true
   displayName: Set assembly/nuget version number
 
 - task: DotNetCoreCLI@2
