@@ -46,6 +46,7 @@
     <Compile Include="Default.fs" />
     <Compile Include="Compact.fs" />
     <None Include="Script.fsx" />
+    <None Include="Test-Scrict.fsx" />
     <Compile Include="BackwardCompatible.fs" />
     <None Include="Scripts\load-references-release.fsx" />
     <None Include="Scripts\load-project-release.fsx" />
