@@ -227,6 +227,18 @@ let inline testBackwardCompat< ^T when ^T:equality> (x: ^T) =
 
     Assert.AreEqual(x, y, "Tuple deserialization is not backward compatible!")
 
+type ARecord = {
+    id: System.Guid
+    name: string
+}
+
+let inline assertStrictFailsToDeserialize< ^T> t = 
+    let s = Compact.Strict.tryDeserialize t
+    match s with 
+    | Choice1Of2 _ -> Assert.IsTrue(true)
+    | Choice2Of2 _ -> Assert.IsTrue(false)
+
+/// Test for the compact serializer
 [<TestClass>]
 type JsonSerializerTests() =
 
@@ -387,3 +399,11 @@ type JsonSerializerTests() =
             """{ "Item3": 3, "Item2": 2, "Item1": 1 }"""
             |> Compact.deserialize<int*int*int>
         Assert.AreEqual(r, (1,2,3), "Tuple deserialization should handle JSON properties in any order")
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.Strictness")>]
+    member __.``Reject missing fields`` () =
+        assertStrictFailsToDeserialize<ARecord> """{ "name":"hola" }"""
+        assertStrictFailsToDeserialize<ARecord> """{ "id":"f893e695-496d-4e30-8fc7-b2ff59725e6c" }"""
+        Assert.ThrowsException<JsonSerializationException>(fun () -> Compact.Strict.deserialize<ARecord> """{ "name":"hola" }""" |> ignore) |> ignore
+        ()
