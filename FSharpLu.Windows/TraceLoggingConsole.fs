@@ -8,7 +8,7 @@ namespace System.Diagnostics
     /// A System.Diagnostics trace listener redirecting messages to
     /// the Console with nice colors for errors and warnings.
     type ColorConsoleTraceListener(foregroundColors :EventColoring, backgroundColors :EventColoring) as this =
-        inherit ConsoleTraceListener()
+        inherit TextWriterTraceListener(Console.Out)
 
         let shouldTraceEvent (eventType:TraceEventType) =
             let isEnabled (e: TraceEventType) = eventType &&& e <> enum<TraceEventType> 0

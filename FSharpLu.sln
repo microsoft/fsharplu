@@ -9,7 +9,10 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Tests", "FSharpLu.
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1FF1118A-322F-4F49-AF9A-ED825DE70260}"
 	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
 		.gitignore = .gitignore
+		appveyor.yml = appveyor.yml
+		CI-vsts.yml = CI-vsts.yml
 		FSharpLu.Json.md = FSharpLu.Json.md
 		LICENSE.MD = LICENSE.MD
 		msft-StrongName.pub = msft-StrongName.pub
@@ -33,7 +36,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A76D
 		scripts\Update-AssemblyVersion.ps1 = scripts\Update-AssemblyVersion.ps1
 	EndProjectSection
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu.Windows", "FSharpLu.Windows\FSharpLu.Windows.fsproj", "{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Windows", "FSharpLu.Windows\FSharpLu.Windows.fsproj", "{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu.Windows.Sample", "FSharpLu.Windows.Sample.fsproj\FSharpLu.Windows.Sample.fsproj", "{267983C8-9326-43C6-A581-DB3520B103D7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,6 +62,10 @@ Global
 		{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{267983C8-9326-43C6-A581-DB3520B103D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{267983C8-9326-43C6-A581-DB3520B103D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{267983C8-9326-43C6-A581-DB3520B103D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{267983C8-9326-43C6-A581-DB3520B103D7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
