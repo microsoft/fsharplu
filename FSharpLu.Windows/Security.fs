@@ -70,8 +70,12 @@ let public impersonate (log:Logger.Logger<_,_>) logonType alias domain getPwd f 
     log.write "Impersonating %s\%s from %s" domain alias (WindowsIdentity.GetCurrent().Name)
     use newId = new WindowsIdentity(safeTokenHandle.DangerousGetHandle())
     let result =
+#if NET452 || NET461 || NET462 || NET472
         (use impersonatedUser = newId.Impersonate()
         f())
+#else
+        WindowsIdentity.RunImpersonated(newId.AccessToken, fun () -> f ())
+#endif
     log.write "Reimpersonated as %s" (WindowsIdentity.GetCurrent().Name)
     result
 

@@ -18,7 +18,9 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 
 - F# compiler. See https://fsharp.org/use/Windows and https://fsharp.org/use/linux/
 
-- Install dotnet core SDK 2.0.0 or greater from https://dotnet.microsoft.com/download/visual-studio-sdks.
+- Install .NET Core SDK from https://dotnet.microsoft.com/download/visual-studio-sdks.
+    - .NET Core 2.2 SDK 
+    - .NET Core 3.0 SDK 
 
 - Install .NET Framework Developer Packs from https://www.microsoft.com/net/download/visual-studio-sdks 
 for the following versions of .NET:

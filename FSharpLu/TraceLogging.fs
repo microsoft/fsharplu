@@ -201,7 +201,7 @@ namespace System.Diagnostics
             }
 
         /// Registers both a file tracer as well as an auxiliary tracer constructed from the specified parameters.
-        let inline registerFileAndAuxiliaryTracerWithConfiguration< ^T, ^C when ^T :> TraceListener > (loggerConstructor:LoggingConfiguration< ^C> -> ^T) (parameters:LoggingConfiguration< ^C>) =
+        let inline registerFileAndAuxiliaryTracerWithConfiguration< ^T, ^C when ^T :> TextWriterTraceListener > (loggerConstructor:LoggingConfiguration< ^C> -> ^T) (parameters:LoggingConfiguration< ^C>) =
             let fileLogger =
                 // Reuse existing auxiliary listener if one is already registered
                 let existingFileListener =

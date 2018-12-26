@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.5.4" />
+    <ProjectReference Include="..\FSharpLu.Windows\FSharpLu.Windows.fsproj" />
+    <ProjectReference Include="..\FSharpLu\FSharpLu.fsproj" />
+  </ItemGroup>
+
+</Project>
