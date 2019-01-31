@@ -75,11 +75,13 @@ open Memorised
 /// The default formatting used by Json.Net to serialize F# discriminated unions
 /// and Option types is too verbose. This module implements a more succinct serialization
 /// for those data types.
-type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
+type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyFormatterForValues:bool) =
     inherit Newtonsoft.Json.JsonConverter()
 
     ///  By default tuples are serialized as heterogeneous arrays.
-    let tupleAsHeterogeneousArray = defaultArg tupleAsHeterogeneousArray true
+    let tupleAsHeterogeneousArray = defaultArg tupleAsHeterogeneousArray true   
+    ///  By default formatting is used for values
+    let usePropertyFormatterForValues = defaultArg usePropertyFormatterForValues true
     let canConvertMemorised =
         memorise
             (fun objectType ->
@@ -148,7 +150,8 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
 
             match fields with
             // Field-less union case
-            | [||] -> writer.WriteValue(convertName case.Name)
+            | [||] when usePropertyFormatterForValues -> writer.WriteValue(convertName case.Name)
+            | [||] when not usePropertyFormatterForValues -> writer.WriteValue(case.Name)
             // Case with single field
             | [|onefield|] ->
                 writer.WriteStartObject()

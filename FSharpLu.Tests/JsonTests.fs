@@ -19,6 +19,7 @@ type MapType = Map<string,Color>
 type 'a NestedOptions = 'a option option option option
 type ConsecutiveUppercaseRecord = { BAR : int ; BAZNumber : int }
 type ConsecutiveUppercaseDu = FOO | FOOWithRecord of ConsecutiveUppercaseRecord
+type RecordWithDU = { du: ComplexDu }
 
 type 'a Wrapper = { WrappedField : 'a }
 type NestedStructure = { subField : int }
@@ -91,7 +92,7 @@ type CamelCaseSettings =
                 NullValueHandling = NullValueHandling.Ignore,
                 MissingMemberHandling = MissingMemberHandling.Error,
                 ContractResolver = Serialization.CamelCasePropertyNamesContractResolver())
-        s.Converters.Add(CompactUnionJsonConverter(true))
+        s.Converters.Add(CompactUnionJsonConverter(true, false))
         s
     static member formatting = Formatting.None
 
@@ -343,14 +344,21 @@ type JsonSerializerTests() =
     member __.``CamelCaseSerializer handles discriminated unions with consecutive uppercase characters`` () =
         let du = [ FOO ; FOOWithRecord { BAR=2; BAZNumber=3 } ]
         let str = CamelCaseSerializer.serialize du
-        Assert.AreEqual("""["foo",{"fooWithRecord":{"bar":2,"bazNumber":3}}]""", str)
+        Assert.AreEqual("""["FOO",{"fooWithRecord":{"bar":2,"bazNumber":3}}]""", str)
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.CamelCase")>]
+    member __.``CamelCaseSerializer makes properties camelCase but not values`` () =
+        let du = [ AString "foo"; SimpleDU ]
+        let str = CamelCaseSerializer.serialize du
+        Assert.AreEqual("""[{"aString":"foo"},"SimpleDU"]""", str)
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.CamelCase")>]
     member __.``CamelCaseSerializer handles option type`` () =
         let du = { WrappedField = Some Red }
         let str = CamelCaseSerializer.serialize du
-        Assert.AreEqual("""{"wrappedField":"red"}""", str)
+        Assert.AreEqual("""{"wrappedField":"Red"}""", str)
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.Fuzzing")>]
