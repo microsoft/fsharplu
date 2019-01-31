@@ -148,7 +148,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool) =
 
             match fields with
             // Field-less union case
-            | [||] -> writer.WriteValue(convertName case.Name)
+            | [||] -> writer.WriteValue(case.Name)
             // Case with single field
             | [|onefield|] ->
                 writer.WriteStartObject()
