@@ -343,14 +343,14 @@ type JsonSerializerTests() =
     member __.``CamelCaseSerializer handles discriminated unions with consecutive uppercase characters`` () =
         let du = [ FOO ; FOOWithRecord { BAR=2; BAZNumber=3 } ]
         let str = CamelCaseSerializer.serialize du
-        Assert.AreEqual("""["foo",{"fooWithRecord":{"bar":2,"bazNumber":3}}]""", str)
+        Assert.AreEqual("""["FOO",{"fooWithRecord":{"bar":2,"bazNumber":3}}]""", str)
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.CamelCase")>]
     member __.``CamelCaseSerializer handles option type`` () =
         let du = { WrappedField = Some Red }
         let str = CamelCaseSerializer.serialize du
-        Assert.AreEqual("""{"wrappedField":"red"}""", str)
+        Assert.AreEqual("""{"wrappedField":"Red"}""", str)
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json.Fuzzing")>]
