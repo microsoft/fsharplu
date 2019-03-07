@@ -181,7 +181,10 @@ namespace System.Diagnostics
             let directory = defaultArg directory <| System.IO.Directory.GetCurrentDirectory()
             let logFileName = sprintf "%s-%s.log" cleansedName (System.DateTime.Now.ToString("yyyyMMdd-hhmmss"))
             let logFilePath = System.IO.Path.Combine (directory, logFileName)
-            let fileTracer = new System.Diagnostics.TextWriterTraceListener(logFilePath, Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
+            
+            let logFileStream = new System.IO.FileStream(logFilePath, System.IO.FileMode.Append, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite)
+            let fileTracer = new System.Diagnostics.TextWriterTraceListener(logFileStream, Name = componentName, TraceOutputOptions = TraceOptions.DateTime)
+            fileTracer.WriteLine("Log file")
             fileTracer.Attributes.Add(TraceLogFilePathKey, logFilePath)
             System.Diagnostics.Trace.Listeners.Add(fileTracer) |> ignore
             {
@@ -192,12 +195,14 @@ namespace System.Diagnostics
               interface IFlushable with
                 member __.Flush() =
                     fileTracer.Flush()
+                    logFileStream.Flush()
 
               interface IDisposable with
                 member __.Dispose() =
                     System.Diagnostics.Trace.Listeners.Remove(fileTracer)
                     fileTracer.Flush()
                     fileTracer.Dispose()
+                    logFileStream.Dispose()
             }
 
         /// Registers both a file tracer as well as an auxiliary tracer constructed from the specified parameters.
