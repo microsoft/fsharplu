@@ -4,7 +4,7 @@
     <TargetFrameworks>netstandard2.0;net452;net461;net462;net472</TargetFrameworks>
     <Authors>Microsoft</Authors>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/Microsoft/fsharplu/blob/master/LICENSE.MD</PackageLicenseUrl>
+    <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
     <Description>Utilities and .Net library wrappers for F#</Description>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, FSharp utilities, collection, logging, diagnostic, async, Json</PackageTags>
@@ -51,6 +51,10 @@
     <Compile Include="Parsing.fs" />
     <Compile Include="ErrorHandling.fs" />
     <Compile Include="AssemblyInfo.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net461'">

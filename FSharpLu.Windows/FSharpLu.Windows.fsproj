@@ -11,13 +11,21 @@
     <PackageTags>F#, FSharp, Utilities, Windows, Security, Console</PackageTags>
     <PackageReleaseNotes>Add netstandard2.0 target</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/Microsoft/fsharplu/blob/master/LICENSE.MD</PackageLicenseUrl>
+    <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
     <RepositoryUrl>https://github.com/Microsoft/fsharplu/</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)" />
+  </ItemGroup>
+  
   <PropertyGroup>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Microsoft.FSharpLu.Windows.Xml</DocumentationFile>
