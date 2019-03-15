@@ -87,59 +87,55 @@ module Process =
 
             Trace.info "Launching '%s %s'" command arguments
             let timer = System.Diagnostics.Stopwatch()
+            
             timer.Start()
             instance.Exited.Add
                 (fun a -> timer.Stop()
                           Trace.info "Process execution terminated in %O with error code 0x%X: '%O %O'" timer.Elapsed (int32 instance.ExitCode) command arguments)
+            
+            let waitEvent = Async.AwaitEvent(instance.Exited)
+            let! waitAsync =
+               match timeout with
+                | NoTimeout ->
+                    Async.StartChild(waitEvent)
+                | AttemptToKillProcessAfterTimeout t
+                | KeepTheProcessRunningAfterTimeout t ->
+                    Async.StartChild(waitEvent, int t.TotalMilliseconds)
 
             if not (instance.Start()) then
                 let message = sprintf "Could not start command: '%s' with parameters '%s'" command arguments
                 return raise <| System.InvalidOperationException(message)
             else
-                let processExitedResult() =
-                    {
-                        ProcessResult.ProcessExited = true
-                        ExitCode = instance.ExitCode
-                        ExecutionTime = timer.Elapsed
-                        StandardOutput =
-                            if flags.HasFlag ProcessStartFlags.RedirectStandardOutput then
-                                instance.StandardOutput.ReadToEnd()
-                            else
-                                String.Empty
-                    }
-
-                let runProcessWithTimeout (t:TimeSpan) (kill: bool) =
-                    async {
-                        try
-                            let! tsk = Async.StartChild(Async.AwaitEvent(instance.Exited), int t.TotalMilliseconds)
-                            let! _ = tsk
-                            Trace.info "%s %s exited with code: %d" command arguments instance.ExitCode
-                            return processExitedResult()
-                        with
-                        | :? System.TimeoutException ->
-                            Trace.info "%s %s did not exit within allocated time out of %f seconds. Should process be killed: %A" command arguments t.TotalSeconds kill
-
-                            if kill then
-                                try instance.Kill() with _ -> ()
-
-                            return
-                                {
-                                    ProcessResult.ProcessExited = false
-                                    ExitCode = -1
-                                    ExecutionTime = timer.Elapsed
-                                    StandardOutput = String.Empty
-                                }
-                    }
-
-                match timeout with
-                | NoTimeout ->
-                    let! _ = Async.AwaitEvent(instance.Exited)
-                    Trace.verbose "%s %s exited with code: %d" command arguments instance.ExitCode
-                    return processExitedResult()
-                | AttemptToKillProcessAfterTimeout t ->
-                    return! runProcessWithTimeout t true
-                | KeepTheProcessRunningAfterTimeout t ->
-                    return! runProcessWithTimeout t false
+                try
+                    let! _ = waitAsync
+                    Trace.info "%s %s exited with code: %d" command arguments instance.ExitCode
+                    return
+                        {
+                            ProcessResult.ProcessExited = true
+                            ExitCode = instance.ExitCode
+                            ExecutionTime = timer.Elapsed
+                            StandardOutput =
+                                if flags.HasFlag ProcessStartFlags.RedirectStandardOutput then
+                                    instance.StandardOutput.ReadToEnd()
+                                else
+                                    String.Empty
+                        }
+                with
+                | :? System.TimeoutException ->
+                    match timeout with
+                    | NoTimeout -> ()
+                    | AttemptToKillProcessAfterTimeout t ->
+                        Trace.info "%s %s did not exit within allocated time out of %f seconds. Killing process." command arguments t.TotalSeconds
+                        try instance.Kill() with _ -> ()
+                    | KeepTheProcessRunningAfterTimeout t ->
+                        Trace.info "%s %s did not exit within allocated time out of %f seconds." command arguments t.TotalSeconds
+                    return
+                        {
+                            ProcessResult.ProcessExited = false
+                            ExitCode = -1
+                            ExecutionTime = timer.Elapsed
+                            StandardOutput = String.Empty
+                        }
         }
 
     // Start a process and returns an asynchronous workflow that waits
