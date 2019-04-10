@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net452;net461;net462;net472</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net452;net462;net472</TargetFrameworks>
     <Authors>Microsoft</Authors>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
@@ -54,12 +54,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)"/>
+    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net461'">
-    <PackageReference Include="System.Configuration" Version="2.0.5" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />
+  <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
+    <Reference Include="System.Configuration" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
@@ -72,42 +71,14 @@
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />
   </ItemGroup>
 
- <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
-   <Reference Include="System.Configuration" />
- </ItemGroup>
-
- <!-- Work in progres: Packages still missing to be able to target netstandard1.6 -->
- <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.6'">
-    <PackageReference Include="System.Configuration" Version="2.0.5" />
-    <PackageReference Include="System.Diagnostics.Tracing" Version="4.3.0" />
-    <PackageReference Include="System.Diagnostics.TraceSource" Version="4.3.0" />
-    <PackageReference Include="System.Diagnostics.TextWriterTraceListener" Version="4.3.0" />
-    <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
-    <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
-    <PackageReference Include="System.Security.Principal" Version="4.3.0" />
-    <PackageReference Include="System.Security.Principal.Windows" Version="4.3.0" />
-    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
- </ItemGroup>
-
- <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Configuration" Version="2.0.5" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />
-    <PackageReference Include="System.Diagnostics.Tracing" Version="4.3.0" />
-    <PackageReference Include="System.Diagnostics.TraceSource" Version="4.3.0" />
-    <PackageReference Include="System.Diagnostics.TextWriterTraceListener" Version="4.3.0" />
-    <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
-    <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
-    <PackageReference Include="System.Security.Principal" Version="4.3.0" />
-    <PackageReference Include="System.Security.Principal.Windows" Version="4.5.1" />
-    <PackageReference Include="System.Security.Permissions" Version="4.5.0" />
- </ItemGroup>
+  </ItemGroup>
 
- <ItemGroup>
-   <PackageReference Include="System.ValueTuple" Version="4.5.0" />
- </ItemGroup>
-
- <ItemGroup>
-   <PackageReference Update="FSharp.Core" Version="4.5.4" />
- </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+    <PackageReference Update="FSharp.Core" Version="4.5.4" />
+  </ItemGroup>
 
 </Project>
