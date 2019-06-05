@@ -26,6 +26,16 @@ type With< ^S when ^S : (static member settings : JsonSerializerSettings)
         let json = JsonConvert.SerializeObject(obj, formatting, settings)
         System.IO.File.WriteAllText(file, json)
 
+    /// Serialize an object to Json with the specified converter and write the result to a stream
+    static member inline public serializeToStream (stream:System.IO.Stream) (obj:^T) =
+        let settings = (^S:(static member settings : JsonSerializerSettings)())
+        let formatting = (^S:(static member formatting : Formatting)())
+        let serializer = JsonSerializer.Create(settings)
+        serializer.Formatting <- formatting
+        use streamWriter = new System.IO.StreamWriter(stream)
+        use jsonTextWriter = new JsonTextWriter(streamWriter)
+        serializer.Serialize(jsonTextWriter, obj)
+
     /// Deserialize a Json to an object of type 'T
     static member inline public deserialize< ^T> json :^T =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())

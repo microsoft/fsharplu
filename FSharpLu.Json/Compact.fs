@@ -357,6 +357,9 @@ module Compact =
     /// Serialize an object to Json with the specified converter and save the result to a file
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline serializeToFile< ^T> file obj = S.serializeToFile file obj
+    /// Serialize an object to Json with the specified converter and write the result to a stream
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    let inline serializeToStream< ^T> stream obj = S.serializeToStream stream obj
     /// Try to deserialize json to an object of type ^T
     [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
     let inline tryDeserialize< ^T> json = S.tryDeserialize< ^T> json
@@ -396,6 +399,9 @@ module Compact =
         /// Serialize an object to Json with the specified converter and save the result to a file
         [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
         let inline serializeToFile< ^T> file obj = S.serializeToFile file obj
+        /// Serialize an object to Json with the specified converter and write the result to a stream
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline serializeToStream< ^T> stream obj = S.serializeToStream stream obj
         /// Try to deserialize json to an object of type ^T
         [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
         let inline tryDeserialize< ^T> json = S.tryDeserialize< ^T> json
@@ -450,6 +456,9 @@ module Compact =
         /// Serialize an object to Json with the specified converter and save the result to a file
         [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
         let inline serializeToFile< ^T> file obj = S.serializeToFile file obj
+        /// Serialize an object to Json with the specified converter and write the result to a stream
+        [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+        let inline serializeToStream< ^T> stream obj = S.serializeToStream stream obj
         /// Try to deserialize json to an object of type ^T
         [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
         let inline tryDeserialize< ^T> json = S.tryDeserialize< ^T> json
