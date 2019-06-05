@@ -12,7 +12,7 @@ type BackwardCompatible =
     static member inline public serialize = Compact.serialize
 
     /// Serialize an object to Json with the specified converter and save the result to a file
-    static member inline public serializeToFile file (obj:^T) = Compact.serializeToFile
+    static member inline public serializeToFile = Compact.serializeToFile
 
     /// Try to deserialize json to an object of type ^T
     static member inline tryDeserialize< ^T > json =
