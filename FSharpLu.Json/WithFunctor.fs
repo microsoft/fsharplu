@@ -32,7 +32,8 @@ type With< ^S when ^S : (static member settings : JsonSerializerSettings)
         let formatting = (^S:(static member formatting : Formatting)())
         let serializer = JsonSerializer.Create(settings)
         serializer.Formatting <- formatting
-        use streamWriter = new System.IO.StreamWriter(stream)
+        // Leave stream open after writing
+        use streamWriter = new System.IO.StreamWriter(stream, System.Text.UTF8Encoding.UTF8, 1024, true)
         use jsonTextWriter = new JsonTextWriter(streamWriter)
         serializer.Serialize(jsonTextWriter, obj)
 
