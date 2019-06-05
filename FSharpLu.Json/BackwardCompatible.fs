@@ -14,6 +14,9 @@ type BackwardCompatible =
     /// Serialize an object to Json with the specified converter and save the result to a file
     static member inline public serializeToFile = Compact.serializeToFile
 
+    /// Serialize an object to Json with the specified converter and write the result to a stream
+    static member inline public serializeToStream = Compact.serializeToStream
+
     /// Try to deserialize json to an object of type ^T
     static member inline tryDeserialize< ^T > json =
         Helpers.tryDeserializeWithBoth< ^T, string>
