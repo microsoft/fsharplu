@@ -13,16 +13,17 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 |--------|--------|
 | current status | [![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu) |
 |master | [![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77/branch/master?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu/branch/master) |
+| released builds | [![Build Status](https://dev.azure.com/msrp/Springfield/_apis/build/status/FSharpLU/FSharpLu-GitHub-Yaml-BuildAndSign?branchName=master)](https://dev.azure.com/msrp/Springfield/_build/latest?definitionId=653&branchName=master) |
 
 ## Build requirements
 
 - F# compiler. See https://fsharp.org/use/Windows and https://fsharp.org/use/linux/
 
 - Install .NET Core SDK from https://dotnet.microsoft.com/download/visual-studio-sdks.
-    - .NET Core 2.2 SDK 
-    - .NET Core 3.0 SDK 
+    - .NET Core 2.2 SDK
+    - .NET Core 3.0 SDK
 
-- Install .NET Framework Developer Packs from https://www.microsoft.com/net/download/visual-studio-sdks 
+- Install .NET Framework Developer Packs from https://www.microsoft.com/net/download/visual-studio-sdks
 for the following versions of .NET:
     - .NET Framework 4.5.2
     - .NET Framework 4.6.1
@@ -48,7 +49,7 @@ For the documentation please visit the [Wiki](https://github.com/Microsoft/fshar
 
 ## FSharpLu modules
 
-Here is a list of helper modules provided by FSharpLu. 
+Here is a list of helper modules provided by FSharpLu.
 - [FSharp.Async](FSharpLu/Async.fs)
 - [FSharp.Configuration](FSharpLu/Configuration.fs)
 - [FSharp.Collection](FSharpLu/Collections.fs)
