@@ -1,0 +1,33 @@
+[EnhancedKeyUsageExtension]
+
+OID = 1.3.6.1.4.1.311.76.16.1
+OID = 1.3.6.1.5.5.7.3.2
+
+;Client Authentication (1.3.6.1.5.5.7.3.2)
+;PRSS Auth (1.3.6.1.4.1.311.76.16.1)
+
+[NewRequest]
+Subject = "CN=d985dc2c-d0ad-4eba-8d48-71bc3d9d73da"
+
+ProviderName = "Microsoft Software Key Storage Provider"
+;CNG HSM ProviderName = "nCipher Security World Key Storage Provider"
+;Software ProviderName (CAPI) = "Microsoft Enhanced RSA and AES Cryptographic Provider"
+;Software ProviderName (CNG) = "Microsoft Software Key Storage Provider"
+
+MachineKeySet = TRUE
+
+HashAlgorithm = SHA256
+
+KeyLength = 2048
+
+UseExistingKeySet = FALSE
+
+Exportable = TRUE
+
+RequestType = PKCS10
+
+Silent = TRUE
+
+[Extensions]
+ 2.5.29.17 = "{text}"
+    _continue_ = "UPN=fsharplu@microsoft.com&"
