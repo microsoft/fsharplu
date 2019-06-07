@@ -1,14 +1,21 @@
-## VSTS pipeline to build, test, package and sign the nuget package
+# VSTS pipeline to build, test, package, sign and release a new nuget package
+#
+# Requirements: define the following Azure DevOps connections
+#   FSharpLu-nuget      - Nuget feed service connection (for pushing new packages)
+#   FSharpLu-Github     - Github service connection (for pushing new releases)
+#
+# The following variables are settable at queue time.
+#  BuildConfiguration
+#  BuildPlatform
+#  SignBuild       - Set to 'true' if code signing is required
+#  PublishRelease  - Set to 'true' to publish a new release to Github and Nuget
 
 queue:
   demands: vstest
 
 variables:
-  NUGET_PACKAGE_VERSION: 0.10.31
-
-#Your build definition references the ‘NUGET_PACKAGE_VERSION’ variable, which you’ve selected to be settable at queue time. Create or edit the build definition for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
-#Your build definition references the ‘BuildConfiguration’ variable, which you’ve selected to be settable at queue time. Create or edit the build definition for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
-#Your build definition references the ‘BuildPlatform’ variable, which you’ve selected to be settable at queue time. Create or edit the build definition for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
+  # Increase version number before every official release (if PublishRelease is set to true)
+  NUGET_PACKAGE_VERSION: 0.10.32
 
 steps:
 - task: DotNetCoreInstaller@0
@@ -43,6 +50,7 @@ steps:
 
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
   displayName: ESRP CodeSign .Net assemblies
+  condition: eq(variables['SignBuild'], 'true')
   inputs:
     ConnectedServiceName: 'MSR Springfield Code Signing'
     FolderPath: '$(System.DefaultWorkingDirectory)'
@@ -77,6 +85,7 @@ steps:
 
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
   displayName: ESRP CodeSign Nuget Package
+  condition: eq(variables['SignBuild'], 'true')
   inputs:
     ConnectedServiceName: 'MSR Springfield Code Signing'
     FolderPath: '$(Build.ArtifactStagingDirectory)\nuget'
@@ -119,10 +128,37 @@ steps:
 
 - task: CopyFiles@2
   displayName: Binplace built assemblies
+  enabled: false
   inputs:
     Contents: '**\bin\**'
     TargetFolder: '$(Build.ArtifactStagingDirectory)\build'
-  enabled: false
 
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact: drop'
+
+- task: GitHubRelease@0
+  condition: eq(variables['PublishRelease'], 'true')
+  inputs:
+    gitHubConnection: 'FSharpLu-Github'
+    repositoryName: '$(Build.Repository.Name)'
+    action: 'create'
+    target: '$(Build.SourceVersion)'
+    tag: 'release-$(Build.SourceVersion)'
+    tagSource: 'manual'
+    title: 'FSharpLu Release $(NUGET_PACKAGE_VERSION)'
+    releaseNotesSource: 'input'
+    releaseNotes: 'Signed release $(NUGET_PACKAGE_VERSION)
+
+      https://www.nuget.org/packages/Microsoft.FSharpLu/
+      https://www.nuget.org/packages/Microsoft.FSharpLu.Json/
+      https://www.nuget.org/packages/Microsoft.FSharpLu.Windows/'
+    isDraft: true
+
+- task: NuGetCommand@2
+  displayName: Publish release to nuget
+  condition: eq(variables['PublishRelease'], 'true')
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/Microsoft.*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+    nuGetFeedType: 'external'
+    publishFeedCredentials: 'FSharpLu-nuget'
