@@ -41,8 +41,9 @@ steps:
   inputs:
     arguments: '--no-incremental /t:rebuild /p:Configuration="$(BuildConfiguration)" /p:CompilationSymbols=DELAYSIGNING'
 
-- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1 
   displayName: ESRP CodeSign .Net assemblies
+  condition: eq(variables['Build.Signed'], 'true')
   inputs:
     ConnectedServiceName: 'MSR Springfield Code Signing'
     FolderPath: '$(System.DefaultWorkingDirectory)'
