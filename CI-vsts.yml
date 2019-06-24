@@ -15,7 +15,7 @@ queue:
 
 variables:
   # Increase version number before every official release (if PublishRelease is set to true)
-  NUGET_PACKAGE_VERSION: 0.10.32
+  NUGET_PACKAGE_VERSION: 0.10.33
 
 steps:
 - task: DotNetCoreInstaller@0
