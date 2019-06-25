@@ -13,7 +13,7 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 |--------|--------|
 | current status | [![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu) |
 |master | [![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77/branch/master?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu/branch/master) |
-| released builds | [![Build Status](https://dev.azure.com/msrp/Springfield/_apis/build/status/FSharpLU/FSharpLu-GitHub-Yaml-BuildAndSign?branchName=master)](https://dev.azure.com/msrp/Springfield/_build/latest?definitionId=653&branchName=master) |
+| released builds | [![Build Status](https://dev.azure.com/msrp/Springfield/_apis/build/status/GitHub-repositories/FSharpLu-GitHub-Yaml-BuildAndSign?branchName=master)](https://dev.azure.com/msrp/Springfield/_build/latest?definitionId=653&branchName=master)|
 
 ## Build requirements
 
