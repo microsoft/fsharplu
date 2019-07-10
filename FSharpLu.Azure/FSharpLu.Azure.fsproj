@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <ProductName>Microsoft.FSharpLu.Azure</ProductName>
+    <Copyright>Microsoft</Copyright>
+    <Description>Azure Management Helpers API for F#</Description>
+    <Company>Microsoft</Company>
+    <AssemblyVersion>0.11.*</AssemblyVersion>
+    <Title>Microsoft.FSharpLu.Azure.Test</Title>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="HttpCommunication.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="AzureConstants.fs" />
+    <Compile Include="AppInsightsTelemetryClient.fs" />
+    <Compile Include="Auth.fs" />
+    <Compile Include="AzureADApps.fs" />
+    <Compile Include="AppInsightsTelemetryGetter.fs" />
+    <Compile Include="SettingProvider.fs" />
+    <Compile Include="AzureContext.fs" />
+    <Compile Include="AzureRequests.fs" />
+    <Compile Include="ResourceGroup.fs" />
+    <Compile Include="AzureVault.fs" />
+    <Compile Include="AzureNetwork.fs" />
+    <Compile Include="AzureBlob.fs" />
+    <Compile Include="AzureVM.fs" />
+    <Compile Include="AzureQueue.fs" />
+    <Compile Include="LoadBalancer.fs" />
+    <Compile Include="AzureStorage.fs" />
+    <Compile Include="AzureQueueServiceHandler.fs" />
+    <Compile Include="AzureTable.fs" />
+    <Compile Include="AzureMetrics.fs" />
+    <Compile Include="AzureFiles.fs" />
+    <Compile Include="AzureFunctions.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.21" />
+    <PackageReference Include="Microsoft.ApplicationInsights" Version="2.10.0" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.7" />
+    <PackageReference Include="Microsoft.Azure.Cosmos.Table" Version="1.0.1" />
+    <PackageReference Include="Microsoft.Azure.KeyVault" Version="3.0.3" />
+    <PackageReference Include="Microsoft.Azure.KeyVault.Core" Version="3.0.3" />
+    <PackageReference Include="Microsoft.Azure.Management.Compute" Version="27.1.0" />
+    <PackageReference Include="Microsoft.Azure.Management.KeyVault" Version="2.4.3" />
+    <PackageReference Include="Microsoft.Azure.Management.Network" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Azure.Management.ResourceManager" Version="2.1.0-preview" />
+    <PackageReference Include="Microsoft.Azure.Management.Storage" Version="12.0.0" />
+    <PackageReference Include="Microsoft.Azure.Storage.Blob" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Azure.Storage.Common" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Azure.Storage.DataMovement" Version="0.12.0" />
+    <PackageReference Include="Microsoft.Azure.Storage.File" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Azure.Storage.Queue" Version="10.0.3" />
+    <PackageReference Include="Microsoft.IdentityModel.Clients.ActiveDirectory" Version="5.1.0" />
+    <PackageReference Include="Microsoft.Rest.ClientRuntime" Version="2.3.20" />
+    <PackageReference Include="Microsoft.Rest.ClientRuntime.Azure" Version="3.3.19" />
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+    <PackageReference Include="System.Net.Requests" Version="4.3.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FSharpLu.Json\FSharpLu.Json.fsproj" />
+    <ProjectReference Include="..\FSharpLu\FSharpLu.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="System.ValueTuple" Version="4.5.0" />
+  </ItemGroup>
+</Project>

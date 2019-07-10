@@ -16,6 +16,8 @@
     <RepositoryType>Git</RepositoryType>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <AssemblyVersion>0.11.*</AssemblyVersion>
+    <Title>FSharpLu Json Utilities for F#</Title>
   </PropertyGroup>
 
   <ItemGroup>

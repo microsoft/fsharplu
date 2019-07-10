@@ -1,1 +1,2 @@
 *.fs text eol=input
+/FSharpLu.Tests/*.ini text eol=crlf

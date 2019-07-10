@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26730.10
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29102.190
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu", "FSharpLu\FSharpLu.fsproj", "{77C664BE-DD18-476D-AB71-1144107DE408}"
 EndProject
@@ -13,7 +13,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.gitignore = .gitignore
 		appveyor.yml = appveyor.yml
 		CI-vsts.yml = CI-vsts.yml
+		fsharplu-nuget.md = fsharplu-nuget.md
+		fsharplu.json-nuget.md = fsharplu.json-nuget.md
 		FSharpLu.Json.md = FSharpLu.Json.md
+		fsharplu.windows-nuget.md = fsharplu.windows-nuget.md
+		fslu_esrprequest.inf = fslu_esrprequest.inf
 		LICENSE.MD = LICENSE.MD
 		msft-StrongName.pub = msft-StrongName.pub
 		README.md = README.md
@@ -38,7 +42,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A76D
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Windows", "FSharpLu.Windows\FSharpLu.Windows.fsproj", "{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharpLu.Windows.Sample", "FSharpLu.Windows.Sample.fsproj\FSharpLu.Windows.Sample.fsproj", "{267983C8-9326-43C6-A581-DB3520B103D7}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Windows.Sample", "FSharpLu.Windows.Sample\FSharpLu.Windows.Sample.fsproj", "{267983C8-9326-43C6-A581-DB3520B103D7}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Azure", "FSharpLu.Azure\FSharpLu.Azure.fsproj", "{27F5C3AA-20D1-4788-B80C-4E993F0E95DD}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Azure.Test", "FSharpLu.Azure.Test\FSharpLu.Azure.Test.fsproj", "{0796136C-736B-4BCF-8624-43BF8FA65F57}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -66,6 +74,14 @@ Global
 		{267983C8-9326-43C6-A581-DB3520B103D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{267983C8-9326-43C6-A581-DB3520B103D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{267983C8-9326-43C6-A581-DB3520B103D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{27F5C3AA-20D1-4788-B80C-4E993F0E95DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{27F5C3AA-20D1-4788-B80C-4E993F0E95DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{27F5C3AA-20D1-4788-B80C-4E993F0E95DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{27F5C3AA-20D1-4788-B80C-4E993F0E95DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0796136C-736B-4BCF-8624-43BF8FA65F57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0796136C-736B-4BCF-8624-43BF8FA65F57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0796136C-736B-4BCF-8624-43BF8FA65F57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0796136C-736B-4BCF-8624-43BF8FA65F57}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

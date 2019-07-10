@@ -23,6 +23,18 @@ type CaseInsensitiveComparer() =
         member __.Compare(f1, f2) =
             System.String.Compare(f1, f2, System.StringComparison.OrdinalIgnoreCase)
 
+/// Extension methods for String
+type System.String with
+            
+    /// Extend the string replace function to allow for StringComparison options to be specified
+    member this.Replace (oldString:string, newString:string, comparisonType:System.StringComparison): string =
+        let index = this.IndexOf(oldString, comparisonType)
+            
+        if index >= 0 then
+            this.Remove(index, oldString.Length).Replace(oldString, newString, comparisonType).Insert(index, newString)
+        else
+            this
+
 /// Returns true if text starts with the specified prefix
 let startsWith prefix (text:System.String) =
     text.StartsWith prefix
@@ -151,3 +163,70 @@ let encodeToBase64 (toEncode:string) =
 let decodeFromBase64 (base64Encoded:byte[]) =
     let decodedString = System.Text.Encoding.UTF8.GetString(base64Encoded)
     System.Convert.FromBase64String(decodedString)
+
+/////// Implementation of Knuth–Morris–Pratt on Stream
+
+/// Used by kmpTryFindBytesInStream below to compute the backtrack array
+let computeKmpBacktrack (searchBytes: uint8[]) = 
+    let backtrack = Array.zeroCreate (searchBytes.Length+1)
+    let rec back b j =
+        if j >= 0 && b <> searchBytes.[j] then
+            back b backtrack.[j]
+        else
+            j
+
+    let rec compute i j =
+        if j < searchBytes.Length then
+            if searchBytes.[j] = searchBytes.[i] then
+                backtrack.[j] <- backtrack.[i]
+                compute (i+1) (j+1)
+            else
+                backtrack.[j] <- i
+                let k = back searchBytes.[j] backtrack.[i]
+                compute (k+1) (j+1)
+        else
+            backtrack.[j] <- i
+
+    backtrack.[0] <- -1
+    compute 0 1
+    backtrack
+
+/// Options for fmdFindBytesInStream
+type FindOptions =
+    /// Return after finding the first occurence of bytes in the stream
+    | FindFirst
+    /// Return after finding all occurences of bytes in the stream
+    | FindAll
+
+/// Use the Knuth–Morris–Pratt algorithm to search for first or all occurrences of a byte sequence in a stream
+/// returns a list of positions of the occurence of bytes in the stream, or None if the bytes could not be found
+let kmpFindBytesInStream (findOptions:FindOptions) (stream:System.IO.Stream) (searchBytes:uint8[]) =
+    let backtrack = computeKmpBacktrack searchBytes
+    let mutable k = 0
+    let mutable byteRead = stream.ReadByte()
+    let mutable results = []
+    while byteRead <> -1 && (results = [] || findOptions = FindAll) do
+        if searchBytes.[k] = (byteRead |> uint8) then
+            k <- k + 1
+            if k = searchBytes.Length then
+                results <- (stream.Position - (k|>int64)) :: results
+                k <- backtrack.[k]
+            byteRead <- stream.ReadByte()
+        else
+            k <- backtrack.[k]
+            if k < 0 then
+                k <- k + 1
+                byteRead <- stream.ReadByte()
+
+    List.rev results
+
+/// Use the Knuth–Morris–Pratt algorithm to search for the occurrence of a byte sequence in a stream
+/// returns the position of the first occurrence of the bytes in the stream, or None if the bytes could not be found
+let kmpTryFindFirstBytesInStream (stream:System.IO.Stream) (searchBytes:uint8[]) =
+    List.tryHead (kmpFindBytesInStream FindFirst stream searchBytes)
+
+/// Search for the occurrence of a byte sequence in a file without loading the entire file into memory to do it
+let fileContainsBytes (filePath:string) (searchBytes:uint8[]) =
+    use fileStream = System.IO.File.Open (filePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)
+    (kmpTryFindFirstBytesInStream fileStream searchBytes).IsSome
+

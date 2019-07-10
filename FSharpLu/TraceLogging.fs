@@ -275,7 +275,10 @@ namespace Microsoft.FSharpLu.Logging
 
     /// Strongly-typed event tracings with additional custom tags
     module TraceTags =
-        let propertiesToString (properties:seq<string*string>) =
+        /// Type used for tags associated with a logging message 
+        type Tags = (string * string) list
+
+        let propertiesToString (properties:seq<string * string>) =
             properties
             |> Seq.map (fun (n,v) -> sprintf "%s: %s" n v)
             |> Microsoft.FSharpLu.Text.join ", "
@@ -288,3 +291,85 @@ namespace Microsoft.FSharpLu.Logging
         let inline failwith name properties = Trace.failwith "%s: %s" name (propertiesToString properties)
         let inline event name properties = Trace.writeLine "Event: %s: %s" name (propertiesToString properties)
         let inline trackException (exn:System.Exception) properties = Trace.critical "Exception: %O: %s" exn (propertiesToString properties)
+
+        /// Combine two tag tracers into one
+        type Combine< ^T1, ^T2 when
+                                ^T1 : (static member writeLine : string -> Tags -> unit)
+                            and ^T1 : (static member info : string -> Tags -> unit)
+                            and ^T1 : (static member warning : string -> Tags -> unit)
+                            and ^T1 : (static member error : string -> Tags -> unit)
+                            and ^T1 : (static member critical : string -> Tags -> unit)
+                            and ^T1 : (static member verbose : string -> Tags -> unit)
+                            and ^T1 : (static member event : string -> Tags -> unit)
+                            and ^T1 : (static member flush : unit -> unit)
+                            and ^T1 : (static member indent : unit -> unit)
+                            and ^T1 : (static member unindent : unit -> unit)
+                            and ^T1 : (static member trackException : System.Exception -> Tags -> unit)
+                    
+                            and ^T2 : (static member writeLine : string -> Tags -> unit)
+                            and ^T2 : (static member info : string -> Tags -> unit)
+                            and ^T2 : (static member warning : string -> Tags -> unit)
+                            and ^T2 : (static member error : string -> Tags -> unit)
+                            and ^T2 : (static member critical : string -> Tags -> unit)
+                            and ^T2 : (static member verbose : string -> Tags -> unit)
+                            and ^T2 : (static member event : string -> Tags -> unit)
+                            and ^T2 : (static member flush : unit -> unit)
+                            and ^T2 : (static member indent : unit -> unit)
+                            and ^T2 : (static member unindent : unit -> unit)
+                            and ^T2 : (static member trackException : System.Exception -> Tags -> unit)
+                            > =
+            static member inline writeLine m t =
+                (^T1:(static member writeLine : string -> Tags -> unit) m, t)
+                (^T2:(static member writeLine : string -> Tags -> unit) m, t)
+            static member inline info m t =
+                (^T1:(static member info : string -> Tags -> unit) m, t)
+                (^T2:(static member info : string -> Tags -> unit) m, t)
+            static member inline warning m t =
+                (^T1:(static member warning : string -> Tags -> unit) m, t)
+                (^T2:(static member warning : string -> Tags -> unit) m, t)
+            static member inline error m t =
+                (^T1:(static member error : string -> Tags -> unit) m, t)
+                (^T2:(static member error : string -> Tags -> unit) m, t)
+            static member inline critical m t =
+                (^T1:(static member critical : string -> Tags -> unit) m, t)
+                (^T2:(static member critical : string -> Tags -> unit) m, t)
+            static member inline failwith m t =
+                (^T1:(static member error : string -> Tags -> unit) m, t)
+                (^T2:(static member error : string -> Tags -> unit) m, t)
+                Operators.failwith m
+            static member inline verbose m t =
+                (^T1:(static member verbose : string -> Tags -> unit) m, t)
+                (^T2:(static member verbose : string -> Tags -> unit) m, t)
+            static member inline event m t =
+                (^T1:(static member event : string -> Tags -> unit) m, t)
+                (^T2:(static member event : string -> Tags -> unit) m, t)
+            static member inline trackException (exn:System.Exception) t =
+                (^T1:(static member trackException : System.Exception -> Tags -> unit) exn, t)
+                (^T2:(static member trackException : System.Exception -> Tags -> unit) exn, t)
+            static member inline flush () =
+                (^T1:(static member flush : unit -> unit) ())
+                (^T2:(static member flush : unit -> unit) ())
+            static member inline indent () =
+                (^T1:(static member indent : unit -> unit) ())
+                (^T2:(static member indent : unit -> unit) ())
+            static member inline unindent () =
+                (^T1:(static member unindent : unit -> unit) ())
+                (^T2:(static member unindent : unit -> unit) ())
+
+namespace System.Diagnostics
+    open Microsoft.FSharpLu.Logging
+
+    /// A tracer outputing messages with tags to System.Diagnostics
+    type TagsTracer =
+        static member inline writeLine (m, t) = TraceTags.info m t
+        static member inline info (m, t) = TraceTags.info m t
+        static member inline warning (m, t) = TraceTags.warning m t
+        static member inline error (m, t) = TraceTags.error m t
+        static member inline critical (m, t) = TraceTags.critical m t
+        static member inline failwith (m, t) = TraceTags.failwith m t
+        static member inline verbose (m, t) = TraceTags.verbose m t
+        static member inline trackException (exn, t) = TraceTags.trackException exn t
+        static member inline event (name, t) = TraceTags.event name t
+        static member inline flush () = Trace.flush()
+        static member inline indent () = Trace.indent()
+        static member inline unindent () = Trace.unindent()
