@@ -35,6 +35,20 @@ module Triple =
     /// Get the third element in a triple
     let third (_,_,x) = x
 
+module Union =
+    open Microsoft.FSharp.Reflection
+
+    /// Returns a sequence of all the cases of a parameter-less discriminated union
+    /// (i.e. of the form type Union = Case1 | Case2 | ... CaseN)
+    let inline asSeq< ^U> =
+        seq {
+            for case in FSharpType.GetUnionCases(typeof< ^U>) do
+                if Seq.isEmpty <| case.GetFields() then
+                    yield FSharpValue.MakeUnion(case, [||]) :?> ^U
+                else
+                    invalidArg "^U" "Discriminated union with field parameters cannot be enumerated"
+        }
+    
 /// Dictionary and collection helpers
 [<AutoOpen>]
 module Dictionary =
@@ -286,6 +300,13 @@ module Seq =
     /// (Generalization of Seq.parition to any number of partitions)
     let multipartition choose t =
         Seq.fold (fun s x -> Map.add (choose x) x s) Map.empty t
+
+    /// Executes a fold operation within a list passing as parameter of the folder function 
+    /// the zero based index of each element.
+    let public foldi folder first source  =
+        source 
+        |> Seq.mapi(fun i element -> (i, element))
+        |> Seq.fold(fun state (i,element) -> folder i state element) first
 
 module Hashtable =
     /// Try looking up an element from a hashtable

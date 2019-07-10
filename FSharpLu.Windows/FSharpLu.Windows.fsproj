@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net452;net462;net472;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net462;net472;netstandard2.0</TargetFrameworks>
     <PackageId>Microsoft.FSharpLu.Windows</PackageId>
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
@@ -16,21 +16,37 @@
     <RepositoryType>Git</RepositoryType>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-  </PropertyGroup>
+    <AssemblyTitle>FSharpLu.Windows</AssemblyTitle>
+    <AssemblyVersion>0.11.*</AssemblyVersion>
+    <AssemblyName>Microsoft.FSharpLu.Windows</AssemblyName>
 
-  <ItemGroup>
-    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)"/>
-  </ItemGroup>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Microsoft.FSharpLu.Windows.Xml</DocumentationFile>
+  </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)" />
   </ItemGroup>
-  
-  <PropertyGroup>
-    <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Microsoft.FSharpLu.Windows.Xml</DocumentationFile>
-    <AssemblyName>Microsoft.FSharpLu.Windows</AssemblyName>
-  </PropertyGroup>
+
+  <!--
+    ///
+      The following conditional include works for net462, but unfortunately
+      breaks `dotnet build` despite the conditional guard.
+      This is due to absence of a build task for COMReference on dotnet core.
+      Commenting out for now until this gets fixed in msbuild.
+    ///
+    <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+      <COMReference Include="CertEnroll 1.0 Type Library">
+        <Guid>{728ab348-217d-11da-b2a4-000e7bbb2b09}</Guid>
+        <VersionMajor>1</VersionMajor>
+        <VersionMinor>0</VersionMinor>
+        <Lcid>0</Lcid>
+        <Isolated>False</Isolated>
+        <WrapperTool>tlbimp</WrapperTool>
+        <Private>True</Private>
+      </COMReference>
+    </ItemGroup>
+  -->
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -50,7 +66,18 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Security.fs" />
+    <Compile Include="Certificate.fs" />
+    <Compile Include="Registry.fs" />
     <Compile Include="TraceLoggingConsole.fs" />
+    <Compile Include="Smb.fs" />
+    <Compile Include="EtwListener.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="2.0.44" />
+    <PackageReference Include="Microsoft.Windows.Compatibility" Version="2.1.1" />
+    <PackageReference Include="System.DirectoryServices" Version="4.5.0" />
+    <PackageReference Include="System.Management" Version="4.5.0" />
   </ItemGroup>
 
  <ItemGroup>
@@ -60,6 +87,24 @@
  <ItemGroup>
    <PackageReference Update="FSharp.Core" Version="4.5.4" />
    <PackageReference Update="System.ValueTuple" Version="4.5.0" />
+ </ItemGroup>
+
+ <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+   <PackageReference Include="Microsoft.Win32.Registry">
+     <Version>4.5.0</Version>
+   </PackageReference>
+ </ItemGroup>
+
+ <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
+   <PackageReference Include="Microsoft.Win32.Registry">
+     <Version>4.5.0</Version>
+   </PackageReference>
+ </ItemGroup>
+
+ <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+   <PackageReference Include="Microsoft.Win32.Registry">
+     <Version>4.5.0</Version>
+   </PackageReference>
  </ItemGroup>
 
 </Project>

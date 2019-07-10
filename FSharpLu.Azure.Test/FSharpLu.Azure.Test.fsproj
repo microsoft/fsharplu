@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netcoreapp2.2</TargetFrameworks>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <ProductName>Microsoft.FSharpLu.Azure.Test</ProductName>
+    <Copyright>Microsoft</Copyright>
+    <Description></Description>
+    <AssemblyVersion>0.11.*</AssemblyVersion>
+    <Title>Microsoft.FSharpLu.Azure.Test</Title>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Azure.Test.Keyvault.fs" />
+    <Compile Include="CommunicationTests.fs" />
+    <Compile Include="Generators.fs" />
+    <Compile Include="Azure.Test.Storage.fs" />
+    <Compile Include="Azure.Test.Queue.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FsCheck" Version="2.14.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="1.4.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="1.4.0" />
+    <PackageReference Include="xunit" Version="2.4.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FSharpLu.Azure\FSharpLu.Azure.fsproj" />
+  </ItemGroup>
+</Project>

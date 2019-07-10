@@ -23,6 +23,14 @@ let inline reraise e =
     System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e).Throw()
     raise <| System.InvalidProgramException() // Unreachable, used only to match any generic return type
 
+let inline RunCatchSynchronously workflow =
+    workflow
+    |> Async.Catch
+    |> Async.RunSynchronously
+    |> function
+    | Choice1Of2 result -> result
+    | Choice2Of2 exn -> reraise exn
+
 /// Bind operator for Async computation
 let bind f asyncOp =
     async.Bind(asyncOp, f)
@@ -197,6 +205,70 @@ let retryUntilSomeOrTimeout (timeout:TimeSpan) (retryDelay:TimeSpan) (f:unit -> 
         }
     loop ()
 
+/// Execute an asynchronous computation until it returns true,
+// an unexpected exception occurs or the specified timeout expires.
+let retryUntilTrueOrTimeout (timeout:TimeSpan) (retryDelay:TimeSpan) f =
+    async {
+        let! result =
+            retryUntilSomeOrTimeout timeout retryDelay
+                (fun () ->
+                    async {
+                        let! r = f ()
+                        match r with
+                        | true -> return Some ()
+                        | false -> return None
+                    })
+    
+        return result.IsSome
+    }
+    
+/////////////
+///// Operation on sequences of Async (seq<Async<t>)
+
+/// Returns an async expression that sequentially asynchronously evaluates a given sequence of asynchronous computation
+/// and returns the list of results from the evaluated synchronous computation.
+/// (i.e. it's the counterpart of Async.Parallel from F# standard library for sequential evaluation.)
+let sequentialCombine (asyncSeq:seq<Async<'t>>) : Async<list<'t>> =
+    let rec mapAux prefix (s:System.Collections.Generic.IEnumerator<_>) =
+        async {
+            if s.MoveNext() then
+                let! y = s.Current
+                return! mapAux (prefix@[y]) s
+            else
+                return prefix
+        }
+    mapAux [] (asyncSeq.GetEnumerator())
+
+/// Create an async computation that evaluates a sequence of async and return a list of the corresponding results
+/// Alternative implementations of sequentialCombine that relies on cons instead of list concatenation
+let sequential (s:seq<Async<'t>>) : Async<list<'t>> = 
+    Seq.foldBack
+        (fun aHead aQueue -> async.Bind(aHead, fun head -> async.Bind(aQueue, fun queue -> async.Return(head::queue))))
+        s
+        (async.Return [])
+
+/// Returns an async expression that evaluates in parallel a given sequence of asynchronous computation
+/// and returns the list of results from the evaluated synchronous computation.
+/// (i.e. same as Async.Parallel but returns a list instead of an array)
+let parallelCombine (asyncSeq:seq<Async<_>>) : Async<list<'t>> =
+    async {
+        let! array = Async.Parallel asyncSeq
+        return Array.toList array
+    }
+
+/// Apply a function to each element of a sequence of asyncs
+let seqMap (f:'t -> 'u) (asyncSeq:seq<Async<'t>>) =
+    Seq.map (map f) asyncSeq
+
+/// Returns an async expression that sequentially asynchronously evaluates a given sequence of asynchronous computation of unit type
+let seqIter (asyncSeq:seq<Async<_>>) =
+    async {
+        for a in asyncSeq do
+            do! a
+    }
+
+
+
 module Synchronization =
 
     /// Interface for a pool-based synchronization object
@@ -356,3 +428,4 @@ let copyFile source target =
         let task = sourceStream.CopyToAsync(targetStream)
         return! task |> Async.AwaitTask
     }
+

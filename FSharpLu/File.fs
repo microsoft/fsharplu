@@ -221,3 +221,60 @@ let copyDirectory sourcePath targetPath =
                             aux diSourceSubDir nextTargetSubDir)
 
     in aux (DirectoryInfo(sourcePath)) (DirectoryInfo(targetPath))
+
+
+/// A string that represents a valid file path.
+type FilePath = string
+
+/// Validates that the argument is a valid path on the current platform.
+/// The validation does not require the file to exist.
+let validateFilePath (pathAsString:string) =
+    // Use FileInfo to check that the path is valid.
+    // FileInfo performs validity checks on the path for the current platform, but
+    // does not check for the existence of the file.
+    if pathAsString.IndexOfAny(Path.GetInvalidPathChars()) >= 0 then
+        None
+    else
+        Some pathAsString
+
+let contains textToSearchFor (text:string) =
+    text.IndexOf(textToSearchFor, System.StringComparison.InvariantCultureIgnoreCase) > -1
+
+let findMatchingLines (file:string) textToSearchFor =
+    System.IO.File.ReadAllLines(file)
+    |> Seq.filter (contains textToSearchFor)
+
+/// Settings are expected to be in the form "key=value"
+/// Return exactly one setting.
+let getIniValue (file:string) textToSearchFor =
+    let line =
+        findMatchingLines file textToSearchFor
+        |> Seq.exactlyOne
+    let splits = line.Split('=')
+    splits.[1]
+
+/// This is standard Windows HRESULT for file already exists
+module private Constants =
+    let [<Literal>] FILE_ALREADY_EXISTS = 0x80070050
+
+/// Create a new file if it does not already exist and atomically write to it using the specified FileStream function. 
+/// If the file already exists then do nothing and return None.
+let asyncTryCreateFile filePath (f: System.IO.FileStream -> Async<'a>) =
+    async {
+        if System.IO.File.Exists(filePath) then
+            return None
+        else
+            let fs = 
+                try
+                    Some (new System.IO.FileStream(filePath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+                with
+                | :? System.IO.IOException as ex when ex.HResult = Constants.FILE_ALREADY_EXISTS -> None
+
+            match fs with
+            | Some fileStream ->
+                use stream = fileStream 
+                let! result = f stream
+                return Some result
+            | None -> 
+                return None
+    }

@@ -128,3 +128,4 @@ ModelManifest.xml
 
 # Scripts for FSI
 FSharpLu.Json/Scripts
+/.ionide/symbolCache.db

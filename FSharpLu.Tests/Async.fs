@@ -1,8 +1,8 @@
-namespace Microsoft.FSharpLu.Tests
+namespace Microsoft.FSharpLu
+
 open System.Threading
 open Microsoft.FSharpLu
 open Microsoft.VisualStudio.TestTools.UnitTesting
-open System.Threading.Tasks
 
 [<TestClass>]
 type AsyncTest() =

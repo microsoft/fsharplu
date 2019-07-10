@@ -11,6 +11,8 @@
     <PackageReleaseNotes>Signed assemblies and nuget package</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <Company>Microsoft</Company>
+    <Product>Microsoft.FSharpLu</Product>
+    <Title>FSharpLu F# Utility libary</Title>
     <PackageId>Microsoft.FSharpLu</PackageId>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
@@ -20,7 +22,10 @@
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Microsoft.FSharpLu.xml</DocumentationFile>
     <AssemblyName>Microsoft.FSharpLu</AssemblyName>
   </PropertyGroup>
-
+  
+  <ItemGroup>
+    <Reference Include="System.Net.Http.WebRequest" Condition="'$(TargetFramework)' != 'netstandard2.0'" />
+  </ItemGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -39,19 +44,36 @@
 
   <ItemGroup>
     <Compile Include="Option.fs" />
+    <Compile Include="StateMachineAgent.fs" />
     <Compile Include="Text.fs" />
     <Compile Include="TraceLogging.fs" />
     <Compile Include="Logger.fs" />
     <Compile Include="Collections.fs" />
     <Compile Include="Async.fs" />
+    <Compile Include="AsyncSeq.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Configuration.fs" />
-    <Compile Include="Diagnostics.fs" />
     <Compile Include="Security.fs" />
     <Compile Include="Parsing.fs" />
+    <Compile Include="Platform.fs" />
+    <Compile Include="Diagnostics.fs" />
     <Compile Include="ErrorHandling.fs" />
+    <Compile Include="Compression.fs" />
+    <Compile Include="Disposable.fs" />
+    <Compile Include="Ini.fs" />
+    <Compile Include="CacheMap.fs" />
+    <Compile Include="ExecutableInfo.fs" />
+    <Compile Include="MachineOperations.fs" />
+
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Sysprep.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 
   <ItemGroup>
     <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)" />
@@ -77,6 +99,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.21" />
+    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Update="FSharp.Core" Version="4.5.4" />
   </ItemGroup>
