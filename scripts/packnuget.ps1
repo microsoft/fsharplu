@@ -31,20 +31,22 @@ $outputDir = "$root\nugetoutput"
 
 Push-Location $root
 
+$modules = @(
+    'FSharpLu',
+    'FSharpLu.Azure',
+    'FSharpLu.Json',
+    'FSharpLu.Windows')
+
 try {
     if($signed) {
         if($build) {
             Write-Warning "Packing signed assemblies: skipping build..."
         }
 
-        $output1 = Join-Path -Resolve $PSScriptRoot "..\FSharpLu\bin\release\"
-        $output2 = Join-Path -Resolve $PSScriptRoot "..\FSharpLu.Json\bin\release\"
-        $output3 = Join-Path -Resolve $PSScriptRoot "..\FSharpLu.Windows\bin\release\"
+        $output = $modules | ForEach-Object { Join-Path -Resolve $PSScriptRoot "..\$_\bin\release\" }
         Write-Host @"
 Before proceeding please make sure to manually place the signed assemblies under output directories:
-    $output1
-    $output2
-    $output3
+    $output
 "@
         pause
     } elseif($build) {
@@ -80,23 +82,23 @@ Before proceeding please make sure to manually place the signed assemblies under
     }
 
     if($signed) {
-        checkSigned $PSScriptRoot\..\FSharpLu\bin\release\Microsoft.FSharpLu.dll
-        checkSigned $PSScriptRoot\..\FSharpLu.Json\bin\release\Microsoft.FSharpLu.Json.dll
-        checkSigned $PSScriptRoot\..\FSharpLu.Json\bin\release\Microsoft.FSharpLu.Windows.dll
+        $modules | ForEach-Object {
+            checkSigned $PSScriptRoot\..\$_\bin\release\Microsoft.$($_).dll
+        }
     }
 
     Write-Host "Packing nuget packages"
     # NOTE: Using --include-symbols to include symbols in Nuget package does not work due to a bug with
     # `dotnet build` where the symbol files gets automatically deleted when the build completes.
     # There is no known workaround for now.
-    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration /p:Platform="AnyCPU" --no-build $root\FSharpLu\FSharpLu.fsproj
-    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration /p:Platform="AnyCPU" --no-build $root\FSharpLu.Json\FSharpLu.Json.fsproj
-    dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration /p:Platform="AnyCPU" --no-build $root\FSharpLu.Windows\FSharpLu.Windows.fsproj
+    $modules | ForEach-Object {
+        dotnet pack -o $outputDir /p:PackageVersion="$version" /p:Configuration=$configuration /p:Platform="AnyCPU" --no-build $root\$_\$_.fsproj
+    }
 
     if ($push) {
-        pushLatest 'Microsoft.FSharpLu'
-        pushLatest 'Microsoft.FSharpLu.Json'
-        pushLatest 'Microsoft.FSharpLu.Windows'
+        $modules | ForEach-Object {
+            pushLatest "Microsoft.$_"
+        }
     }
 } finally {
     Pop-Location

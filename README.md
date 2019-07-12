@@ -6,7 +6,6 @@ This is by no means a full-fledged utility library for F#, but rather a small co
 
 Some of the provided utilities are just thin `let`-bindings wrappers around existing .Net libraries (e.g. module `FSharpLu.Text` or `FSharpLu.Parsing`) whereas some provide additional features (e.g. Json serialization in module `FSharpLu.Json`).
 
-
 ## Build status
 
 | Branch | Status |
@@ -20,16 +19,17 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 - F# compiler. See https://fsharp.org/use/Windows and https://fsharp.org/use/linux/
 
 - Install .NET Core SDK from https://dotnet.microsoft.com/download/visual-studio-sdks.
-    - .NET Core 2.2 SDK
-    - .NET Core 3.0 SDK
+
+  - .NET Core 2.2 SDK
+  - .NET Core 3.0 SDK
 
 - Install .NET Framework Developer Packs from https://www.microsoft.com/net/download/visual-studio-sdks
 for the following versions of .NET:
-    - .NET Framework 4.5.2
-    - .NET Framework 4.6.1
-    - .NET Framework 4.6.2
-    - .NET Framework 4.7.2
 
+  - .NET Framework 4.5.2
+  - .NET Framework 4.6.1
+  - .NET Framework 4.6.2
+  - .NET Framework 4.7.2
 
 To build project run `dotnet build` under the top-level directory or run the script `scripts\build.ps1`.
 
@@ -75,7 +75,6 @@ Here is a list of helper modules provided by FSharpLu.
 - [FSharpLu.Text](FSharpLu/Text.fs)
 - [FSharpLu.TraceLogging](FSharpLu/TraceLogging.fs)
 - [FSharp.Azure](FSharpLu.Azure/)
-
 
 ## Microsoft Open Source Code of Conduct
 

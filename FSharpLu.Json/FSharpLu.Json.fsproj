@@ -16,12 +16,18 @@
     <RepositoryType>Git</RepositoryType>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <AssemblyVersion>0.11.*</AssemblyVersion>
+    <Version>0.11.0</Version>
     <Title>FSharpLu Json Utilities for F#</Title>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(DELAYSIGNING)' == 'True' ">
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>true</DelaySign>
+    <AssemblyOriginatorKeyFile>..\msft-StrongName.pub</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
 
   <ItemGroup>
-    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)"/>
+    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -46,7 +52,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Helpers.fs" />
     <Compile Include="WithFunctor.fs" />
     <Compile Include="Default.fs" />

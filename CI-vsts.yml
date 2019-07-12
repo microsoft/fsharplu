@@ -10,8 +10,8 @@
 #  SignBuild       - Set to 'true' if code signing is required
 #  PublishRelease  - Set to 'true' to publish a new release to Github and Nuget
 
-queue:
-  demands: vstest
+pool:
+  vmImage: windows-2019
 
 variables:
   # Increase version number before every official release (if PublishRelease is set to true)
@@ -31,22 +31,19 @@ steps:
   inputs:
     arguments: '--no-incremental /t:rebuild /p:Configuration="$(BuildConfiguration)"'
 
-- task: VSTest@2
-  displayName: Test Assemblies
+- task: DotNetCoreCLI@2
+  displayName: dotnet test
   inputs:
-    testAssemblyVer2: |
-     **\*test*.dll
-     !**\obj\**
-    vsTestVersion: '15.0'
-    runInParallel: false
-    codeCoverageEnabled: false
-    platform: '$(BuildPlatform)'
-    configuration: '$(BuildConfiguration)'
+    command: test
+    arguments: --no-build --collect:"Code Coverage" --configuration $(BuildConfiguration) --test-adapter-path $(System.DefaultWorkingDirectory)\FSharpLu.Tests\bin\$(BuildConfiguration)\net472
+    projects: |-
+      **\\*test*.fsproj
+      **\\*test*.csproj
 
 - task: DotNetCoreCLI@2
   displayName: dotnet build with delaysigning
   inputs:
-    arguments: '--no-incremental /t:rebuild /p:Configuration="$(BuildConfiguration)" /p:CompilationSymbols=DELAYSIGNING'
+    arguments: '--no-incremental /t:rebuild /p:Configuration="$(BuildConfiguration)" /p:DELAYSIGNING=True'
 
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
   displayName: ESRP CodeSign .Net assemblies

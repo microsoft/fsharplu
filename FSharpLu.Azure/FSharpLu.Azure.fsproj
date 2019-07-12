@@ -7,9 +7,17 @@
     <Copyright>Microsoft</Copyright>
     <Description>Azure Management Helpers API for F#</Description>
     <Company>Microsoft</Company>
-    <AssemblyVersion>0.11.*</AssemblyVersion>
+    <Version>0.11.0</Version>
+    <PackageId>Microsoft.FSharpLu.Azure</PackageId>
+    <PackageVersion>0.11.0-pre</PackageVersion>
     <Title>Microsoft.FSharpLu.Azure.Test</Title>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(DELAYSIGNING)' == 'True' ">
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>true</DelaySign>
+    <AssemblyOriginatorKeyFile>..\msft-StrongName.pub</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="HttpCommunication.fs" />
     <Compile Include="Types.fs" />
@@ -36,6 +44,7 @@
     <Compile Include="AzureFunctions.fs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.5.4" />
     <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.21" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.10.0" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.7" />

@@ -16,7 +16,7 @@ param(
 $ErrorActionPreference = 'stop'
 
 if($delaysign) {
-    $options = "/p:CompilationSymbols=DELAYSIGNING"
+    $options = "/p:DELAYSIGNING=True"
     if(-not $rebuild) {
         $rebuild = $true
         Write-Warning "Delaying signing requested: forcing rebuild"

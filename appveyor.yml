@@ -1,7 +1,9 @@
+# AppVeyor build for public CI builds
+# To be moved to public Azure DevOps repo in the future.
 version: 0.11.{build}
 pull_requests:
   do_not_increment_build_number: true
-image: Visual Studio 2017
+image: Visual Studio 2019
 configuration:
 - Debug
 - Release
@@ -14,8 +16,6 @@ before_build:
     .\scripts\Update-AssemblyVersion.ps1 -version $Env:APPVEYOR_BUILD_VERSION
 build:
   verbosity: minimal
-after_build:
-- ps: .\scripts\packnuget.ps1 -pack -configuration $Env:CONFIGURATION -version $Env:APPVEYOR_BUILD_VERSION
 artifacts:
   - path: FSharpLu.Json\bin\Debug\
     name: FSharpLu.Json-Debug
@@ -25,17 +25,20 @@ artifacts:
     name: FSharpLu-Debug
   - path: FSharpLu\bin\Release\
     name: FSharpLu-Release
-  - path: '**\*.nupkg'
-    name: FSharpLu-Nuget-Packages
-    type: NuGetPackage
 
-# Deployment commented out: instead of auto-releasing to nuget
-# deployment to nuget is done manually using AppVeyor environments.
-# Configuraiton used is left here for reference:
-
+# Deployment of nuget packages is commented out:
+# This is now done instead after code-signing via the Azure DevOps pipeline.
+# The yaml configuration used previously is left here for reference:
+#
+#after_build:
+#- ps: .\scripts\packnuget.ps1 -pack -configuration $Env:CONFIGURATION -version $Env:APPVEYOR_BUILD_VERSION
+#artifacts:
+# - path: '**\*.nupkg'
+#   name: FSharpLu-Nuget-Packages
+#   type: NuGetPackage
+#deploy:
 # We publish to Nuget only if building release configuration and
 # for master branch
-#deploy:
 #- provider: NuGet
 #  on:
 #    branch: master
