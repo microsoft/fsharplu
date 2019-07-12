@@ -15,6 +15,13 @@
     <Title>FSharpLu F# Utility libary</Title>
     <PackageId>Microsoft.FSharpLu</PackageId>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Version>0.11.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(DELAYSIGNING)' == 'True' ">
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>true</DelaySign>
+    <AssemblyOriginatorKeyFile>..\msft-StrongName.pub</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -22,7 +29,7 @@
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Microsoft.FSharpLu.xml</DocumentationFile>
     <AssemblyName>Microsoft.FSharpLu</AssemblyName>
   </PropertyGroup>
-  
+
   <ItemGroup>
     <Reference Include="System.Net.Http.WebRequest" Condition="'$(TargetFramework)' != 'netstandard2.0'" />
   </ItemGroup>
@@ -64,8 +71,6 @@
     <Compile Include="CacheMap.fs" />
     <Compile Include="ExecutableInfo.fs" />
     <Compile Include="MachineOperations.fs" />
-
-    <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -82,7 +87,7 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
     <Reference Include="System.Configuration" />
   </ItemGroup>
-  
+
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <PackageReference Include="System.Configuration" Version="2.0.5" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />

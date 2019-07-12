@@ -6,7 +6,7 @@ param(
     [Parameter(Mandatory=$true)][string]$version
 )
 
-$assemblyInfoFiles = Get-ChildItem -Recurse -Filter AssemblyInfo.fs -File $PSScriptRoot\..\
+$assemblyInfoFiles = Get-ChildItem -Recurse -Filter *.fsproj -File $PSScriptRoot\..\
 
 $components = $version -split '\.'
 if($components.Length -lt 2 -or ($components.Length -gt 3)) {
@@ -26,6 +26,8 @@ Write-Host "Assembly version format: $assemblyVersion"
 $assemblyInfoFiles | `
  ForEach-Object { $file = $_.FullName
     $x = Get-Content $file -Raw -Encoding UTF8
-    $r = $x -replace '(Assembly.*Version)\(".*"\)', "`$1(`"$assemblyVersion`")"
+    $r = $x -replace '<AssemblyVersion>[ \d.`*]*([-<]?)', "<AssemblyVersion>$assemblyVersion`$1" `
+            -replace '<Version>[ \d.`*]*([-<]?)', "<Version>$version`$1" `
+            -replace '<PackageVersion>[ \d.`*]*([-<]?)', "<PackageVersion>$version`$1"
     $r | Set-Content -Path $file -Encoding UTF8 -NoNewline
 }

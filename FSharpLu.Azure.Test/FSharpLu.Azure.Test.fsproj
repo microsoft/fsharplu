@@ -1,13 +1,15 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp2.2</TargetFrameworks>
+    <TargetFrameworks>net472</TargetFrameworks>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ProductName>Microsoft.FSharpLu.Azure.Test</ProductName>
     <Copyright>Microsoft</Copyright>
     <Description></Description>
-    <AssemblyVersion>0.11.*</AssemblyVersion>
+    <PackageVersion>0.11.0-pre</PackageVersion>
+    <Version>0.11.0</Version>
     <Title>Microsoft.FSharpLu.Azure.Test</Title>
+    <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Azure.Test.Keyvault.fs" />
@@ -17,7 +19,9 @@
     <Compile Include="Azure.Test.Queue.fs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.5.4" />
     <PackageReference Include="FsCheck" Version="2.14.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="1.4.0" />
     <PackageReference Include="MSTest.TestFramework" Version="1.4.0" />
     <PackageReference Include="xunit" Version="2.4.1" />
