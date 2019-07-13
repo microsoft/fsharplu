@@ -59,6 +59,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="FSharpFromCSharp.fs" />
     <Compile Include="Option.fs" />
     <Compile Include="StateMachineAgent.fs" />
     <Compile Include="Text.fs" />
