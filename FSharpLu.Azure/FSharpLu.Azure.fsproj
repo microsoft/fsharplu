@@ -2,21 +2,33 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
+    <PackageId>Microsoft.FSharpLu.Azure</PackageId>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ProductName>Microsoft.FSharpLu.Azure</ProductName>
     <Copyright>Microsoft</Copyright>
     <Description>Azure Management Helpers API for F#</Description>
+    <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
-    <Version>0.11.0</Version>
-    <PackageId>Microsoft.FSharpLu.Azure</PackageId>
-    <PackageVersion>0.11.0-pre</PackageVersion>
+    <Version>0.11.1</Version>
+    <PackageVersion>0.11.1-pre</PackageVersion>
     <Title>Microsoft.FSharpLu.Azure.Test</Title>
+    <PackageReleaseNotes>First release of FSharpLu.Azure</PackageReleaseNotes>
+    <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
+    <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
+    <RepositoryUrl>https://github.com/Microsoft/fsharplu/</RepositoryUrl>
+    <RepositoryType>Git</RepositoryType>
+    <PackageTags>F#, FSharp, Utilities, Azure, ARM</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(DELAYSIGNING)' == 'True' ">
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
     <AssemblyOriginatorKeyFile>..\msft-StrongName.pub</AssemblyOriginatorKeyFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)" />
+  </ItemGroup>
 
   <ItemGroup>
     <Compile Include="HttpCommunication.fs" />

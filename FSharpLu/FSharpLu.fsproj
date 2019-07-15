@@ -8,14 +8,23 @@
     <Description>Utilities and .Net library wrappers for F#</Description>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, FSharp utilities, collection, logging, diagnostic, async, Json</PackageTags>
-    <PackageReleaseNotes>Signed assemblies and nuget package</PackageReleaseNotes>
+    <PackageReleaseNotes>
+      - Add HttpCommunication module, a strongly-typed HTTP client thin library
+      - Add support for environment variable and error output capture in `startProcess` API
+      - Add Knuth-Morris-Pratt implementation for searching a string in a file stream
+      - Add state machine and agent module used to implement long-running operations in services
+      - Add Windows/Linux platform helpers
+      - Add the Combine functor for the TraceTags statically-typed global logger
+      - Hardening of startProcess API to handle corner cases (e.g. process ends too quickly or too slowly)
+      - And more: parsing helpers, EXE type, IDisposable helpers, Compression, certificate, CacheMap collection
+    </PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <Company>Microsoft</Company>
     <Product>Microsoft.FSharpLu</Product>
     <Title>FSharpLu F# Utility libary</Title>
     <PackageId>Microsoft.FSharpLu</PackageId>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <Version>0.11.0</Version>
+    <Version>0.11.1</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(DELAYSIGNING)' == 'True' ">

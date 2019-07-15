@@ -9,7 +9,7 @@
     <Description>Windows specific helpers requiring the full .NetFramework</Description>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, Utilities, Windows, Security, Console</PackageTags>
-    <PackageReleaseNotes>Add netstandard2.0 target</PackageReleaseNotes>
+    <PackageReleaseNotes>Add more Windows utilities: SMB, sysprep, shutdown, certificate...</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
     <RepositoryUrl>https://github.com/Microsoft/fsharplu/</RepositoryUrl>
@@ -18,7 +18,7 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <AssemblyTitle>FSharpLu.Windows</AssemblyTitle>
     <AssemblyName>Microsoft.FSharpLu.Windows</AssemblyName>
-    <Version>0.11.0</Version>
+    <Version>0.11.1</Version>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Microsoft.FSharpLu.Windows.Xml</DocumentationFile>
   </PropertyGroup>
