@@ -50,7 +50,7 @@ Before proceeding please make sure to manually place the signed assemblies under
 "@
         pause
     } elseif($build) {
-        & $PSScriptRoot/Update-AssemblyVersion.ps1 -version $version
+        & $PSScriptRoot/Update-Version.ps1 -version $version
         & $PSScriptRoot/build.ps1 -configuration $configuration
     }
 

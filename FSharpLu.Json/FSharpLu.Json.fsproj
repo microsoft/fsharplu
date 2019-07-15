@@ -16,7 +16,7 @@
     <RepositoryType>Git</RepositoryType>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <Version>0.11.0</Version>
+    <Version>0.11.1</Version>
     <Title>FSharpLu Json Utilities for F#</Title>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(DELAYSIGNING)' == 'True' ">

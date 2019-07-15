@@ -6,8 +6,8 @@
     <ProductName>Microsoft.FSharpLu.Azure.Test</ProductName>
     <Copyright>Microsoft</Copyright>
     <Description></Description>
-    <PackageVersion>0.11.0-pre</PackageVersion>
-    <Version>0.11.0</Version>
+    <PackageVersion>0.11.1-pre</PackageVersion>
+    <Version>0.11.1</Version>
     <Title>Microsoft.FSharpLu.Azure.Test</Title>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>

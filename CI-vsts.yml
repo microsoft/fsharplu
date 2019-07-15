@@ -1,4 +1,4 @@
-# VSTS pipeline to build, test, package, sign and release a new nuget package
+﻿# VSTS pipeline to build, test, package, sign and release a new nuget package
 #
 # Requirements: define the following Azure DevOps connections
 #   FSharpLu-nuget      - Nuget feed service connection (for pushing new packages)
@@ -15,7 +15,7 @@ pool:
 
 variables:
   # Increase version number before every official release (if PublishRelease is set to true)
-  NUGET_PACKAGE_VERSION: 0.11.0
+  NUGET_PACKAGE_VERSION: 0.11.1
 
 steps:
 - task: DotNetCoreInstaller@0
@@ -23,7 +23,7 @@ steps:
   inputs:
     version: 2.1.200
 
-- powershell: . scripts/Update-AssemblyVersion.ps1 -version $(NUGET_PACKAGE_VERSION)
+- powershell: . scripts/Update-Version.ps1 -version $(NUGET_PACKAGE_VERSION)
   displayName: Set assembly/nuget version number
 
 - task: DotNetCoreCLI@2
