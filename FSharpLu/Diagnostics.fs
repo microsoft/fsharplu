@@ -1,25 +1,21 @@
 ﻿/// System diagnotics, process and logging helpers
-module Microsoft.FSharpLu.Diagnostics
+namespace Microsoft.FSharpLu.Diagnostics
 
 open System
 open System.Security.Principal
 open Microsoft.FSharpLu.Platform
 
-/// Determine if the process runs elevated
-let isElevated () =
-    use user = WindowsIdentity.GetCurrent()
-    let principal = WindowsPrincipal(user)
-    principal.IsInRole(WindowsBuiltInRole.Administrator)
+module Elevation =
+    /// Determine if the process runs elevated
+    let isElevated () =
+        use user = WindowsIdentity.GetCurrent()
+        let principal = WindowsPrincipal(user)
+        principal.IsInRole(WindowsBuiltInRole.Administrator)
 
-/// ensure that the process runs with elevated permissions
-let ensureAdmin () =
-    if not (isElevated ()) then
-        invalidOp "Elevated privileges required."
-
-/// Ask for user confirmation before completing a task
-let confirm message =
-    printf "%s  Press CTRL+C to abort, ENTER to continue." message
-    System.Console.ReadLine() |> ignore
+    /// ensure that the process runs with elevated permissions
+    let ensureElevated () =
+        if not (isElevated ()) then
+            invalidOp "Elevated privileges required."
 
 /// Process execution helpers
 module Process =
@@ -167,7 +163,7 @@ module Process =
                                             Trace.info "Remove environment variable '%s' with value <%s>" k instance.StartInfo.EnvironmentVariables.[k]
 
                                         instance.StartInfo.EnvironmentVariables.Remove(k)
-                                    
+
                                     instance.StartInfo.EnvironmentVariables.Add(k,v)
                                     if sensitiveVariables then
                                         Trace.info "Set environment variable '%s' with sensitive content" k
@@ -176,20 +172,20 @@ module Process =
 
             Trace.info "Launching '%s %s'" command maskedArguments
             let timer = System.Diagnostics.Stopwatch()
-            
+
             timer.Start()
 
-            // Note: it's important to register this event before calling instance.Start() 
+            // Note: it's important to register this event before calling instance.Start()
             // to avoid a deadlock if the process terminates too quickly...
             instance.Exited.Add
                 (fun _ ->
                     timer.Stop()
                     /// ... but then this handler still gets called if the process instance gets killed
                     /// with .Kill() before the underlying OS process gets actually started with .Start()!
-                    /// which then causes the below evaluation of `.ExitCode` to throw 
+                    /// which then causes the below evaluation of `.ExitCode` to throw
                     //    `System.InvalidOperationException: No process is associated with this object`
-                    try 
-                        // we still need to check if HasExited otherwise the call to .ExitCode can throw 
+                    try
+                        // we still need to check if HasExited otherwise the call to .ExitCode can throw
                         //  `System.InvalidOperationException: No process is associated with this object`
                         // on some .NET runtimes (e.g. unit tests in AppVeyor) if the process was forced terminated.
                         Trace.info "Process execution terminated in %O with exit code 0x%X: '%O %O'" timer.Elapsed (int32 instance.ExitCode) command arguments
@@ -221,7 +217,7 @@ module Process =
             let appendHandler
                     (endOfStreamEvent:System.Threading.AutoResetEvent)
                     (aggregator:System.Text.StringBuilder)
-                    (args:DataReceivedEventArgs) = 
+                    (args:DataReceivedEventArgs) =
                 if isNull args.Data then
                     if not endOfStreamEvent.SafeWaitHandle.IsClosed then
                         endOfStreamEvent.Set() |> ignore
@@ -375,12 +371,13 @@ module Assembly =
         callingAssembly.Location
 
 
-/// Extension to use Stopwatch to measure performance of async computations
-type System.Diagnostics.Stopwatch with
-    member x.Measure(task:Async<'t>) =
-        async {
-            x.Restart()
-            let! r = task
-            x.Stop()
-            return r
-        }
+module Extensions =
+    /// Extension to use Stopwatch to measure performance of async computations
+    type System.Diagnostics.Stopwatch with
+        member x.Measure(task:Async<'t>) =
+            async {
+                x.Restart()
+                let! r = task
+                x.Stop()
+                return r
+            }

@@ -1,7 +1,7 @@
 ﻿namespace Microsoft.FSharpLu.Platform
 
 open System
-open  Microsoft.FSharpLu.Parsing
+open Microsoft.FSharpLu.Parsing
 
 /// All known OS platforms
 type Platform =
