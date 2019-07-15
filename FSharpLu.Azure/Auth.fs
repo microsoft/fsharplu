@@ -64,11 +64,29 @@ let acquireTokenAsync (authMethod:ADAuthenticationMethod) (authenticationContext
 
 /// Get an AD token using the specified authentication method
 let getAuthorizationTokenInfo (authMethod:ADAuthenticationMethod) =
+
+    // By default, tokens are stored in an in-memory cache and retrieved from there. Because we're using overloads of .AcquireTokenAsync that don't
+    // generate refresh tokens, the cache can't automatically refresh them when they expire. This function will get a token, check if it's expired
+    // or will expire within 10 minutes, and, if so, clear the token cache and generate a new token with an updated expiration time.
+    let getNonExpiredToken (authenticationContext:AuthenticationContext) =
+        async {
+            let! token = acquireTokenAsync authMethod authenticationContext
+            if token.ExpiresOn > DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(10.0)) then
+                return token
+            else
+                TagsTracer.info ("Found expiring token; clearing Active Directory token cache.", ["token.ExpiresOn", token.ExpiresOn.ToString()
+                                                                                                  "authenticationContext.TokenCache.Count", authenticationContext.TokenCache.Count.ToString()])
+                authenticationContext.TokenCache.Clear()
+                let! newToken = acquireTokenAsync authMethod authenticationContext
+                return newToken
+        }
+
     async {
         let authenticationContext = AuthenticationContext(sprintf "https://login.windows.net/%s" authMethod.TenantId)
-        let! tokenInfo = acquireTokenAsync authMethod authenticationContext
+        let! tokenInfo = getNonExpiredToken authenticationContext
+
         if isNull tokenInfo then
-            raise <| new System.InvalidOperationException("Failed to obtain the token from AD")
+            raise <| new System.InvalidOperationException("Failed to obtain the token from AD.")
 
         let applicationId, objectId =
             match authMethod with
