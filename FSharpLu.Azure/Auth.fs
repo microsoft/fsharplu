@@ -3,6 +3,7 @@
 open Microsoft.IdentityModel.Clients.ActiveDirectory
 open System.Security.Cryptography.X509Certificates
 open Microsoft.FSharpLu.Async
+open AppInsights
 
 /// Azure AD principal credentials
 type AzureADPrincipal =
@@ -71,11 +72,12 @@ let getAuthorizationTokenInfo (authMethod:ADAuthenticationMethod) =
     let getNonExpiredToken (authenticationContext:AuthenticationContext) =
         async {
             let! token = acquireTokenAsync authMethod authenticationContext
-            if token.ExpiresOn > DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(10.0)) then
+            if token.ExpiresOn > System.DateTimeOffset.UtcNow.Add(System.TimeSpan.FromMinutes(10.0)) then
                 return token
             else
-                TagsTracer.info ("Found expiring token; clearing Active Directory token cache.", ["token.ExpiresOn", token.ExpiresOn.ToString()
-                                                                                                  "authenticationContext.TokenCache.Count", authenticationContext.TokenCache.Count.ToString()])
+                TraceTags.info "Found expiring token; clearing Active Directory token cache."
+                                ["token.ExpiresOn", token.ExpiresOn.ToString()
+                                 "authenticationContext.TokenCache.Count", authenticationContext.TokenCache.Count.ToString()]
                 authenticationContext.TokenCache.Clear()
                 let! newToken = acquireTokenAsync authMethod authenticationContext
                 return newToken

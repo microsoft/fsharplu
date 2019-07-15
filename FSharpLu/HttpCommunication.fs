@@ -348,7 +348,7 @@ module Client =
                 // The default server certificate validation will cause in some cases "SslPolicyErrors.RemoteCertificateNameMismatch" because
                 // of a conflict with the client certificate even when the server certificate is valid. This behavior occurs when the backend web app is deployed on a large instance
                 // we configure the server certificate validation to only use the certificate chain and ignore the certificate name mismatch.
-#if NET462
+#if NET452 || NET462 || NET472
                 let clientHandler = new WebRequestHandler()
                 clientHandler.ServerCertificateValidationCallback <-
                     fun o certificate chain sslPolicyErrors -> chain.Build (certificate:?> System.Security.Cryptography.X509Certificates.X509Certificate2)
@@ -399,9 +399,15 @@ module Client =
                 __.SendAsync(request)
 
         let tryParseApiError (responseMessage:string) =
-            match Microsoft.FSharpLu.Json.Default.tryDeserialize<ErrorHandling.ApiError>(responseMessage) with
-            | Choice1Of2 apiError -> Some apiError
-            | Choice2Of2 error -> None
+            let s = JsonSerializerSettings(NullValueHandling = NullValueHandling.Ignore)
+            s.Converters.Add(Converters.StringEnumConverter())
+            try
+                let apiError = JsonConvert.DeserializeObject<ErrorHandling.ApiError>(responseMessage, s)
+                if obj.ReferenceEquals(apiError, null) then
+                    None
+                else
+                    Some apiError
+            with | _ -> None
 
         /// Asynchrosnously retrieve data from an HTTP response message
         let getDataAsync<'a> (response:HttpResponseMessage) =
@@ -468,22 +474,22 @@ module Client =
         ////// Error Handlers
         let defaultErrorHandler (response: HttpResponseMessage) =
             async {
-                    let! errorMessage = response.Content.ReadAsStringAsync().AsAsync
-                    let message = sprintf "%s -- Failure %A -- %s" (response.RequestMessage.RequestUri.ToString()) response.StatusCode errorMessage
-                    Trace.error "%s" message
+                let! errorMessage = response.Content.ReadAsStringAsync().AsAsync
+                let message = sprintf "%s -- Failure %A -- %s" (response.RequestMessage.RequestUri.ToString()) response.StatusCode errorMessage
+                Trace.error "%s" message
 
-                    let apiErrorOption = tryParseApiError errorMessage
-                    match apiErrorOption with
-                    | Some apiError -> return raise <| ApiErrorException (response.StatusCode, apiError)
-                    | None ->
-                        return raise <|
-                            match response.StatusCode with
-                            | _ when response.StatusCode = TooManyRequestsException.StatusCode -> TooManyRequestsException message
-                            | _ when response.StatusCode = InternalServerError.StatusCode -> InternalServerError message
-                            | _ when response.StatusCode = PreconditionFailedServerError.StatusCode -> System.Exception(errorMessage)
-                            | _ when response.StatusCode = RequestTimeoutException.StatusCode -> TimeoutException message :> exn
-                            | _ when response.StatusCode = BadRequestError.StatusCode -> BadRequestError errorMessage
-                            | _ -> CommunicationException (message, response.StatusCode)
+                let apiErrorOption = tryParseApiError errorMessage
+                match apiErrorOption with
+                | Some apiError -> return raise <| ApiErrorException (response.StatusCode, apiError)
+                | None ->
+                    return raise <|
+                        match response.StatusCode with
+                        | _ when response.StatusCode = TooManyRequestsException.StatusCode -> TooManyRequestsException message
+                        | _ when response.StatusCode = InternalServerError.StatusCode -> InternalServerError message
+                        | _ when response.StatusCode = PreconditionFailedServerError.StatusCode -> System.Exception(errorMessage)
+                        | _ when response.StatusCode = RequestTimeoutException.StatusCode -> TimeoutException message :> exn
+                        | _ when response.StatusCode = BadRequestError.StatusCode -> BadRequestError errorMessage
+                        | _ -> CommunicationException (message, response.StatusCode)
             }
 
         let defaultWebResponseErrorHandler (response: HttpWebResponse) query =
@@ -548,7 +554,7 @@ module Client =
                 let! response = httpGetWebResponse httpOptions query
                 return response.GetResponseStream()
             }
-        
+
         ////// HTTP POST
         let httpPostWithHandler, httpPostWithRetryWithHandler =
             let q (httpClient:HttpClient) (query:string) data =

@@ -31,7 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="HttpCommunication.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="AzureConstants.fs" />
     <Compile Include="AppInsightsTelemetryClient.fs" />
