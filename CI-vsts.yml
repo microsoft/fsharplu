@@ -1,4 +1,4 @@
-﻿# VSTS pipeline to build, test, package, sign and release a new nuget package
+# VSTS pipeline to build, test, package, sign and release a new nuget package
 #
 # Requirements: define the following Azure DevOps connections
 #   FSharpLu-nuget      - Nuget feed service connection (for pushing new packages)
