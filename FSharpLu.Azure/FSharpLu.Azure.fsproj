@@ -5,13 +5,13 @@
     <PackageId>Microsoft.FSharpLu.Azure</PackageId>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ProductName>Microsoft.FSharpLu.Azure</ProductName>
-    <Copyright>Microsoft</Copyright>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <Description>Azure Management Helpers API for F#</Description>
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Version>0.11.1</Version>
     <PackageVersion>0.11.1-pre</PackageVersion>
-    <Title>Microsoft.FSharpLu.Azure.Test</Title>
+    <Title>Microsoft.FSharpLu.Azure</Title>
     <PackageReleaseNotes>First release of FSharpLu.Azure</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
