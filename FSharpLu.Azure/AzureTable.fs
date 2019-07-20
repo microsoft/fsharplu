@@ -4,7 +4,6 @@ module Microsoft.FSharpLu.Azure.Table
 open System
 open Microsoft.FSharpLu.Async
 open Microsoft.FSharpLu
-open Microsoft.Azure.Storage
 open Microsoft.Azure.Cosmos
 
 // Azure tables are totally Type Provider material since it is possible to query table schema

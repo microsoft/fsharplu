@@ -127,8 +127,8 @@ let blobUri (s:BlobStorageContext) blobRelativePath =
     System.Uri(sprintf "%s/%s" (storageRootUrl s.storageAccount) blobRelativePath)
 
 let createBlobContext (storageAccount:string) (storageKey:string) =
-    let creds = new Auth.StorageCredentials(storageAccount, storageKey)
-    let blobAccountUri = new System.Uri(storageRootUrl storageAccount)
+    let creds = Auth.StorageCredentials(storageAccount, storageKey)
+    let blobAccountUri = System.Uri(storageRootUrl storageAccount)
     {
         endpoint = defaultStorageEndpoint
         client = new Blob.CloudBlobClient(blobAccountUri, creds)
@@ -178,7 +178,7 @@ let getStorageAccountFromConnectionString (connectionString:string) =
 
 /// Get Azure storage account context from a name/key pair
 let getStorageAccountFromCredentials accountName (key:string) =
-    new CloudStorageAccount(Auth.StorageCredentials(accountName, key), true)
+    CloudStorageAccount(Auth.StorageCredentials(accountName, key), true)
 
 /// Convert storage account name/key pair to connection string
 let getStorageAccountConnectionStringFromCredentials accountName (key:string) =

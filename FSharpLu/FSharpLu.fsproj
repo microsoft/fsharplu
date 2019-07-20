@@ -61,12 +61,12 @@
   <ItemGroup>
     <Compile Include="FSharpFromCSharp.fs" />
     <Compile Include="Option.fs" />
-    <Compile Include="StateMachineAgent.fs" />
     <Compile Include="Text.fs" />
     <Compile Include="TraceLogging.fs" />
     <Compile Include="Logger.fs" />
     <Compile Include="Collections.fs" />
     <Compile Include="Async.fs" />
+    <Compile Include="StateMachineAgent.fs" />
     <Compile Include="AsyncSeq.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Configuration.fs" />
