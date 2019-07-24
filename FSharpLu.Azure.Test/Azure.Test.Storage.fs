@@ -134,28 +134,32 @@ type AzureStorageTests () =
     member x.StorageEndpointByName() =
         Check.QuickThrowOnFailure endpointByName
 
-
-
-
-    [<Fact>]
-    member x.azureTableTest() =
+    [<Fact(Skip="Needs Azure Storage key configuration")>]
+    member x.``Azure Table implementation of Agent Storage interface is atomic``() =
         async {
-            let key = failwithf "Please set azure storage key"
-            let storageAccount = "Please set azure storage account"
-            let tableName = "PleaseSet table name"
+            let storageAccountName, storageAccountKey = 
+                failwithf "Please set azure storage account name and key"
+            
+            let tableName = "AgentJoinStorageTable"
 
             let guid = System.Guid.NewGuid()
 
-            let creds = Table.StorageCredentials(storageAccount, key)
-            let uri = Table.StorageUri(System.Uri(sprintf "https://%s.table.core.windows.net" storageAccount))
+            let creds = Table.StorageCredentials(storageAccountName, storageAccountKey)
+            let uri = Table.StorageUri(System.Uri(sprintf "https://%s.table.core.windows.net" storageAccountName))
 
-            let! storage = Microsoft.FSharpLu.StateMachineAgent.AzureTableAgentJoinStorage.newStorage(creds, uri) tableName (100, 10000)
-    
-            let entry: Agent.Storage.JoinEntry<int> =
+            let! storage =
+                AzureTableJoinStorage.newStorage
+                                        creds
+                                        uri
+                                        tableName
+                                        (System.TimeSpan.FromSeconds(1.0))
+                                        (System.TimeSpan.FromSeconds(10.0))
+
+            let entry: Agent.Join.Entry<int> =
                 {
                     whenAllSubscribers = []
                     whenAnySubscribers = []
-                    status = Agent.Storage.Status.Requested
+                    status = Agent.Join.Status.Requested
                     childrenStatuses = Map.empty
                     parent = None
                 }
@@ -169,7 +173,7 @@ type AzureStorageTests () =
                         whenAllSubscribers = [7;8;9]
                         whenAnySubscribers = [9;8;7]
                         parent = Some guid
-                        status = Agent.Storage.Status.Completed
+                        status = Agent.Join.Status.Completed
                 }
 
             // records will be updated in random order, and there will be one record that contains
@@ -178,15 +182,13 @@ type AzureStorageTests () =
                 Async.Parallel [
                     storage.update guid (fun entry -> {entry with whenAllSubscribers = [7;8;9]; whenAnySubscribers = [9;8;7]})
                     storage.update guid (fun entry -> {entry with parent = Some guid})
-                    storage.update guid (fun entry -> {entry with status = Agent.Storage.Status.Completed})
+                    storage.update guid (fun entry -> {entry with status = Agent.Join.Status.Completed})
                 ]
 
-            
             let areTheSame = results |> Seq.exists(fun r -> r = expectedEntry)
-            
+
             Assert.True(areTheSame)
         } |> Async.RunSynchronously
-
 
 
     /// TODO: 2680 Broken test

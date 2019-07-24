@@ -1,7 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation.
 namespace Microsoft.FSharpLu.StateMachineAgent
 
-module AzureTableAgentJoinStorage =
+/// An Azure Table implementation of the Agent Join storage
+/// This can be used to run agent state machines with fork and join
+/// backed up by an Azure Table.
+module AzureTableJoinStorage =
     open Microsoft.Azure.Cosmos
     open Microsoft.FSharpLu.StateMachineAgent
     open Microsoft.FSharpLu
@@ -9,7 +12,15 @@ module AzureTableAgentJoinStorage =
     open Microsoft.FSharpLu.Azure.Request.ErrorHandling
     open System.Collections.Generic
 
-    let newStorage(credentials: Table.StorageCredentials, uri: Table.StorageUri) (tableName: string) (retryIntervalMilliseconds: int, totalTimeout: int) : Async<Agent.Storage.JoinStorage<'m>> =
+    /// Instantiate an implementation of Agent.Join.StorageInterface
+    /// backed up by an Azure Table
+    let newStorage
+            (credentials: Table.StorageCredentials)
+            (uri: Table.StorageUri)
+            (tableName: string)
+            (retryInterval: System.TimeSpan) 
+            (totalTimeout: System.TimeSpan)
+        : Async<Agent.Join.StorageInterface<'m>> =
         async {
             let tableClient = Table.CloudTableClient(uri, credentials)
             let table = tableClient.GetTableReference(tableName)
@@ -26,7 +37,7 @@ module AzureTableAgentJoinStorage =
                     | Some r -> return r :?> Table.DynamicTableEntity
                 }
 
-            let entityValuesToJoinEntry (properties: IDictionary<string, Table.EntityProperty>): Agent.Storage.JoinEntry<'m> =
+            let entityValuesToJoinEntry (properties: IDictionary<string, Table.EntityProperty>): Agent.Join.Entry<'m> =
                 let inline deserialize (key: string): 'a =
                     properties.[key].StringValue |> Json.Default.deserialize<'a>
                 {
@@ -38,7 +49,7 @@ module AzureTableAgentJoinStorage =
                 }
 
 
-            let joinEntryToEntityValues (joinEntry: Agent.Storage.JoinEntry<'m>) =
+            let joinEntryToEntityValues (joinEntry: Agent.Join.Entry<'m>) =
                 dict [
                     "parent", Table.EntityProperty(Json.Default.serialize joinEntry.parent)
                     "childrenStatuses", Table.EntityProperty(Json.Default.serialize joinEntry.childrenStatuses)
@@ -47,13 +58,16 @@ module AzureTableAgentJoinStorage =
                     "whenAllSubscribers", Table.EntityProperty(Json.Default.serialize joinEntry.whenAllSubscribers)
                 ]
 
-
-            return 
+            return
                 {
-                    add = 
+                    add =
                         fun joinId joinEntry ->
                             async {
-                                //let partitionKey = System.DateTime.UtcNow.Ticks.ToString("D19")
+                                // We cannot rely on timestamp here as the partittion key
+                                // otherwise we would not be able to lookup an entry just from the join ID
+                                // If in the future, the timestamp gets added to the Join.Entry structure
+                                // then we can use it here as the partitionKey.
+                                //   let partitionKey = timestamp.Ticks.ToString("D19")
                                 let partitionKey = joinId.ToString()
                                 let rowKey = joinId.ToString()
 
@@ -67,13 +81,15 @@ module AzureTableAgentJoinStorage =
 
                     update =
                         fun joinId doEntryUpdate ->
-                            let rec doUpdate (runningDuration: int) =
+                            let start = System.DateTime.UtcNow
+                            let rec doUpdate () =
                                 async {
-                                    if runningDuration > totalTimeout then
-                                        failwithf "Update: Timed out after trying for %d milliseconds (totalTimeout: %d)" runningDuration totalTimeout
+                                    let spent = System.DateTime.UtcNow - start
+                                    if spent > totalTimeout then
+                                        failwithf "Update: Timed out after trying for %A (totalTimeout: %A)" spent totalTimeout
                                     let partitionKey = joinId.ToString()
                                     let rowKey = joinId.ToString()
-                                
+
                                     let! r = retrieve joinId
 
                                     let joinEntry = entityValuesToJoinEntry r.Properties
@@ -87,14 +103,14 @@ module AzureTableAgentJoinStorage =
                                         return updatedJoinEntry
                                     with
                                     | HttpCommunication.Client.TooManyRequestsException(msg) ->
-                                        do! Async.Sleep retryIntervalMilliseconds
-                                        return! doUpdate(runningDuration + retryIntervalMilliseconds)
+                                        do! Async.Sleep (int retryInterval.TotalMilliseconds)
+                                        return! doUpdate ()
 
                                     | IsAggregateOf (SomeStorageException System.Net.HttpStatusCode.PreconditionFailed) e ->
-                                        do! Async.Sleep retryIntervalMilliseconds
-                                        return! doUpdate(runningDuration + retryIntervalMilliseconds)
+                                        do! Async.Sleep (int retryInterval.TotalMilliseconds)
+                                        return! doUpdate ()
                                 }
-                            doUpdate(0)
+                            doUpdate ()
 
                     get = fun joinId ->
                         async {
