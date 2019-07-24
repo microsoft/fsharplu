@@ -85,7 +85,12 @@
 
   <ItemGroup>
     <Content Include="Sysprep.ps1">
+      <IncludeInPackage>true</IncludeInPackage>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <!-- See https://stackoverflow.com/questions/44073501/how-do-you-set-nuget-contentfiles-copytooutput-value-to-true-when-using-a-net-s
+      and https://github.com/NuGet/NuGet.Client/pull/1450-->
+      <PackageCopyToOutput>true</PackageCopyToOutput>
     </Content>
   </ItemGroup>
 
