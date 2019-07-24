@@ -53,6 +53,8 @@ For the documentation please visit the [Wiki](https://github.com/Microsoft/fshar
 
 Here is a list of helper modules provided by FSharpLu.
 
+### Main module
+
 - [FSharpLu.Async](FSharpLu/Async.fs)
 - [FSharpLu.AsyncSeq](FSharpLu/AsyncSeq.fs)
 - [FSharpLu.CacheMap](FSharpLu/CacheMap.fs)
@@ -63,6 +65,7 @@ Here is a list of helper modules provided by FSharpLu.
 - [FSharpLu.ErrorHandling](FSharpLu/ErrorHandling.fs)
 - [FSharpLu.ExecutableInfo](FSharpLu/ExecutableInfo.fs)
 - [FSharpLu.File](FSharpLu/File.fs)
+- [FSharpLu.FSharpFromCSharp](FSharpLu/FSharpFromCSharp.fs)
 - [FSharpLu.Ini](FSharpLu/Ini.fs)
 - [FSharpLu.Logger](FSharpLu/Logger.fs)
 - [FSharpLu.MachineOperations](FSharpLu/MachineOperations.fs)
@@ -74,7 +77,30 @@ Here is a list of helper modules provided by FSharpLu.
 - [FSharpLu.Sysprep](FSharpLu/Sysprep.fs)
 - [FSharpLu.Text](FSharpLu/Text.fs)
 - [FSharpLu.TraceLogging](FSharpLu/TraceLogging.fs)
-- [FSharp.Azure](FSharpLu.Azure/)
+
+### Json
+
+- [FSharpLu.Json](FSharpLu.Json/)
+
+### Azure
+
+- [FSharpLu.Azure](FSharpLu.Azure/)
+
+### Windows
+
+- [FSharpLu.Windows.Hyperv](FSharpLu.Windows/Hyperv.fs)
+- [FSHarpLu.Windows.Security](FSharpLu.Windows/Security.fs)
+- [FSHarpLu.Windows.Certificate](FSharpLu.Windows/Certificate.fs)
+- [FSHarpLu.Windows.Registry](FSharpLu.Windows/Registry.fs)
+- [FSHarpLu.Windows.TraceLoggingConsole](FSharpLu.Windows/TraceLoggingConsole.fs)
+- [FSHarpLu.Windows.Smb](FSharpLu.Windows/Smb.fs)
+- [FSHarpLu.Windows.EtwListener](FSharpLu.Windows/EtwListener.fs)
+- [FSHarpLu.Windows.DirectoryServices](FSharpLu.Windows/DirectoryServices.fs)
+- [FSHarpLu.Windows.Wmi](FSharpLu.Windows/Wmi.fs)
+- [FSHarpLu.Windows.ManagementWin32](FSharpLu.Windows/ManagementWin32.fs)
+- [FSHarpLu.Windows.ManagementHypervisor](FSharpLu.Windows/ManagementHypervisor.fs)
+- [FSHarpLu.Windows.HyperV](FSharpLu.Windows/HyperV.fs)
+
 
 ## Microsoft Open Source Code of Conduct
 

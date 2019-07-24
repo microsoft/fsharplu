@@ -1,4 +1,4 @@
-﻿(* 
+﻿(*
 
 Copyright (c) Microsoft Corporation.
 
@@ -19,7 +19,7 @@ Revision history:
 namespace Microsoft.FSharpLu.Collections
 
 open System
-open System.Runtime.InteropServices 
+open System.Runtime.InteropServices
 open System.Collections.Generic
 open System.Collections.Concurrent
 open System.Linq
@@ -48,7 +48,7 @@ module Union =
                 else
                     invalidArg "^U" "Discriminated union with field parameters cannot be enumerated"
         }
-    
+
 /// Dictionary and collection helpers
 [<AutoOpen>]
 module Dictionary =
@@ -63,7 +63,7 @@ module Dictionary =
     let KeyValueToPair (kvp:KeyValuePair<'K,'V>) = kvp.Key,kvp.Value
 
     /// Iteration over dictionary key/value pairs
-    let dictIter f = 
+    let dictIter f =
         Seq.iter (KeyValueToPair >> f)
 
     /// Convert a dictionary enumeration to a enumeration of pairs of type (key,value)
@@ -76,8 +76,8 @@ module Dictionary =
         | false, _ -> None
         | true, v -> Some(v)
 
-    /// Calculate the union of two sets (source and target) and store the 
-    /// result in the first one (target). 
+    /// Calculate the union of two sets (source and target) and store the
+    /// result in the first one (target).
     ///
     /// Same as HashSet.UnionWith except that it returns true if the target set
     /// is a proper subset of the source set before the union is calculated.
@@ -93,8 +93,8 @@ module Dictionary =
     /// the two corresponding values are merged using the provided 'merge' function
     /// and the result is stored in the target dictionary.
     ///
-    /// If a key from source does not exist in target then the provided 'tranform' 
-    /// function is applied to the corresponding value and the result is added to 
+    /// If a key from source does not exist in target then the provided 'tranform'
+    /// function is applied to the corresponding value and the result is added to
     /// the target dictionary under the same key.
     let dictUnionWith (target:IDictionary<'t,'v>) (source:IDictionary<'t,'v>) merge transform =
         let grows = ref false
@@ -109,7 +109,7 @@ module Dictionary =
 
 /// HashMultimaps are like dictionaries except that each key can map to multiple elements.
 module HashMultimap =
-    /// Functor used to create a HashMultiMap container type. 
+    /// Functor used to create a HashMultiMap container type.
     [<AbstractClass>]
     type public HashMultiMapFunctor<'K,'V when 'K: equality and 'V:comparison>
         (
@@ -118,7 +118,7 @@ module HashMultimap =
 
         /// Add a value to the multimap under a specified key
         abstract member Add : 'K -> 'V -> unit
-    
+
         /// Remove a single value under the specified key from the multimap
         abstract member RemoveValue : 'K -> 'V -> bool
 
@@ -154,7 +154,7 @@ module HashMultimap =
         /// Remove a single value from the map (non-concurrent implementation)
         member x.RemoveValueNonConcurrent (key:'K) (value:'V) =
             match dict.TryGetValue key with
-            | true, values -> 
+            | true, values ->
                 if values.Remove value then
                     if not (values.Any()) then
                         dict.Remove key |> ignore
@@ -196,7 +196,7 @@ module HashMultimap =
     /// A concurrent HashMultiMap container type created from an existing
     /// concurrent dictionary.
     //
-    /// WARNING: this implementation only guarantees thread-safety when accessing the 
+    /// WARNING: this implementation only guarantees thread-safety when accessing the
     /// keys. The values are still stored in a thread-*unsafe* HashSet.
     /// This is fine as long as no two threads access and modify the same key's values at the same time.
     /// (which is the case in the context of RetSet)
@@ -205,20 +205,20 @@ module HashMultimap =
             concurrentDict : ConcurrentDictionary<'K,HashSet<'V>>
         ) =
         inherit HashMultiMapFunctor<'K,'V>(concurrentDict)
-    
+
         /// Thread-safe implementation of Add.
         override x.Add key value =
             concurrentDict.AddOrUpdate(
                 key,
                 (fun _ -> new HashSet<'V>([value])),
-                (fun _ (existingHashSet:HashSet<'V>) -> 
+                (fun _ (existingHashSet:HashSet<'V>) ->
                         lock existingHashSet (fun () -> existingHashSet.Add value |> ignore; existingHashSet))
                 )
             |> ignore
- 
+
         /// Thread-safe implementation of RemoveValue.
         override x.RemoveValue (key:'K) (value:'V) =
-            // TODO: implement thread-safe value removal: requires either 
+            // TODO: implement thread-safe value removal: requires either
             // - extending ConcurrentDictionary class with a new RemoveOrUpdate atomic construct
             // - or replacing HashSet values with thread-safe HashSets
             raise (NotImplementedException())
@@ -226,7 +226,7 @@ module HashMultimap =
     /// A concurrent HashMultiMap container type based on
     /// a specified equality comparer.
     //
-    /// WARNING: this implementation only guarantees thread-safety when accessing the 
+    /// WARNING: this implementation only guarantees thread-safety when accessing the
     /// keys. The values are still stored in a thread-*unsafe* HashSet.
     /// This is fine as long as no two threads access and modify the same key's values at the same time.
     /// (which is the case in the context of RetSet)
@@ -237,7 +237,7 @@ module HashMultimap =
         inherit ConcurrentHashMultiMap<'K,'V>(new ConcurrentDictionary<'K,HashSet<'V>>(hasheq))
 
     /// Convert an enumerable to a HashMultiMap
-    let toHashMultiMap<'K,'V,'T when 'V:comparison and 'K:equality> 
+    let toHashMultiMap<'K,'V,'T when 'V:comparison and 'K:equality>
             (keySelector:'T -> 'K)
             (valueSelector:'T -> 'V)
             (enumerable:seq<'T>)
@@ -256,8 +256,8 @@ module Seq =
         >> Seq.filter (fun (i, e) -> f i e)
         >> Seq.map snd
 
-    /// Apply a function to each element of a sequence and return a sequence of 
-    /// pair consisting of the elements from the original sequence paired with 
+    /// Apply a function to each element of a sequence and return a sequence of
+    /// pair consisting of the elements from the original sequence paired with
     /// the result of the function applied to them.
     let augment f =
         Seq.map (fun e -> e, f e)
@@ -279,13 +279,13 @@ module Seq =
     ///     |?= (fun len -> printf "Throughput %d" len)
     let (|?=) (source:seq<'t>) (measurer:int -> unit) =
         let counter = ref 0
-        seq 
+        seq
             {
                 for element in source do
                      incr counter
                      yield element
                 measurer !counter
-                counter := 0 
+                counter := 0
             }
 
     /// Same as |?= but takes effect only if program is built is VERBOSEDEBUG macro on
@@ -301,18 +301,29 @@ module Seq =
     let multipartition choose t =
         Seq.fold (fun s x -> Map.add (choose x) x s) Map.empty t
 
-    /// Executes a fold operation within a list passing as parameter of the folder function 
+    /// Executes a fold operation within a list passing as parameter of the folder function
     /// the zero based index of each element.
     let public foldi folder first source  =
-        source 
+        source
         |> Seq.mapi(fun i element -> (i, element))
         |> Seq.fold(fun state (i,element) -> folder i state element) first
 
+module PSeq =
+    // Convert a seq<'T> to a ParallelQuery<'T>.
+    let inline toParallel (s : seq<'T>) =
+        match s with
+        | null -> nullArg "s"
+        | :? ParallelQuery<'T> as p ->  p
+        | _ -> s.AsParallel()
+
+    let map f s  =
+        ParallelEnumerable.Select(toParallel(s), new Func<_,_>(f))
+
 module Hashtable =
     /// Try looking up an element from a hashtable
-    let tryGetValue<'T when 'T:null> (hashtable:System.Collections.Hashtable) name = 
+    let tryGetValue<'T when 'T:null> (hashtable:System.Collections.Hashtable) name =
         if hashtable.ContainsKey name then
-            match hashtable.Item name :?> 'T with 
+            match hashtable.Item name :?> 'T with
             | null -> None
             | v -> Some v
         else

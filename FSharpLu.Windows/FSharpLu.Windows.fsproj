@@ -74,6 +74,11 @@
     <Compile Include="TraceLoggingConsole.fs" />
     <Compile Include="Smb.fs" />
     <Compile Include="EtwListener.fs" />
+    <Compile Include="DirectoryServices.fs" />
+    <Compile Include="Wmi.fs" />
+    <Compile Include="ManagementWin32.fs" />
+    <Compile Include="ManagementHypervisor.fs" />
+    <Compile Include="HyperV.fs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -93,15 +98,15 @@
  </ItemGroup>
 
  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-   <PackageReference Include="Microsoft.Win32.Registry" Version ="4.5.0" />
+   <PackageReference Include="Microsoft.Win32.Registry" Version="4.5.0" />
   </ItemGroup>
 
  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <PackageReference Include="Microsoft.Win32.Registry" Version ="4.5.0" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="4.5.0" />
  </ItemGroup>
 
  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-   <PackageReference Include="Microsoft.Win32.Registry" Version ="4.5.0" />
+   <PackageReference Include="Microsoft.Win32.Registry" Version="4.5.0" />
  </ItemGroup>
 
 </Project>
