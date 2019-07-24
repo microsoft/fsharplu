@@ -61,45 +61,58 @@ module DiagnosticsTests =
         else
             failwith "Timed out waiting for the process "
 
+    /// lineCount must be <10000
+    let expectedOutputLength prefix lineCount =
+        let prefixLength = String.length prefix
+        let eol = String.length System.Environment.NewLine
+        (prefixLength + 1 + eol) * 9 +
+        (prefixLength + 2 + eol) * 90 +
+        (prefixLength + 3 + eol) * 900 +
+        (prefixLength + 4 + eol) * (lineCount - 999)
+
     let processAsyncAuxLargeStandardOutput() =
-        let minStandardOutLengthChars = 5000
-        let cmd = "cmd", "/c \"@echo off & for /l %x in (1, 1, 5000) do echo Processed: %x/5000 \""
+        let lineCount = 5000
+        let cmd, arguments = "cmd", "/c \"@echo off & for /l %x in (1, 1, " + lineCount.ToString() + ") do echo Processed: %x\""
+        let expectedOutputLength = expectedOutputLength "Processed: " lineCount
         let timeSpan = System.TimeSpan.FromSeconds 20.0
 
         let r = processAsyncAuxTest
-                        (fst cmd)
-                        (snd cmd)
+                        cmd
+                        arguments
                         timeSpan
                         Process.ProcessStartFlags.RedirectStandardOutput
 
         if r.ProcessExited && r.ExecutionTime < timeSpan then
             printfn "Process exited (as expected)"
-            if r.StandardOutput.Length < minStandardOutLengthChars then
-                failwithf "Standard output should be at least %d characters long" minStandardOutLengthChars
+            let l = r.StandardOutput.Length 
+            if l <> expectedOutputLength then
+                failwithf "Standard output should be %d characters long, received %d (now: %d)" expectedOutputLength l  r.StandardOutput.Length
             else
-                printfn "Found at least %d output chars as expected" minStandardOutLengthChars
+                printfn "Found at least %d output chars as expected" expectedOutputLength
         elif r.ProcessExited then
             failwithf "Process exited but it took longer than expected. Time it took: %f ms, expected: %f ms" r.ExecutionTime.TotalMilliseconds timeSpan.TotalMilliseconds
         else
             failwith "Timed out waiting for the process "
 
     let processAsyncAuxLargeStandardError() =
-        let minStandardErrLengthChars = 5000
-        let cmd = "cmd", "/c \"@echo off & for /l %x in (1, 1, 5000) do echo Processed: %x/5000 1>&2 \""
+        let lineCount = 5000
+        let cmd, arguments = "cmd", "/c \"@echo off & for /l %x in (1, 1, " + lineCount.ToString() + ") do echo Processed: %x 1>&2\""
         let timeSpan = System.TimeSpan.FromSeconds 20.0
+        let expectedErrorLength = expectedOutputLength "Processed:  " lineCount
 
         let r = processAsyncAuxTest
-                        (fst cmd)
-                        (snd cmd)
+                        cmd
+                        arguments
                         timeSpan
                         Process.ProcessStartFlags.RedirectStandardError
 
         if r.ProcessExited && r.ExecutionTime < timeSpan then
             printfn "Process exited (as expected)"
-            if r.StandardError.Length < minStandardErrLengthChars then
-                failwithf "Standard error should be at least %d characters long" minStandardErrLengthChars
+            let l = r.StandardError.Length 
+            if l <> expectedErrorLength then
+                failwithf "Standard error should be %d characters long, received %d (now %d)" expectedErrorLength l r.StandardError.Length
             else
-                printfn "Found at least %d output chars in stderr as expected" minStandardErrLengthChars
+                printfn "Found at least %d output chars in stderr as expected" expectedErrorLength
         elif r.ProcessExited then
             failwithf "Process exited but it took longer than expected. Time it took: %f ms, expected: %f ms" r.ExecutionTime.TotalMilliseconds timeSpan.TotalMilliseconds
         else
