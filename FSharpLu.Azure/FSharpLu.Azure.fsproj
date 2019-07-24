@@ -9,8 +9,7 @@
     <Description>Azure Management Helpers API for F#</Description>
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
-    <Version>0.11.1</Version>
-    <PackageVersion>0.11.1-pre</PackageVersion>
+    <Version>$(NUGET_PACKAGE_VERSION)</Version>
     <Title>Microsoft.FSharpLu.Azure</Title>
     <PackageReleaseNotes>First release of FSharpLu.Azure</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>

@@ -1,4 +1,4 @@
-﻿# AppVeyor build for public CI builds
+# AppVeyor build for public CI builds
 # To be moved to public Azure DevOps repo in the future.
 version: 0.11.{build}
 pull_requests:
@@ -13,7 +13,7 @@ before_build:
 - ps: >-
     nuget restore
 
-    .\scripts\Update-Version.ps1 -version $Env:APPVEYOR_BUILD_VERSION
+    $Env:NUGET_PACKAGE_VERSION = $Env:APPVEYOR_BUILD_VERSION
 build:
   verbosity: minimal
 artifacts:

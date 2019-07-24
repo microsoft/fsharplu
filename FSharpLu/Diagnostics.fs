@@ -58,7 +58,7 @@ module Process =
     let killProcess (pid:uint32) =
         try
             let ps = Process.GetProcessById (int pid)
-            if ps <> null then
+            if not <| isNull ps then
                 ps.Kill ()
         with
         | :? System.ArgumentException ->
@@ -227,7 +227,7 @@ module Process =
 
             if redirectOutput then
                 instance.OutputDataReceived.Add(appendHandler noMoreOutput standardOutput)
-            
+
             if redirectErrors then
                 instance.ErrorDataReceived.Add(appendHandler noMoreError standardError)
 

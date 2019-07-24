@@ -24,7 +24,7 @@
     <Title>FSharpLu F# Utility libary</Title>
     <PackageId>Microsoft.FSharpLu</PackageId>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <Version>0.11.1</Version>
+    <Version>$(NUGET_PACKAGE_VERSION)</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(DELAYSIGNING)' == 'True' ">
