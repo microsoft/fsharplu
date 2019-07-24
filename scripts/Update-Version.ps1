@@ -27,7 +27,7 @@ $assemblyInfoFiles | `
     $r = $x -replace '<AssemblyVersion>[ \d.`*]*([-<]?)', "<AssemblyVersion>$assemblyVersion`$1" `
             -replace '<Version>[ \d.`*]*([-<]?)', "<Version>$version`$1" `
             -replace '<PackageVersion>[ \d.`*]*([-<]?)', "<PackageVersion>$version`$1"
-    $r | Set-Content -Path $file -Encoding UTF8 -NoNewline
+    $r | Out-File -FilePath $file -Encoding UTF8 -NoNewline
   }
 
 Write-Host "Update version in YAML: $version"
@@ -36,5 +36,5 @@ ForEach-Object { $file = $_.FullName
     $x = Get-Content $file -Raw -Encoding UTF8
     $r = $x -replace 'version: [ \d.`*]*([-<]?).{build}', "version: $major.$minor.{build}" `
             -replace 'NUGET_PACKAGE_VERSION: [ \d.`*]*([-<]?)', "NUGET_PACKAGE_VERSION: $version`$1"
-    $r | Set-Content -Path $file -Encoding UTF8 -NoNewline
+    $r | Out-File -FilePath $file -Encoding ascii -NoNewline # UTF8 encoding adds a BOM which breaks the Azure pipeline YAML
 }
