@@ -21,13 +21,18 @@ param(
     [Parameter(ParameterSetName = "push", Mandatory=$true)]$feed,
     [Parameter(ParameterSetName = "push")]$key = 'Springfield',
     [switch]$signed,
-    [Parameter(Mandatory=$true)][string]$version,
+    [string]$version,
     [ValidateSet('release', 'debug', IgnoreCase = $true)]$configuration='Release'
 )
 
 $ErrorActionPreference = 'stop'
 $root = Split-Path -parent $PsScriptRoot
 $outputDir = "$root\nugetoutput"
+
+if(-not $version) {
+    $version = & $PSScriptRoot\Get-Version.ps1
+    Write-Host "Version tag: $version"
+}
 
 Push-Location $root
 
@@ -50,7 +55,6 @@ Before proceeding please make sure to manually place the signed assemblies under
 "@
         pause
     } elseif($build) {
-        & $PSScriptRoot/Update-Version.ps1 -version $version
         & $PSScriptRoot/build.ps1 -configuration $configuration
     }
 

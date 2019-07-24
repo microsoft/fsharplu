@@ -7,24 +7,18 @@
 # The following variables are settable at queue time.
 #  BuildConfiguration
 #  BuildPlatform
-#  SignBuild       - Set to 'true' if code signing is required
-#  PublishRelease  - Set to 'true' to publish a new release to Github and Nuget
+#  SignBuild             - Set to 'true' if code signing is required
+#  PublishRelease        - Set to 'true' to publish a new release to Github and Nuget
+#  NUGET_PACKAGE_VERSION - Version tag assigned to the nuget packages
 
 pool:
   vmImage: windows-2019
-
-variables:
-  # Increase version number before every official release (if PublishRelease is set to true)
-  NUGET_PACKAGE_VERSION: 0.11.1
 
 steps:
 - task: DotNetCoreInstaller@0
   displayName: Use .NET Core sdk 2.1.200
   inputs:
     version: 2.1.200
-
-- powershell: . scripts/Update-Version.ps1 -version $(NUGET_PACKAGE_VERSION)
-  displayName: Set assembly/nuget version number
 
 - task: DotNetCoreCLI@2
   displayName: dotnet build for testing
@@ -120,7 +114,7 @@ steps:
     SearchPattern: '**\bin\**\*.pdb'
     SymbolServerType: TeamServices
     SymbolsProduct: Microsoft.FSharpLu
-    SymbolsVersion: '$( NUGET_PACKAGE_VERSION)'
+    SymbolsVersion: '$(NUGET_PACKAGE_VERSION)'
   continueOnError: true
 
 - task: CopyFiles@2

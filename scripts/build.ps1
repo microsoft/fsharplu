@@ -29,6 +29,9 @@ if($rebuild) {
     $target = 'Build'
 }
 
+$version = & $PSScriptRoot\Get-Version.ps1
+Write-Host "Version tag: $version"
+
 dotnet build --no-incremental /t:$target /p:Configuration="$configuration" $options #/v:detailed
 
 if($delaysign) {

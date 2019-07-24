@@ -37,7 +37,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A76D
 	ProjectSection(SolutionItems) = preProject
 		scripts\build.ps1 = scripts\build.ps1
 		scripts\packnuget.ps1 = scripts\packnuget.ps1
-		scripts\Update-Version.ps1 = scripts\Update-Version.ps1
 	EndProjectSection
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Windows", "FSharpLu.Windows\FSharpLu.Windows.fsproj", "{2E2CDF04-F40A-4A61-A15D-18C2451CCF6E}"

@@ -23,7 +23,7 @@ module private Constants =
 
     /// Estimated average amount of disk space on the host to be able to create a new VM (in bytes)
     let HostDiskSpaceRequiredPerVM = 10000000000UL  // ~10 GB
-    
+
 open Constants
 
 /// State of an HyperV machine
@@ -57,7 +57,7 @@ let private prepareWindowsVhd (log:Logger<_,_>) hostName hostVhdFilePath injectF
 
                 log.write "VHD file mounted on %s was successfully patched" mountedDrive
                 return hostVhdFilePath
-            with  _ as e ->
+            with  e ->
                 log.write "[WARNING] Exception: %O" e
                 return Async.reraise e
         finally
@@ -190,18 +190,18 @@ let resilientAsync (log:Logger<_,_>) (hostname:string) hostVmDir waitPeriod desc
                 return!
                     match exn with
                     | :? System.OutOfMemoryException ->
-                        insufficientResources "memory" waitPeriod description job
+                        insufficientResources "memory"
                     | :? System.IO.IOException as exn when Win32.isOutOfDiskSpaceException exn  ->
-                        insufficientResources "disk space" waitPeriod description job
+                        insufficientResources "disk space"
                     | Hypervisor.MsvmError(_) as exn when Hypervisor.isOutOfDiskSpaceError exn ->
-                        insufficientResources "disk space" waitPeriod description job
+                        insufficientResources "disk space"
                     | Hypervisor.MsvmError(_) as exn when Hypervisor.isOutOfMemoryerror exn ->
-                        insufficientResources "memory" waitPeriod description job
-                    | _ as exn -> raise exn
+                        insufficientResources "memory"
+                    | exn -> raise exn
         }
-    and insufficientResources resourceType waitPeriod description job =
+    and insufficientResources resourceType =
         async {
-            logCurrentResources log hostname
+            logCurrentResources log hostname hostVmDir
             log.write "Insufficient %s, retrying in %d seconds..." resourceType (waitPeriod/1000)
             do! Async.Sleep waitPeriod
             return! aux ()
@@ -214,7 +214,7 @@ type VmRequirements =
         /// Amount of memory allocated to each VM (in MB)
         vmMemoryInMegabytes : int
         /// Name of the network adapter created for each VM e.g. ExternalNetworkCard
-        vmNetAdapterName : string 
+        vmNetAdapterName : string
         /// A port number for kernel debugging if required
         kernelDebuggerPort : int option
         hostNetworkSwitchName: string
@@ -226,14 +226,14 @@ type VmRequirements =
 let hasCapacityForNewVM hostVmDir hostname =
     let drive = System.IO.Directory.GetDirectoryRoot(hostVmDir).Substring(0,2)
     let diskSpace = Win32.getFreeDiskSpace hostname drive
-    let freeMem = Win32.getFreePhysicalMemory hostname 
+    let freeMem = Win32.getFreePhysicalMemory hostname
     if diskSpace < HostDiskSpaceRequiredPerVM then
         Some "disk space"
     else if freeMem < HostMemoryRequiredPerVM then
         Some "memory"
     else
         None
-  
+
 /// Wait until there is enough resources to create a VM on the HyperV host
 /// with the provided parameters
 let waitForFactorySystemResources (log:Logger<_,_>) hostVmDir hostname =
@@ -258,7 +258,7 @@ let createVM (log:Logger<_,_>) (hostname:string) vmMachineName vmParameters (fil
 
         // Delete the VM if it already exists
         let! existedBefore = deleteVmAndVhd log hostname vmMachineName
-        
+
         let scope = scope log hostname
 
         // Get the path to the directory where to store the VM files

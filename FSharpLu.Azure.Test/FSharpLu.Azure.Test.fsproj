@@ -6,8 +6,7 @@
     <ProductName>Microsoft.FSharpLu.Azure.Test</ProductName>
     <Copyright>Microsoft</Copyright>
     <Description></Description>
-    <PackageVersion>0.11.1-pre</PackageVersion>
-    <Version>0.11.1</Version>
+    <Version>$(NUGET_PACKAGE_VERSION)</Version>
     <Title>Microsoft.FSharpLu.Azure.Test</Title>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>

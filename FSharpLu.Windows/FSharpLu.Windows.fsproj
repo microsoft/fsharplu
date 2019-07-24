@@ -18,7 +18,7 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <AssemblyTitle>FSharpLu.Windows</AssemblyTitle>
     <AssemblyName>Microsoft.FSharpLu.Windows</AssemblyName>
-    <Version>0.11.1</Version>
+    <Version>$(NUGET_PACKAGE_VERSION)</Version>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Microsoft.FSharpLu.Windows.Xml</DocumentationFile>
   </PropertyGroup>
