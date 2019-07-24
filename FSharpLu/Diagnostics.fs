@@ -147,7 +147,8 @@ module Process =
     let startProcessAsync command arguments workingDir (flags:ProcessStartFlags) (timeout:ProcessTimeoutAction) (environmentVariables:List<string*string> option) =
         async {
             let maskedArguments = if flags.HasFlag(ProcessStartFlags.SensitiveArguments) then "***MASKED***" else arguments
-
+            let redirectOutput = flags.HasFlag ProcessStartFlags.RedirectStandardOutput
+            let redirectErrors = flags.HasFlag ProcessStartFlags.RedirectStandardError
             use instance = createProcessInstance command arguments workingDir flags
 
             environmentVariables
@@ -224,10 +225,10 @@ module Process =
                 else
                     aggregator.AppendLine(args.Data) |> ignore
 
-            if flags.HasFlag ProcessStartFlags.RedirectStandardOutput then
+            if redirectOutput then
                 instance.OutputDataReceived.Add(appendHandler noMoreOutput standardOutput)
-
-            if flags.HasFlag ProcessStartFlags.RedirectStandardError then
+            
+            if redirectErrors then
                 instance.ErrorDataReceived.Add(appendHandler noMoreError standardError)
 
             if not (instance.Start()) then
@@ -235,13 +236,21 @@ module Process =
                 return raise <| System.InvalidOperationException(message)
             else
                 try
-                    if flags.HasFlag ProcessStartFlags.RedirectStandardOutput then
+                    if redirectOutput then
                         instance.BeginOutputReadLine()
-                    if flags.HasFlag ProcessStartFlags.RedirectStandardError then
+                    if redirectErrors then
                         instance.BeginErrorReadLine()
 
                     let! _ = waitAsync
                     Trace.info "%s %s exited with code: %d" command arguments instance.ExitCode
+                    if redirectOutput then
+                        let! _ = Async.AwaitWaitHandle noMoreOutput
+                        ()
+
+                    if redirectErrors then
+                        let! _ = Async.AwaitWaitHandle noMoreError
+                        ()
+
                     return
                         {
                             ProcessResult.ProcessExited = true
