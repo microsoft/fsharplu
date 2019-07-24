@@ -13,6 +13,7 @@
     <Compile Include="JsonTests.fs" />
     <Compile Include="Text.fs" />
     <Compile Include="UnionTests.fs" />
+    <Compile Include="StateMachineAgentTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="test1.ini">
