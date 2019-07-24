@@ -4,6 +4,9 @@ open System
 open FsCheck
 open Xunit
 
+open Microsoft.Azure.Cosmos
+open Microsoft.FSharpLu.StateMachineAgent
+
 module Tests =
     open System.Collections.Generic
     open Microsoft.FSharpLu.Azure.Storage.Impl
@@ -130,6 +133,61 @@ type AzureStorageTests () =
     [<Fact>]
     member x.StorageEndpointByName() =
         Check.QuickThrowOnFailure endpointByName
+
+
+
+
+    [<Fact>]
+    member x.azureTableTest() =
+        async {
+            let key = failwithf "Please set azure storage key"
+            let storageAccount = "Please set azure storage account"
+            let tableName = "PleaseSet table name"
+
+            let guid = System.Guid.NewGuid()
+
+            let creds = Table.StorageCredentials(storageAccount, key)
+            let uri = Table.StorageUri(System.Uri(sprintf "https://%s.table.core.windows.net" storageAccount))
+
+            let! storage = Microsoft.FSharpLu.StateMachineAgent.AzureTableAgentJoinStorage.newStorage(creds, uri) tableName (100, 10000)
+    
+            let entry: Agent.Storage.JoinEntry<int> =
+                {
+                    whenAllSubscribers = []
+                    whenAnySubscribers = []
+                    status = Agent.Storage.Status.Requested
+                    childrenStatuses = Map.empty
+                    parent = None
+                }
+
+            do! storage.add guid entry
+            let! v = storage.get guid
+
+            let expectedEntry =
+                {
+                    entry with
+                        whenAllSubscribers = [7;8;9]
+                        whenAnySubscribers = [9;8;7]
+                        parent = Some guid
+                        status = Agent.Storage.Status.Completed
+                }
+
+            // records will be updated in random order, and there will be one record that contains
+            // all updates. That recrod has to have same data as expectedEntry
+            let! results =
+                Async.Parallel [
+                    storage.update guid (fun entry -> {entry with whenAllSubscribers = [7;8;9]; whenAnySubscribers = [9;8;7]})
+                    storage.update guid (fun entry -> {entry with parent = Some guid})
+                    storage.update guid (fun entry -> {entry with status = Agent.Storage.Status.Completed})
+                ]
+
+            
+            let areTheSame = results |> Seq.exists(fun r -> r = expectedEntry)
+            
+            Assert.True(areTheSame)
+        } |> Async.RunSynchronously
+
+
 
     /// TODO: 2680 Broken test
     // [<Fact>]

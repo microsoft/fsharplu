@@ -390,13 +390,6 @@ let copyVhd (s:BlobStorageContext) (sourceUri:Uri) targetContainer targetBlobNam
         return target.Uri
     }
 
-/// Match Azure storage exceptions with the specified status code
-let SomeStorageUnavailableException (httpStatusCode:System.Net.HttpStatusCode) (e:System.Exception) =
-    match e with
-    | :? Microsoft.Azure.Storage.StorageException as e
-        when e.RequestInformation.HttpStatusCode = (int)httpStatusCode ->
-          Some e
-    | _ -> None
 
 /// Copy a VHD blob on Azure with resilience to "Server Busy" errors
 let rec resilientcopyVhd tags (s:BlobStorageContext) (sourceUri:Uri) targetContainer targetBlobName =
@@ -411,7 +404,7 @@ let rec resilientcopyVhd tags (s:BlobStorageContext) (sourceUri:Uri) targetConta
                 /// Catch System.AggregateException
                 //    of Microsoft.Azure.Storage.StorageException
                 //    of "The remote server returned an error: (503) Server Unavailable"
-                | IsAggregateOf (SomeStorageUnavailableException System.Net.HttpStatusCode.ServiceUnavailable) e ->
+                | IsAggregateOf (SomeStorageException System.Net.HttpStatusCode.ServiceUnavailable) e ->
                     TraceTags.warning "WARNING: Failed to copy blob from specified URI. Retrying in %ds... "
                         (tags @ [ "sourceUri", sourceUri.AbsoluteUri
                                   "targetBlobName", targetBlobName
