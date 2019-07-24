@@ -21,6 +21,8 @@ module StateMachineAgentTests =
         | WaitForFork2 of JoinId * JoinId
         | WaitForFork1 of JoinId
 
+
+
     let newInMemoryForkProgressStorage (storage: Collections.Concurrent.ConcurrentDictionary<_, _>)
         : Agent.Join.StorageInterface<'m> =
         {
@@ -77,7 +79,7 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
                                 | State2 s  ->
                                     return ForkAndGoto ([], fun joinId -> Join2(joinId, s))
                                 | State3(n,s) ->
-                                    return ForkAndGoto ([], fun joinId -> Join3(joinId, n, s))
+                                    return ForkAndGoto ([State4; Exit], fun joinId -> Join3(joinId, n, s))
                                 | State4 ->
                                     return Return 12
 
@@ -95,9 +97,9 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
 
                                 // Double fork
                                 | Fork1 ->
-                                    return ForkAndGoto([], fun joinId -> Fork2 joinId)
+                                    return ForkAndGoto([State4; Exit], fun joinId -> Fork2 joinId)
                                 | Fork2(fork1JoinId) ->
-                                    return ForkAndGoto([], fun joinId -> WaitForFork2(fork1JoinId, joinId))
+                                    return ForkAndGoto([State4; State4], fun joinId -> WaitForFork2(fork1JoinId, joinId))
                                 | WaitForFork2(fork1JoinId, fork2JoinId) ->
                                     return WhenAny(fork2JoinId, WaitForFork1 fork1JoinId)
                                 | WaitForFork1(fork1JoinId) ->
@@ -135,46 +137,90 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
         }
 
     [<Fact>]
-    let determinitsticSuccessForkTest1() =
-        let storage = Collections.Concurrent.ConcurrentDictionary()
-        let r =
-            async {
-                let agent = newAgent(newInMemoryForkProgressStorage storage)
-                let! request = Agent.createRequest agent
-                return! Agent.executeWithResult (State1 23) request agent
-            } |> Async.RunSynchronously
-        ()
+    let waitAllSuccessForkTest() =
+        async {
+            let storage = Collections.Concurrent.ConcurrentDictionary()
+            Assert.Empty storage
+            let agent = newAgent(newInMemoryForkProgressStorage storage)
+            let! request = Agent.createRequest agent
+            let! _ = Agent.executeWithResult (State1 23) request agent
+            Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
+            Assert.True(storage.Count = 4)
+        } |> Async.RunSynchronously
+
+    [<Fact>]
+    let expectFailureOnEmptyForkSpawnList() =
+        async {
+            let storage = Collections.Concurrent.ConcurrentDictionary()
+            Assert.Empty storage
+            let! _ =
+                Assert.ThrowsAsync<System.NotSupportedException>(
+                    fun () ->
+                        async {
+                            let agent = newAgent(newInMemoryForkProgressStorage storage)
+                            let! request = Agent.createRequest agent
+                            let! _ = Agent.executeWithResult (State2 "blah") request agent
+                            return ()
+                        } |> Async.StartAsTask :> System.Threading.Tasks.Task
+                    ) |> Async.AwaitTask
+            Assert.True(storage.Count = 1)
+            return ()
+        } |> Async.RunSynchronously
 
 
     [<Fact>]
-    let determinitsticSuccessForkTest2() =
-        let storage = Collections.Concurrent.ConcurrentDictionary()
-        let r =
-            async {
-                let agent = newAgent(newInMemoryForkProgressStorage storage)
-                let! request = Agent.createRequest agent
-                return! Agent.executeWithResult (State2 "blah") request agent
-            } |> Async.RunSynchronously
-        ()
-
-    [<Fact>]
-    let determinitsticSuccessForkTest3() =
-        let storage = Collections.Concurrent.ConcurrentDictionary()
-        let r =
-            async {
-                let agent = newAgent(newInMemoryForkProgressStorage storage)
-                let! request = Agent.createRequest agent
-                return!  Agent.executeWithResult (State3 (1, "blah")) request agent
-            } |> Async.RunSynchronously
-        ()
+    let waitAnySuccessForkTest() =
+        async {
+            let storage = Collections.Concurrent.ConcurrentDictionary()
+            Assert.Empty storage
+            let agent = newAgent(newInMemoryForkProgressStorage storage)
+            let! request = Agent.createRequest agent
+            let! _ =  Agent.executeWithResult (State3 (1, "blah")) request agent
+            
+            let completedChild = storage |> Seq.tryFind (fun x -> x.Value.status = Agent.Join.Status.Completed && x.Value.parent.IsSome)
+            Assert.True (completedChild.IsSome)
+            Assert.True(storage 
+                            |> Seq.exists (fun x -> 
+                                                x.Value.status = Agent.Join.Status.Completed && 
+                                                not x.Value.childrenStatuses.IsEmpty && 
+                                                x.Value.childrenStatuses.[completedChild.Value.Key] = Agent.Join.Status.Completed
+                                            )
+                        )
+            Assert.True(storage.Count = 4)
+            Assert.True(storage |> Seq.filter (fun x -> not x.Value.childrenStatuses.IsEmpty ) |> Seq.length = 1)
+            Assert.True(storage |> Seq.filter (fun x -> x.Value.parent.IsSome) |> Seq.length = 2)
+            Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
+        } |> Async.RunSynchronously
 
     [<Fact>]
     let doubleFork() =
-        let storage = Collections.Concurrent.ConcurrentDictionary()
-        let r =
-            async {
-                let agent = newAgent(newInMemoryForkProgressStorage storage)
-                let! request = Agent.createRequest agent
-                return! Agent.executeWithResult (Fork1) request agent
-            } |> Async.RunSynchronously
-        ()
+        async {
+            let storage = Collections.Concurrent.ConcurrentDictionary()
+            Assert.Empty storage
+            let agent = newAgent(newInMemoryForkProgressStorage storage)
+            let! request = Agent.createRequest agent
+            let! _ = Agent.executeWithResult (Fork1) request agent
+        
+            Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
+            Assert.True(storage |> Seq.filter(fun x -> x.Value.parent.IsSome) |> Seq.length = 4)
+            Assert.True(storage |> Seq.filter(fun x -> not x.Value.childrenStatuses.IsEmpty) |> Seq.length = 2)
+            Assert.True(storage.Count = 7)
+        } |> Async.RunSynchronously
+
+    [<Fact>]
+    let joinOnNonExistantJoinId() =
+        async {
+            let storage = Collections.Concurrent.ConcurrentDictionary()
+            Assert.Empty storage
+            let agent = newAgent(newInMemoryForkProgressStorage storage)
+            let! request = Agent.createRequest agent
+            let! _ =
+                Assert.ThrowsAnyAsync(
+                    fun () ->
+                        async {
+                            let! _ = Agent.executeWithResult (Join1 System.Guid.Empty) request agent
+                            return ()
+                        } |> Async.StartAsTask :> System.Threading.Tasks.Task
+                ) |> Async.AwaitTask
+            return ()
+        } |> Async.RunSynchronously

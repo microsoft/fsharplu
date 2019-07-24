@@ -381,6 +381,9 @@ module Agent =
                     return! goto newState
 
                 | Transition.ForkAndGoto (spawnedStates, newStateFromJoinId) ->
+                    if List.isEmpty spawnedStates then
+                        return raise (System.NotSupportedException("ForkAndGoto does not accept empty spawned states list"))
+
                     // spawn children state machines
                     m.logger (sprintf "Agent '%s' forking into %d state machines" m.title spawnedStates.Length) m.tags
 
