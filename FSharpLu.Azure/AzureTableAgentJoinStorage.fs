@@ -18,18 +18,19 @@ module AzureTableJoinStorage =
             (credentials: Table.StorageCredentials)
             (uri: Table.StorageUri)
             (tableName: string)
-            (retryInterval: System.TimeSpan) 
+            (retryInterval: System.TimeSpan)
             (totalTimeout: System.TimeSpan)
+            (agentId: string) /// Customer identifier that gets recorded in every entry in Azure Table
         : Async<Agent.Join.StorageInterface<'m>> =
         async {
             let tableClient = Table.CloudTableClient(uri, credentials)
             let table = tableClient.GetTableReference(tableName)
             let! _ = table.CreateIfNotExistsAsync() |> Async.AwaitTask
 
-            let retrieve (joinId) =
+            let retrieve (joinId:JoinId) =
                 async {
-                    let rowKey = joinId.ToString()
-                    let partitionKey = joinId.ToString()
+                    let partitionKey = joinId.timestamp.Ticks.ToString("D19")
+                    let rowKey = joinId.guid.ToString()
                     let retrieve = Table.TableOperation.Retrieve(partitionKey, rowKey)
                     let! result = table.ExecuteAsync(retrieve) |> Async.AwaitTask
                     match Option.ofObj result.Result with
@@ -46,8 +47,9 @@ module AzureTableJoinStorage =
                     status = deserialize "status"
                     childrenStatuses = deserialize "childrenStatuses"
                     parent = deserialize "parent"
+                    created = deserialize "created"
+                    modified = deserialize "modified"
                 }
-
 
             let joinEntryToEntityValues (joinEntry: Agent.Join.Entry<'m>) =
                 dict [
@@ -56,6 +58,9 @@ module AzureTableJoinStorage =
                     "status", Table.EntityProperty(Json.Default.serialize joinEntry.status)
                     "whenAnySubscribers", Table.EntityProperty(Json.Default.serialize joinEntry.whenAnySubscribers)
                     "whenAllSubscribers", Table.EntityProperty(Json.Default.serialize joinEntry.whenAllSubscribers)
+                    "created", Table.EntityProperty(Json.Default.serialize joinEntry.created)
+                    "modified", Table.EntityProperty(Json.Default.serialize joinEntry.modified)
+                    "agentId", Table.EntityProperty(agentId)
                 ]
 
             return
@@ -63,13 +68,8 @@ module AzureTableJoinStorage =
                     add =
                         fun joinId joinEntry ->
                             async {
-                                // We cannot rely on timestamp here as the partittion key
-                                // otherwise we would not be able to lookup an entry just from the join ID
-                                // If in the future, the timestamp gets added to the Join.Entry structure
-                                // then we can use it here as the partitionKey.
-                                //   let partitionKey = timestamp.Ticks.ToString("D19")
-                                let partitionKey = joinId.ToString()
-                                let rowKey = joinId.ToString()
+                                let partitionKey = joinId.timestamp.Ticks.ToString("D19")
+                                let rowKey = joinId.guid.ToString()
 
                                 let values = joinEntryToEntityValues joinEntry
                                 let entity = Table.DynamicTableEntity(partitionKey, rowKey, "*", values)
@@ -87,13 +87,14 @@ module AzureTableJoinStorage =
                                     let spent = System.DateTime.UtcNow - start
                                     if spent > totalTimeout then
                                         failwithf "Update: Timed out after trying for %A (totalTimeout: %A)" spent totalTimeout
-                                    let partitionKey = joinId.ToString()
-                                    let rowKey = joinId.ToString()
 
                                     let! r = retrieve joinId
 
                                     let joinEntry = entityValuesToJoinEntry r.Properties
                                     let updatedJoinEntry = doEntryUpdate joinEntry
+
+                                    let partitionKey = joinEntry.created.Ticks.ToString("D19")
+                                    let rowKey = joinId.guid.ToString()
 
                                     let values = joinEntryToEntityValues updatedJoinEntry
                                     let entity = Table.DynamicTableEntity(partitionKey, rowKey, r.ETag, values)

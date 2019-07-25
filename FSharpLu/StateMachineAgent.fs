@@ -4,7 +4,13 @@ namespace Microsoft.FSharpLu.StateMachineAgent
 open FSharp.Control
 
 /// ID used to identify joining points (either an agent request or a fork)
-type JoinId = System.Guid
+type JoinId =
+    {
+        /// Unique GUID identifying the join entry
+        guid : System.Guid
+        /// Timestamp when the join was created
+        timestamp : System.DateTimeOffset
+    }
 
 /// A state machine transition with
 /// state type 's and return type 't,
@@ -114,9 +120,10 @@ module Agent =
             spawnIn : 'm -> System.TimeSpan -> Async<unit>
         }
 
-    /// Define the action to be taken in response to a processed request.
+    /// Possible actions (to be implemented by the API user) that can be performed on a request
+    /// each time a state machine transition is executed.
     /// This gets returned by the `Agent.execute` function when the state machine
-    /// returns when taking a `Return` transition.
+    /// returns (`Return` transition) or goes to sleep (out-of-process `Sleep` transition).
     /// The user of the API is responsible for implementing those
     /// action as part of its request scheduling system (each time the `Agent.execute` function is called).
     type RequestAction<'m> =
@@ -132,13 +139,7 @@ module Agent =
         | PostponeAndReplace of 'm * System.TimeSpan
 
     /// Metadata associated with an agent request
-    type RequestMetadata =
-        {
-            /// Id of the agent request
-            requestId : JoinId
-            /// Timestamp when the request was posted
-            timestamp : System.DateTime
-        }
+    type RequestMetadata = JoinId
 
     /// Defines the storage interface required to support Join and Fork.
     module Join =
@@ -149,7 +150,7 @@ module Agent =
             | Completed
 
         /// Status of a join's children
-        type ChildrenStatus = Map<JoinId, Status>
+        type ChildrenStatus = Map<System.Guid, Status>
 
         /// Subscriptions to a join condition: encoded as a list of request messages to be posted when the join condition is met
         type Subscriptions<'m> = 'm list
@@ -168,6 +169,10 @@ module Agent =
                 childrenStatuses : ChildrenStatus
                 /// Optional join parent if this entry is involved in a join
                 parent : JoinId option
+                /// Timestamp when the join entry was created
+                created : System.DateTimeOffset
+                /// Timestamp when the join entry was last modified
+                modified : System.DateTimeOffset
             }
 
         /// Storage provider interface used to persist state of
@@ -215,7 +220,7 @@ module Agent =
             tags : (string * string) list
 
             /// Transition function: given a set of available operations and the current state returns the next transition.
-            transition : Operations<'m> -> 's -> Async<Transition<'s, 't, 'm>>
+            transition : 's -> Async<Transition<'s, 't, 'm>>
 
             /// Maximum expected time to process each transition of the state machine
             maximumExpectedStateTransitionTime : System.TimeSpan
@@ -241,21 +246,23 @@ module Agent =
     /// Create a new request attached to the specified parent JoinId
     let private createRequestWithParent (m:Agent<'s, 't, 'm>) parent =
         async {
-            let metadata =
+            let requestId =
                 {
-                    requestId = System.Guid.NewGuid()
-                    timestamp = System.DateTime.UtcNow
+                    guid = System.Guid.NewGuid()
+                    timestamp = System.DateTimeOffset.UtcNow
                }
+
             // Create a join entry for the request
-            let! requestEntry =
-                 m.storage.add
-                    metadata.requestId
+            do! m.storage.add
+                    requestId
                     { status = Join.Status.Requested
                       whenAllSubscribers = []
                       whenAnySubscribers = []
                       childrenStatuses = Map.empty
-                      parent = parent }
-            return metadata
+                      parent = parent
+                      created = requestId.timestamp
+                      modified = requestId.timestamp }
+            return requestId
         }
 
     /// Create a new request. Should be called by the API consumer to initialize a new request
@@ -279,15 +286,16 @@ module Agent =
         async {
             let! updatedEntry =
                  m.storage.update
-                    metadata.requestId
-                    (fun u -> { u with status = Join.Status.Completed } )
+                    metadata
+                    (fun u -> { u with status = Join.Status.Completed
+                                       modified = System.DateTimeOffset.UtcNow } )
 
             match updatedEntry.parent with
             | None -> return ()
             | Some joinId ->
                 let mutable whenAnySubscriptions = []
 
-                // Update children status
+                // Update child status under the request's parent entry
                 let! joinEntry =
                     m.storage.update joinId
                         (fun driftedJoinEntry ->
@@ -295,7 +303,7 @@ module Agent =
                             // other siblings have completed sine the update started
 
                             // Mark the child request as completed
-                            let newChildrenStatus = Map.add metadata.requestId Join.Status.Completed driftedJoinEntry.childrenStatuses
+                            let newChildrenStatus = Map.add metadata.guid Join.Status.Completed driftedJoinEntry.childrenStatuses
 
                             let newStatus =
                                 if allCompleted newChildrenStatus then
@@ -309,7 +317,8 @@ module Agent =
                             { driftedJoinEntry with
                                     status = newStatus
                                     childrenStatuses = newChildrenStatus
-                                    whenAnySubscribers = [] }
+                                    whenAnySubscribers = []
+                                    modified = System.DateTimeOffset.UtcNow }
                         )
 
                 // Honor the "WhenAny" subscriptions
@@ -326,9 +335,9 @@ module Agent =
                         do! m.operations.spawn subscriber
         }
 
-    /// Execute a state machine using out-of-process asynchronous sleep
-    /// based on the external serialization and scheduling device (e.g. Azure Queue)
-    /// The state gets persisted on every transition (after a Goto or SleepAndGoto)
+    /// Advance execution of an agent state machine.
+    /// The state gets persisted on every transition to allow 
+    /// resuming the execution in case of failure.
     let public executeWithResult (initialState:'s) requestMetadata (m:Agent<'s, 't, 'm>) : Async<RequestAction<'s> * 't option> =
 
         /// Keep-alive function called to notify external device (e.g. Azure queue)
@@ -357,7 +366,7 @@ module Agent =
 
         and goto (currentState:'s) =
             async {
-                let! operation = m.transition m.operations currentState
+                let! operation = m.transition currentState
                 match operation with
                 | Transition.Sleep delay ->
                     return! sleepAndGoto delay currentState currentState
@@ -387,7 +396,11 @@ module Agent =
                     // spawn children state machines
                     m.logger (sprintf "Agent '%s' forking into %d state machines" m.title spawnedStates.Length) m.tags
 
-                    let joinId = System.Guid.NewGuid()
+                    let joinId =
+                        {
+                            guid = System.Guid.NewGuid()
+                            timestamp = System.DateTimeOffset.UtcNow
+                        }
 
                     // create a request storage entry for every child
                     let! childrenMetdata =
@@ -397,12 +410,13 @@ module Agent =
                             (fun spawnChildrenSoFar spawnState ->
                                 async {
                                     let! metadata = createRequestWithParent m (Some joinId)
-                                    return Map.add metadata.requestId (metadata, spawnState) spawnChildrenSoFar
+                                    return Map.add metadata.guid (metadata, spawnState) spawnChildrenSoFar
                                 }
                             )
                             Map.empty
 
                     // create the join entry
+                    let now = System.DateTimeOffset.UtcNow
                     do! m.storage.add joinId
                             {
                                 status = Join.Status.Waiting
@@ -410,6 +424,8 @@ module Agent =
                                 whenAllSubscribers = []
                                 whenAnySubscribers = []
                                 parent = None
+                                created = now
+                                modified = now 
                             }
 
                     // spawn the child processes (Note: this cannot be done before the above join entry is created)
@@ -437,7 +453,8 @@ module Agent =
                                 else
                                     // Subscribe to the 'WhenAll' event
                                     let subscriber = m.embedState requestMetadata newState
-                                    { driftedJoin with whenAllSubscribers = subscriber::driftedJoin.whenAllSubscribers } )
+                                    { driftedJoin with whenAllSubscribers = subscriber::driftedJoin.whenAllSubscribers
+                                                       modified = System.DateTimeOffset.UtcNow } )
 
                     if allCompleted updatedJoinEntry.childrenStatuses then
                         // The 'WhenAll' condition is already met
@@ -455,7 +472,8 @@ module Agent =
                                 else
                                   // Subscribe to the 'WhenAny' event
                                   let subscriber = m.embedState requestMetadata newState
-                                  { driftedJoin with whenAnySubscribers = subscriber::driftedJoin.whenAnySubscribers } )
+                                  { driftedJoin with whenAnySubscribers = subscriber::driftedJoin.whenAnySubscribers
+                                                     modified = System.DateTimeOffset.UtcNow } )
 
                     if atleastOneCompleted updatedJoinEntry.childrenStatuses then
                         // The 'WhenAny' condition is already met
@@ -466,8 +484,9 @@ module Agent =
         in
         goto initialState
 
+    /// Advance execution of an agent state machine.
     /// Same as executeWithResult but return only the action in serialized format
-    /// and throw away the state machine result
+    /// and throw away the state machine result.
     let public execute initialState requestMetadata (m:Agent<'s, 't, 'm>) =
         async {
             let! action, finalResult = executeWithResult initialState requestMetadata m
