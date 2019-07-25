@@ -17,6 +17,19 @@ module Constants =
 
 [<AutoOpen>]
 module ErrorHandling =
+
+    /// Match Azure storage exceptions with the specified status code
+    let SomeStorageException (httpStatusCode:System.Net.HttpStatusCode) (ex:System.Exception) =
+        match ex with
+        | :? Microsoft.Azure.Cosmos.Table.StorageException as e
+            when e.RequestInformation.HttpStatusCode = (int)httpStatusCode ->
+                Some ex
+        | :? Microsoft.Azure.Storage.StorageException as e
+            when e.RequestInformation.HttpStatusCode = (int)httpStatusCode ->
+              Some ex
+        | _ -> None
+
+
     /// Match any cloud exception
     let AnyCloudError (e:System.Exception) =
         match e with

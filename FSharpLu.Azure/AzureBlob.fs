@@ -24,7 +24,7 @@ module Blob =
     /// Return blob content specified by its SAS as a stream
     let downloadBlobSasToStream (sasBlobUri:Uri) stream =
         async {
-            let blob = new Microsoft.Azure.Storage.Blob.CloudBlob(sasBlobUri)
+            let blob = Microsoft.Azure.Storage.Blob.CloudBlob(sasBlobUri)
             do! blob.DownloadToStreamAsync(stream) |> Async.AwaitTask
         }
 
@@ -46,7 +46,7 @@ module Blob =
     /// Create a SharedAccessBlobPolicy object that matches the permissions and expiration delay provided
     let createSharedAccessBlobPolicy permissions expirationDelay =
         let now = DateTimeOffset.Now
-        new SharedAccessBlobPolicy(
+        SharedAccessBlobPolicy(
             Permissions = permissions,
             SharedAccessStartTime = Nullable(now.AddMinutes(-5.0)),
             SharedAccessExpiryTime = Nullable(now.Add(expirationDelay)))

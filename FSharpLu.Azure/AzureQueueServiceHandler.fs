@@ -51,8 +51,8 @@ module AzureQueue =
     /// Implementation of agent operations using an Azure Queue
     let inline toAgentOperations< ^T> queue =
         {
-            Agent.Operations.post = Microsoft.FSharpLu.Azure.Queue.postMessage< ^T> queue
-            Agent.Operations.postIn = Microsoft.FSharpLu.Azure.Queue.schedulePostMessage< ^T> queue
+            Agent.Operations.spawn = Microsoft.FSharpLu.Azure.Queue.postMessage< ^T> queue
+            Agent.Operations.spawnIn = Microsoft.FSharpLu.Azure.Queue.schedulePostMessage< ^T> queue
         }
 
     /// Handler for requests queued on an Azure Storage queue

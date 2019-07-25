@@ -47,8 +47,9 @@
     <Compile Include="AzureQueue.fs" />
     <Compile Include="LoadBalancer.fs" />
     <Compile Include="AzureStorage.fs" />
-    <Compile Include="AzureQueueServiceHandler.fs" />
     <Compile Include="AzureTable.fs" />
+    <Compile Include="AzureTableAgentJoinStorage.fs" />
+    <Compile Include="AzureQueueServiceHandler.fs" />
     <Compile Include="AzureMetrics.fs" />
     <Compile Include="AzureFiles.fs" />
     <Compile Include="AzureFunctions.fs" />
