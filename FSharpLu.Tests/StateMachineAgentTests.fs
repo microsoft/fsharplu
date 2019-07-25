@@ -71,7 +71,7 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
             logger = fun s tags -> printfn "%s %A" s tags
             tags = ["AgentType", "InMemory"]
 
-            transition = fun operation (s: TestStates) ->
+            transition = fun (s: TestStates) ->
                             async {
                                 match s with
                                 | State1 n ->
@@ -143,7 +143,7 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
             Assert.Empty storage
             let agent = newAgent(newInMemoryForkProgressStorage storage)
             let! request = Agent.createRequest agent
-            let! _ = Agent.executeWithResult (State1 23) request agent
+            let! result = Agent.executeWithResult (State1 23) request agent
             Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
             Assert.True(storage.Count = 4)
         } |> Async.RunSynchronously
@@ -183,7 +183,7 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
                             |> Seq.exists (fun x -> 
                                                 x.Value.status = Agent.Join.Status.Completed && 
                                                 not x.Value.childrenStatuses.IsEmpty && 
-                                                x.Value.childrenStatuses.[completedChild.Value.Key] = Agent.Join.Status.Completed
+                                                x.Value.childrenStatuses.[completedChild.Value.Key.guid] = Agent.Join.Status.Completed
                                             )
                         )
             Assert.True(storage.Count = 4)
@@ -218,7 +218,7 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
                 Assert.ThrowsAnyAsync(
                     fun () ->
                         async {
-                            let! _ = Agent.executeWithResult (Join1 System.Guid.Empty) request agent
+                            let! result = Agent.executeWithResult (Join1 { guid = System.Guid.Empty; timestamp = System.DateTimeOffset.UtcNow }) request agent
                             return ()
                         } |> Async.StartAsTask :> System.Threading.Tasks.Task
                 ) |> Async.AwaitTask

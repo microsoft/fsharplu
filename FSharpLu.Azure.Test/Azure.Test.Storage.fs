@@ -142,7 +142,11 @@ type AzureStorageTests () =
             
             let tableName = "AgentJoinStorageTable"
 
-            let guid = System.Guid.NewGuid()
+            let joinId = 
+                {
+                    guid = System.Guid.NewGuid()
+                    timestamp = System.DateTimeOffset.UtcNow
+                }
 
             let creds = Table.StorageCredentials(storageAccountName, storageAccountKey)
             let uri = Table.StorageUri(System.Uri(sprintf "https://%s.table.core.windows.net" storageAccountName))
@@ -154,6 +158,7 @@ type AzureStorageTests () =
                                         tableName
                                         (System.TimeSpan.FromSeconds(1.0))
                                         (System.TimeSpan.FromSeconds(10.0))
+                                        "testAgent"
 
             let entry: Agent.Join.Entry<int> =
                 {
@@ -162,17 +167,19 @@ type AzureStorageTests () =
                     status = Agent.Join.Status.Requested
                     childrenStatuses = Map.empty
                     parent = None
+                    created = System.DateTimeOffset.UtcNow
+                    modified = System.DateTimeOffset.UtcNow
                 }
 
-            do! storage.add guid entry
-            let! v = storage.get guid
+            do! storage.add joinId entry
+            let! v = storage.get joinId
 
             let expectedEntry =
                 {
                     entry with
                         whenAllSubscribers = [7;8;9]
                         whenAnySubscribers = [9;8;7]
-                        parent = Some guid
+                        parent = Some joinId
                         status = Agent.Join.Status.Completed
                 }
 
@@ -180,9 +187,9 @@ type AzureStorageTests () =
             // all updates. That recrod has to have same data as expectedEntry
             let! results =
                 Async.Parallel [
-                    storage.update guid (fun entry -> {entry with whenAllSubscribers = [7;8;9]; whenAnySubscribers = [9;8;7]})
-                    storage.update guid (fun entry -> {entry with parent = Some guid})
-                    storage.update guid (fun entry -> {entry with status = Agent.Join.Status.Completed})
+                    storage.update joinId (fun entry -> {entry with whenAllSubscribers = [7;8;9]; whenAnySubscribers = [9;8;7]})
+                    storage.update joinId (fun entry -> {entry with parent = Some joinId})
+                    storage.update joinId (fun entry -> {entry with status = Agent.Join.Status.Completed})
                 ]
 
             let areTheSame = results |> Seq.exists(fun r -> r = expectedEntry)
