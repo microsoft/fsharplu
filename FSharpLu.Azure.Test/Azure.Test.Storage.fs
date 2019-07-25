@@ -137,8 +137,8 @@ type AzureStorageTests () =
     [<Fact(Skip="Needs Azure Storage key configuration")>]
     member x.``Azure Table implementation of Agent Storage interface is atomic``() =
         async {
-            let storageAccountName, storageAccountKey = 
-                failwithf "Please set azure storage account name and key"
+            let storageAccountConnectionString = 
+                failwithf "Please set azure storage account connectiong string before running this test"
             
             let tableName = "AgentJoinStorageTable"
 
@@ -148,13 +148,11 @@ type AzureStorageTests () =
                     timestamp = System.DateTimeOffset.UtcNow
                 }
 
-            let creds = Table.StorageCredentials(storageAccountName, storageAccountKey)
-            let uri = Table.StorageUri(System.Uri(sprintf "https://%s.table.core.windows.net" storageAccountName))
+            let storageAccount = Table.CloudStorageAccount.Parse(storageAccountConnectionString)
 
             let! storage =
                 AzureTableJoinStorage.newStorage
-                                        creds
-                                        uri
+                                        storageAccount
                                         tableName
                                         (System.TimeSpan.FromSeconds(1.0))
                                         (System.TimeSpan.FromSeconds(10.0))

@@ -12,9 +12,8 @@ type JoinId =
         timestamp : System.DateTimeOffset
     }
 
-/// A state machine transition with
-/// state type 's and return type 't,
-/// and a set of callable state machines represented by type 'm
+/// A state machine transition with return type 't.
+/// state type 's, and a set of callable state machines represented by type 'm
 type Transition<'s, 't, 'm> =
     /// Sleep for the specified amount of type and come back to the same state
     | Sleep of System.TimeSpan
@@ -100,43 +99,38 @@ module StateMachine =
 /// This gives flexibility to the API user in scheduling execution of the agent state machine.
 module Agent =
 
-    /// Interface defining operations supported by an agent.
-    /// The consumer of the API is responsible for implementing the spawning logic
-    /// to execute a new agent in the specified state.
+    /// Interface defining operations required to "execute" an agent.
+    ///
+    /// This is the "assembly code" of the state machine. These are basic instructions
+    /// that need to be implemented by any agent scheduler (responsibility of the API user).
+    ///
+    /// This gets returned by the `Agent.execute` function when the state machine
+    /// returns (`Return` transition) or goes to sleep (out-of-process `Sleep` transition).
+    /// The user of the API is responsible for providing, as part of its scheduling system,
+    /// an implemention that conveys the semantic of the values defined below.
     /// It is up to the API user to decide when to execute the spawn agent
     /// (e.g. immediately in a background thread, queued up for later on some
     /// queuing device...)
-    /// The type 'm represents a spawning request. It embeds the desired state of the agent to spawn, and the associated request metadata.
     ///
-    /// The API consumer provides the embedding function to create a request of type 'm
-    /// from a state of type 's and associated metadata (see `Agent.embedState` below).
-    [<NoEquality;NoComparison>]
-    type Operations<'m> =
-        {
-            /// Request spawning of a new state machine with the specified state and request metadata
-            spawn : 'm -> Async<unit>
-            /// Request spawning of a new state machine with the specified state and request metadata
-            /// in the specified amount of time
-            spawnIn : 'm -> System.TimeSpan -> Async<unit>
-        }
+    /// Type parameters:
+    ///   's is the type of states of the state machine
+    ///
+    ///   't is the returned type of the agent
+    ///
+    type ExecutionInstruction<'s, 't> =
+        /// The request has been processed and can be removed from the scheduling system
+        | Completed of 't option
 
-    /// Possible actions (to be implemented by the API user) that can be performed on a request
-    /// each time a state machine transition is executed.
-    /// This gets returned by the `Agent.execute` function when the state machine
-    /// returns (`Return` transition) or goes to sleep (out-of-process `Sleep` transition).
-    /// The user of the API is responsible for implementing those
-    /// action as part of its request scheduling system (each time the `Agent.execute` function is called).
-    type RequestAction<'m> =
-        /// The request has been processed and can be deleted from the request scheduling system
-        | Delete
-        /// The request processing is being paused for the specified amount of time,
+        /// The processing of the request must be paused for the specified amount of time,
         /// once it the time out expires, the scheduler is responsible for calling `Agent.execute` to resume processing
         /// of the request at the same state where it left off.
-        | PostponeFor of System.TimeSpan
-        /// Postpone processing of the request for the specified amount of time.
-        /// once the timeout expires, the scheduler is responsible for calling `Agent.execute` to resume processing
-        /// at the specified (embedded) state 'm
-        | PostponeAndReplace of 'm * System.TimeSpan
+        | SleepAndResume of System.TimeSpan
+
+        /// Processing must be paused for the specified amount of time.
+        /// Once the timeout expires, the scheduler is responsible for calling `Agent.execute` to resume processing
+        /// at the specified state 's
+        | SleepAndResumeAt of System.TimeSpan * 's
+
 
     /// Metadata associated with an agent request
     type RequestMetadata = JoinId
@@ -188,24 +182,61 @@ module Agent =
                 get : JoinId -> Async<Entry<'m>>
             }
 
-    /// An agent state machine with return type 't and underlying state type 's
-    /// embeddable into request type 'm.
-    ///
-    /// An agent instance must implement `Agent.embedState`: a function to embed the agent state and associated `RequestMetadata` into a type 'm.
+    /// A scheduler responsible for scheduling execution of agents via calls to Agent.execute.
     ///
     /// In order to support:
-    /// __pausing/resuming__ (and out-of-process asynchronous sleep). The agent must implement state persistence on an external device
-    /// (e.g. Azure Queue, Azure Service Bus...).
-    /// This is provided by function `Agent.persist` which gets called to persist the machine state and associated metadata in some external storage.
     ///
-    /// __out-of-process asynchronous sleep__ the function calling .execute must handle the actions `RequestAction.PostponeFor` and `RequestAction.PostponeAndReplace`
-    /// For instance by posting the serialize state 'm onto some queue for later processing.
+    ///  - __pausing/resuming__ (and out-of-process asynchronous sleep). The scheduler must implement state persistence on an external device
+    ///    (e.g. Azure Queue, Azure Service Bus...).
+    ///    This is provided by function `Agent.persist` which gets called to persist the machine state and associated metadata in some external storage.
     ///
-    /// __corountines__ and the `CoReturn` transition, the agent must handle spawning new agents
-    /// by implementing `Agent.operations.spawn` and `Agent.operations.spawnIn`.
+    ///  - __out-of-process asynchronous sleep__ the function calling .execute must handle the actions `RequestAction.PostponeFor` and `RequestAction.PostponeAndReplace`
+    ///    For instance by posting the serialize state 'm onto some queue for later processing.
     ///
-    /// __forking__ (Fork, WhenAny, WhenAll), the agent must provides an external storage interface `Agent.storage`
-    /// of type `JoinStorage` implementing atomic add/update storage functions
+    ///  - __corountines__ and the `CoReturn` transition, the scheduler must handle spawning new agents
+    ///    by implementing `Agent.operations.spawn` and `Agent.operations.spawnIn`.
+    ///
+    ///  - __forking__ (Fork, WhenAny, WhenAll), the scheduler must provides an external storage interface `Agent.storage`
+    ///    of type `JoinStorage` implementing atomic add/update storage functions
+    ///
+    /// Type parameters:
+    ///   's is the type of states of the state machine
+    ///   'm represents a agent scheduling request. It embeds the desired state of the agent and the associated request metadata.
+    ///     The scheduler provides the function to create a scheduling request of type 'm
+    ///     from a state of type 's and associated metadata (see `Agent.embedState` below).
+    type Scheduler<'s, 'm> =
+        {
+            /// Create a scheduling request for creating/spawning a 
+            /// an agent in specified state 's and associated metadata 'm
+            embed : RequestMetadata -> 's -> 'm
+
+            /// Persist a request 'm on some external storage device
+            /// and schedule the processing of the request in the specified amount of time
+            persist : 'm -> System.TimeSpan -> Async<unit>
+
+            /// Request spawning of a new state machine with the specified state and request metadata
+            spawn : 'm -> Async<unit>
+
+            /// Request spawning of a new state machine with the specified state and request metadata
+            /// in the specified amount of time
+            spawnIn : 'm -> System.TimeSpan -> Async<unit>
+
+            /// Provides an implementation of join storage (e.g. using Azure Table)
+            joinStore : Join.StorageInterface<'m>
+        }
+
+    /// An agent state machine with return type 't and underlying state type 's
+    /// embeddable into an agent request of type 'm.
+    ///
+    /// An agent instance must implement `Agent.embedState`: a function to embed the agent state and associated `RequestMetadata`
+    /// into an agent processing request of type 'm.
+    ///
+    /// Type parameters:
+    ///   's is the type of states of the state machine
+    ///
+    ///   't is the returned type of the agent
+    ///
+    ///   'm represents a agent scheduling request. It embeds the desired state of the agent and the associated request metadata.
     ///
     [<NoEquality;NoComparison>]
     type Agent<'s, 't, 'm> =
@@ -228,23 +259,12 @@ module Agent =
             /// Amount of time that is short enough to implement asynchronous sleep 'in-process' rather than out-of-process
             maximumInprocessSleep : System.TimeSpan
 
-            /// A function embedding a given state machine internal state 's
-            /// and associated metadata into a custom type 'm
-            embedState : RequestMetadata -> 's -> 'm
-
-            /// Persist a state-request 'm on some external storage device
-            /// and schedule processing of the request in the specified amount of time
-            persist : 'm -> System.TimeSpan -> Async<unit>
-
-            /// External operations available to the agent
-            operations : Operations<'m>
-
-            /// Provides an implementation of join storage (e.g. using Azure Table)
-            storage : Join.StorageInterface<'m>
+            /// The scheduler responsible for execution the agent
+            scheduler : Scheduler<'s, 'm>
         }
 
     /// Create a new request attached to the specified parent JoinId
-    let private createRequestWithParent (m:Agent<'s, 't, 'm>) parent =
+    let private createRequestWithParent (joinStore:Join.StorageInterface<'m>) parent =
         async {
             let requestId =
                 {
@@ -253,7 +273,7 @@ module Agent =
                }
 
             // Create a join entry for the request
-            do! m.storage.add
+            do! joinStore.add
                     requestId
                     { status = Join.Status.Requested
                       whenAllSubscribers = []
@@ -267,8 +287,8 @@ module Agent =
 
     /// Create a new request. Should be called by the API consumer to initialize a new request
     /// to be executed with an agent and passed to `Agent.execute`
-    let public createRequest (m:Agent<'s, 't, 'm>) =
-        createRequestWithParent m None
+    let public createRequest (joinStore:Join.StorageInterface<'m>) =
+        createRequestWithParent joinStore None
 
     /// Return true if all children are marked as completed
     let private allCompleted childrenStatus =
@@ -285,7 +305,7 @@ module Agent =
     let private markRequestAsCompleted (m:Agent<'s, 't, 'm>) (metadata:RequestMetadata) =
         async {
             let! updatedEntry =
-                 m.storage.update
+                 m.scheduler.joinStore.update
                     metadata
                     (fun u -> { u with status = Join.Status.Completed
                                        modified = System.DateTimeOffset.UtcNow } )
@@ -297,7 +317,7 @@ module Agent =
 
                 // Update child status under the request's parent entry
                 let! joinEntry =
-                    m.storage.update joinId
+                    m.scheduler.joinStore.update joinId
                         (fun driftedJoinEntry ->
                             // We need to check status from the drifeted entry in case
                             // other siblings have completed sine the update started
@@ -323,7 +343,7 @@ module Agent =
 
                 // Honor the "WhenAny" subscriptions
                 for subscriber in whenAnySubscriptions do
-                    do! m.operations.spawn subscriber
+                    do! m.scheduler.spawn subscriber
 
                 // Honor the "WhenAll" subscriptions
                 if joinEntry.status = Join.Status.Completed then
@@ -332,13 +352,13 @@ module Agent =
 
                     // Signal the fork's subscribers
                     for subscriber in joinEntry.whenAllSubscribers do
-                        do! m.operations.spawn subscriber
+                        do! m.scheduler.spawn subscriber
         }
 
     /// Advance execution of an agent state machine.
-    /// The state gets persisted on every transition to allow 
-    /// resuming the execution in case of failure.
-    let public executeWithResult (initialState:'s) requestMetadata (m:Agent<'s, 't, 'm>) : Async<RequestAction<'s> * 't option> =
+    /// The state gets persisted on every transition
+    /// which allows resuming the execution in case of failure.
+    let public executeWithResult (initialState:'s) requestMetadata (m:Agent<'s, 't, 'm>) : Async<ExecutionInstruction<'s, 't>> =
 
         /// Keep-alive function called to notify external device (e.g. Azure queue)
         /// that more time is needed to finish executing the state machine
@@ -347,24 +367,31 @@ module Agent =
             // so that we can resume where we left off if the process crashes, is killed, upgraded...
             // Specify a timeout after which the persisted state can be deserialized if not already deleted.
             let timeoutPeriod = delay + m.maximumExpectedStateTransitionTime
-            m.persist (m.embedState requestMetadata newState) timeoutPeriod
+            m.scheduler.persist (m.scheduler.embed requestMetadata newState) timeoutPeriod
 
+        let tags = m.tags@["requestGuid", requestMetadata.guid.ToString()]
         let rec sleepAndGoto delay (currentState:'s) (nextState:'s) =
             async {
                 if delay < m.maximumInprocessSleep then
-                    m.logger (sprintf "Agent '%s' sleeping for %O in proc" m.title delay) m.tags
+                    m.logger (sprintf "Agent '%s' sleeping for %O in proc" m.title delay) tags
                     do! notifyMoreTimeIsNeeded currentState delay
                     // Short-enough to wait asynchronously in-process
                     do! Async.Sleep(delay.TotalMilliseconds |> int)
                     return! goto nextState
                 else
-                    m.logger (sprintf "Agent '%s' sleeping for %O out of proc" m.title delay) m.tags
+                    m.logger (sprintf "Agent '%s' sleeping for %O out of proc" m.title delay) tags
                     // For longer waits we wait asynchronously out-of-process using the external storage device
                     // and postpone the request until later
-                    return (PostponeAndReplace (nextState, delay)), None
+                    return ExecutionInstruction.SleepAndResumeAt(delay, nextState)
             }
 
-        and goto (currentState:'s) =
+        and goto (state:'s) =
+            async {
+                do! notifyMoreTimeIsNeeded state System.TimeSpan.Zero
+                return! runAt state
+            }
+
+        and runAt (currentState:'s) =
             async {
                 let! operation = m.transition currentState
                 match operation with
@@ -375,18 +402,17 @@ module Agent =
                     return! sleepAndGoto delay currentState nextState
 
                 | Transition.Return result ->
-                    m.logger (sprintf "Agent '%s' reached final state and returned %A" m.title result) m.tags
+                    m.logger (sprintf "Agent '%s' reached final state and returned %A" m.title result) tags
                     do! markRequestAsCompleted m requestMetadata
-                    return RequestAction.Delete, Some result
+                    return ExecutionInstruction.Completed (Some result)
 
                 | Transition.Coreturn requestCallee ->
-                    m.logger (sprintf "Agent '%s' coreturning to another state machine" m.title) m.tags
-                    do! m.operations.spawn requestCallee
-                    return RequestAction.Delete, None
+                    m.logger (sprintf "Agent '%s' coreturning to another state machine" m.title) tags
+                    do! m.scheduler.spawn requestCallee
+                    return ExecutionInstruction.Completed None
 
                 | Transition.Goto newState ->
-                    m.logger (sprintf "Agent '%s' at state %O" m.title newState) m.tags
-                    do! notifyMoreTimeIsNeeded newState System.TimeSpan.Zero
+                    m.logger (sprintf "Agent '%s' at state %O" m.title newState) tags
                     return! goto newState
 
                 | Transition.ForkAndGoto (spawnedStates, newStateFromJoinId) ->
@@ -394,7 +420,7 @@ module Agent =
                         return raise (System.NotSupportedException("ForkAndGoto does not accept empty spawned states list"))
 
                     // spawn children state machines
-                    m.logger (sprintf "Agent '%s' forking into %d state machines" m.title spawnedStates.Length) m.tags
+                    m.logger (sprintf "Agent '%s' forking into %d state machines" m.title spawnedStates.Length) tags
 
                     let joinId =
                         {
@@ -409,7 +435,7 @@ module Agent =
                         |> AsyncSeq.foldAsync
                             (fun spawnChildrenSoFar spawnState ->
                                 async {
-                                    let! metadata = createRequestWithParent m (Some joinId)
+                                    let! metadata = createRequestWithParent m.scheduler.joinStore (Some joinId)
                                     return Map.add metadata.guid (metadata, spawnState) spawnChildrenSoFar
                                 }
                             )
@@ -417,7 +443,7 @@ module Agent =
 
                     // create the join entry
                     let now = System.DateTimeOffset.UtcNow
-                    do! m.storage.add joinId
+                    do! m.scheduler.joinStore.add joinId
                             {
                                 status = Join.Status.Waiting
                                 childrenStatuses = childrenMetdata |> Map.map (fun id metadata -> Join.Requested)
@@ -425,7 +451,7 @@ module Agent =
                                 whenAnySubscribers = []
                                 parent = None
                                 created = now
-                                modified = now 
+                                modified = now
                             }
 
                     // spawn the child processes (Note: this cannot be done before the above join entry is created)
@@ -436,8 +462,8 @@ module Agent =
                         |> AsyncSeq.iterAsync
                             (fun (childId, (childMetadata, spawnState)) ->
                                 async {
-                                    let spawningRequest = m.embedState childMetadata spawnState
-                                    do! m.operations.spawn spawningRequest
+                                    let spawningRequest = m.scheduler.embed childMetadata spawnState
+                                    do! m.scheduler.spawn spawningRequest
                                 }
                             )
 
@@ -446,13 +472,13 @@ module Agent =
                 /// Join on a forked transition specified by its fork Id
                 | Transition.WhenAll (joinId, newState) ->
                     let! updatedJoinEntry =
-                        m.storage.update joinId
+                        m.scheduler.joinStore.update joinId
                             (fun driftedJoin ->
                                 if allCompleted driftedJoin.childrenStatuses then
                                     driftedJoin
                                 else
                                     // Subscribe to the 'WhenAll' event
-                                    let subscriber = m.embedState requestMetadata newState
+                                    let subscriber = m.scheduler.embed requestMetadata newState
                                     { driftedJoin with whenAllSubscribers = subscriber::driftedJoin.whenAllSubscribers
                                                        modified = System.DateTimeOffset.UtcNow } )
 
@@ -460,18 +486,18 @@ module Agent =
                         // The 'WhenAll' condition is already met
                         return! goto newState
                     else
-                        return RequestAction.Delete, None
+                        return ExecutionInstruction.Completed None
 
                 /// 'WhenAny' joining
                 | Transition.WhenAny (joinId, newState) ->
                     let! updatedJoinEntry =
-                        m.storage.update joinId
+                        m.scheduler.joinStore.update joinId
                             (fun driftedJoin ->
                                 if atleastOneCompleted driftedJoin.childrenStatuses then
                                     driftedJoin
                                 else
                                   // Subscribe to the 'WhenAny' event
-                                  let subscriber = m.embedState requestMetadata newState
+                                  let subscriber = m.scheduler.embed requestMetadata newState
                                   { driftedJoin with whenAnySubscribers = subscriber::driftedJoin.whenAnySubscribers
                                                      modified = System.DateTimeOffset.UtcNow } )
 
@@ -479,24 +505,23 @@ module Agent =
                         // The 'WhenAny' condition is already met
                         return! goto newState
                     else
-                        return RequestAction.Delete, None
+                        return ExecutionInstruction.Completed None
             }
         in
-        goto initialState
+        runAt initialState
 
     /// Advance execution of an agent state machine.
-    /// Same as executeWithResult but return only the action in serialized format
-    /// and throw away the state machine result.
-    let public execute initialState requestMetadata (m:Agent<'s, 't, 'm>) =
+    /// Same as `executeWithResult` but return only the execution result
+    /// and throw away the state machine result itself.
+    let public execute (initialState:'s) requestMetadata (m:Agent<'s, 't, 'm>) :Async<ExecutionInstruction<'m, 't>> =
         async {
-            let! action, finalResult = executeWithResult initialState requestMetadata m
-            let serializedAction =
-                match action with
-                | RequestAction.Delete ->
-                    RequestAction.Delete
-                | RequestAction.PostponeFor t ->
-                    RequestAction.PostponeFor t
-                | RequestAction.PostponeAndReplace (s, d) ->
-                    RequestAction.PostponeAndReplace (m.embedState requestMetadata s, d)
-            return serializedAction
+            let! instruction = executeWithResult initialState requestMetadata m
+            return
+                match instruction with
+                | ExecutionInstruction.Completed result ->
+                    ExecutionInstruction.Completed result
+                | ExecutionInstruction.SleepAndResume t ->
+                    ExecutionInstruction.SleepAndResume t
+                | ExecutionInstruction.SleepAndResumeAt (t, s) ->
+                    ExecutionInstruction.SleepAndResumeAt (t, m.scheduler.embed requestMetadata s)
         }
