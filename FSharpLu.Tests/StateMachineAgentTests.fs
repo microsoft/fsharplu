@@ -64,6 +64,13 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
         }
 
     let rec newAgent(storage) : Agent.Agent<_, _, _> =
+        let spawn (metadata: Agent.RequestMetadata, state: TestStates) =
+            async {
+                printfn "Operations.post %A" (metadata, state)
+                let agent = newAgent(storage)
+                let! _ = Agent.execute state metadata agent
+                return ()
+            }
         {
             title = "Agent based persisting state in-memory"
 
@@ -111,29 +118,22 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
 
             maximumInprocessSleep = TimeSpan.FromSeconds 1.0
 
-            embedState = fun metadata state -> (metadata, state)
+            scheduler =  {
+                embed = fun metadata state -> (metadata, state)
 
-            persist = fun m ts -> async {return ()}
+                persist = fun m ts -> async {return ()}
 
-            storage = storage
+                joinStore = storage
 
-            operations =
-                let spawn (metadata: Agent.RequestMetadata, state: TestStates) =
-                    async {
-                        printfn "Operations.post %A" (metadata, state)
-                        let agent = newAgent(storage)
-                        let! _ = Agent.execute state metadata agent
-                        return ()
-                    }
-                {
-                    spawn = spawn
-                    spawnIn = fun request ts ->
-                                async {
-                                    printfn "Operations.postIn [%A] %A" ts request
-                                    do! Async.Sleep (int ts.TotalMilliseconds)
-                                    return! spawn request
-                                }
-                }
+                spawn = spawn
+
+                spawnIn = fun request ts ->
+                            async {
+                                printfn "Operations.postIn [%A] %A" ts request
+                                do! Async.Sleep (int ts.TotalMilliseconds)
+                                return! spawn request
+                            }
+            }
         }
 
     [<Fact>]
@@ -142,7 +142,7 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
             let agent = newAgent(newInMemoryForkProgressStorage storage)
-            let! request = Agent.createRequest agent
+            let! request = Agent.createRequest agent.scheduler.joinStore
             let! result = Agent.executeWithResult (State1 23) request agent
             Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
             Assert.True(storage.Count = 4)
@@ -158,7 +158,7 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
                     fun () ->
                         async {
                             let agent = newAgent(newInMemoryForkProgressStorage storage)
-                            let! request = Agent.createRequest agent
+                            let! request = Agent.createRequest agent.scheduler.joinStore
                             let! _ = Agent.executeWithResult (State2 "blah") request agent
                             return ()
                         } |> Async.StartAsTask :> System.Threading.Tasks.Task
@@ -174,15 +174,15 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
             let agent = newAgent(newInMemoryForkProgressStorage storage)
-            let! request = Agent.createRequest agent
+            let! request = Agent.createRequest agent.scheduler.joinStore
             let! _ =  Agent.executeWithResult (State3 (1, "blah")) request agent
-            
+
             let completedChild = storage |> Seq.tryFind (fun x -> x.Value.status = Agent.Join.Status.Completed && x.Value.parent.IsSome)
             Assert.True (completedChild.IsSome)
-            Assert.True(storage 
-                            |> Seq.exists (fun x -> 
-                                                x.Value.status = Agent.Join.Status.Completed && 
-                                                not x.Value.childrenStatuses.IsEmpty && 
+            Assert.True(storage
+                            |> Seq.exists (fun x ->
+                                                x.Value.status = Agent.Join.Status.Completed &&
+                                                not x.Value.childrenStatuses.IsEmpty &&
                                                 x.Value.childrenStatuses.[completedChild.Value.Key.guid] = Agent.Join.Status.Completed
                                             )
                         )
@@ -198,9 +198,9 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
             let agent = newAgent(newInMemoryForkProgressStorage storage)
-            let! request = Agent.createRequest agent
+            let! request = Agent.createRequest agent.scheduler.joinStore
             let! _ = Agent.executeWithResult (Fork1) request agent
-        
+
             Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
             Assert.True(storage |> Seq.filter(fun x -> x.Value.parent.IsSome) |> Seq.length = 4)
             Assert.True(storage |> Seq.filter(fun x -> not x.Value.childrenStatuses.IsEmpty) |> Seq.length = 2)
@@ -213,7 +213,7 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
             let agent = newAgent(newInMemoryForkProgressStorage storage)
-            let! request = Agent.createRequest agent
+            let! request = Agent.createRequest agent.scheduler.joinStore
             let! _ =
                 Assert.ThrowsAnyAsync(
                     fun () ->

@@ -15,15 +15,14 @@ module AzureTableJoinStorage =
     /// Instantiate an implementation of Agent.Join.StorageInterface
     /// backed up by an Azure Table
     let newStorage
-            (credentials: Table.StorageCredentials)
-            (uri: Table.StorageUri)
+            (storage: Table.CloudStorageAccount)
             (tableName: string)
             (retryInterval: System.TimeSpan)
             (totalTimeout: System.TimeSpan)
             (agentId: string) /// Customer identifier that gets recorded in every entry in Azure Table
         : Async<Agent.Join.StorageInterface<'m>> =
         async {
-            let tableClient = Table.CloudTableClient(uri, credentials)
+            let tableClient = Table.CloudTableClient(storage.TableStorageUri, storage.Credentials)
             let table = tableClient.GetTableReference(tableName)
             let! _ = table.CreateIfNotExistsAsync() |> Async.AwaitTask
 
