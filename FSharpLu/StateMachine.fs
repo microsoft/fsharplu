@@ -1,5 +1,5 @@
 ﻿/// State machine and agent
-namespace Microsoft.FSharpLu.StateMachineAgent
+namespace Microsoft.FSharpLu.Actor.StateMachine
 
 open FSharp.Control
 
@@ -38,7 +38,7 @@ type Transition<'s, 't, 'm> =
     | WhenAny of JoinId * 's
 
 /// A state machine with simple transitions (no support for Forking, Coroutines nor out-of-process pause/resume)
-module StateMachine =
+module SimpleStateMachine =
 
     /// Execute the state machine and call transitionCallback on each state transition.
     /// The call-back function can be used to report progress, send a heartbeat
@@ -113,22 +113,26 @@ module Agent =
     /// queuing device...)
     ///
     /// Type parameters:
-    ///   's is the type of states of the state machine
+    ///   'm represents a agent scheduling request.
+    ///      It embeds the desired state of the agent and the associated request metadata.
     ///
     ///   't is the returned type of the agent
     ///
-    type ExecutionInstruction<'s, 't> =
+    type ExecutionInstruction<'s, 't, 'm> =
         /// The request has been processed and can be removed from the scheduling system
         | Completed of 't option
 
+        /// The request completes and at the same time spawn another request
+        | Coreturn of 'm
+
         /// The processing of the request must be paused for the specified amount of time,
-        /// once it the time out expires, the scheduler is responsible for calling `Agent.execute` to resume processing
-        /// of the request at the same state where it left off.
+        /// once it the time out expires, the scheduler is responsible for calling `Agent.execute`
+        /// to resume processing at the same state as where it left off.
         | SleepAndResume of System.TimeSpan
 
         /// Processing must be paused for the specified amount of time.
-        /// Once the timeout expires, the scheduler is responsible for calling `Agent.execute` to resume processing
-        /// at the specified state 's
+        /// Once the timeout expires, the scheduler is responsible for calling `Agent.execute`
+        /// to resume processing at state 's
         | SleepAndResumeAt of System.TimeSpan * 's
 
 
@@ -146,16 +150,17 @@ module Agent =
         /// Status of a join's children
         type ChildrenStatus = Map<System.Guid, Status>
 
-        /// Subscriptions to a join condition: encoded as a list of request messages to be posted when the join condition is met
-        type Subscriptions<'m> = 'm list
+        /// List of subscriptions to a join condition.
+        /// Encoded as requests to be posted via the Scheduler when the join condition is met.
+        type Subscriptions<'s> = (RequestMetadata * 's) list
 
         /// A persistable entry storing information about a join
-        type Entry<'m> =
+        type Entry<'s> =
             {
-                /// Subscriber to notifyu when all children completes
-                whenAllSubscribers : Subscriptions<'m>
+                /// Subscribers to notify when all children completes
+                whenAllSubscribers : Subscriptions<'s>
                 /// Subscribers to notify when any child completes
-                whenAnySubscribers : Subscriptions<'m>
+                whenAnySubscribers : Subscriptions<'s>
                 /// For a fork: status is Completed if all children status are completed
                 /// For a request: status is Completed if the request as completed (Transition.Return was called)
                 status : Status
@@ -172,15 +177,14 @@ module Agent =
         /// Storage provider interface used to persist state of
         /// joining points (either an agent request or a fork point)
         /// Requirement: underlying READ/WRITE opeations need to be atomic.
-        type StorageInterface<'m> =
-            {
-                /// An a new entry to track a request
-                add : JoinId -> Entry<'m> -> Async<unit>
-                /// Update the state of a fork
-                update : JoinId -> (Entry<'m> -> Entry<'m>) -> Async<Entry<'m>>
-                /// Get the state of a fork
-                get : JoinId -> Async<Entry<'m>>
-            }
+        type IStorage =
+            /// An a new entry to track a request
+            abstract add<'s> : JoinId -> Entry<'s> -> Async<unit>
+            /// Update the state of a fork
+            abstract update<'s> : JoinId -> (Entry<'s> -> Entry<'s>) -> Async<Entry<'s>>
+            /// Get the state of a fork
+            abstract get<'s> : JoinId -> Async<Entry<'s>>
+
 
     /// A scheduler responsible for scheduling execution of agents via calls to Agent.execute.
     ///
@@ -194,7 +198,7 @@ module Agent =
     ///    For instance by posting the serialize state 'm onto some queue for later processing.
     ///
     ///  - __corountines__ and the `CoReturn` transition, the scheduler must handle spawning new agents
-    ///    by implementing `Agent.operations.spawn` and `Agent.operations.spawnIn`.
+    ///    by implementing `Agent.operations.spawn`.
     ///
     ///  - __forking__ (Fork, WhenAny, WhenAll), the scheduler must provides an external storage interface `Agent.storage`
     ///    of type `JoinStorage` implementing atomic add/update storage functions
@@ -202,41 +206,36 @@ module Agent =
     /// Type parameters:
     ///   's is the type of states of the state machine
     ///   'm represents a agent scheduling request. It embeds the desired state of the agent and the associated request metadata.
-    ///     The scheduler provides the function to create a scheduling request of type 'm
-    ///     from a state of type 's and associated metadata (see `Agent.embedState` below).
     type Scheduler<'s, 'm> =
         {
-            /// Create a scheduling request for creating/spawning a 
-            /// an agent in specified state 's and associated metadata 'm
+            /// Called to notify the scheduler that the state machine
+            /// execution is about to sleep in-process
+            onInProcessSleep : System.TimeSpan -> Async<unit>
+
+            /// Called to notify the scheduler that the state machine
+            /// is about to transition to a new state
+            onGoto : 's -> Async<unit>
+
+            /// Embed the specified state and request metadata into a scheduling
+            /// request spawning for a new instance of the same state machine agent
             embed : RequestMetadata -> 's -> 'm
 
-            /// Persist a request 'm on some external storage device
-            /// and schedule the processing of the request in the specified amount of time
-            persist : 'm -> System.TimeSpan -> Async<unit>
-
-            /// Request spawning of a new state machine with the specified state and request metadata
+            /// Request spawning of a new state machine agent (with embedded state and metadata)
             spawn : 'm -> Async<unit>
 
-            /// Request spawning of a new state machine with the specified state and request metadata
-            /// in the specified amount of time
-            spawnIn : 'm -> System.TimeSpan -> Async<unit>
-
             /// Provides an implementation of join storage (e.g. using Azure Table)
-            joinStore : Join.StorageInterface<'m>
+            joinStore : Join.IStorage
         }
 
-    /// An agent state machine with return type 't and underlying state type 's
-    /// embeddable into an agent request of type 'm.
-    ///
-    /// An agent instance must implement `Agent.embedState`: a function to embed the agent state and associated `RequestMetadata`
-    /// into an agent processing request of type 'm.
+    /// An agent state machine with return type 't, underlying state type 's,
+    /// and scheduling request of type 'm.
     ///
     /// Type parameters:
     ///   's is the type of states of the state machine
     ///
     ///   't is the returned type of the agent
     ///
-    ///   'm represents a agent scheduling request. It embeds the desired state of the agent and the associated request metadata.
+    ///   'm represents an agent scheduling request. It embeds the desired state of the agent and the associated request metadata.
     ///
     [<NoEquality;NoComparison>]
     type Agent<'s, 't, 'm> =
@@ -253,10 +252,8 @@ module Agent =
             /// Transition function: given a set of available operations and the current state returns the next transition.
             transition : 's -> Async<Transition<'s, 't, 'm>>
 
-            /// Maximum expected time to process each transition of the state machine
-            maximumExpectedStateTransitionTime : System.TimeSpan
-
-            /// Amount of time that is short enough to implement asynchronous sleep 'in-process' rather than out-of-process
+            /// Amount of time that is considered short enough to asynchronously sleep 'in-process'
+            /// rather than out-of-process
             maximumInprocessSleep : System.TimeSpan
 
             /// The scheduler responsible for execution the agent
@@ -264,7 +261,7 @@ module Agent =
         }
 
     /// Create a new request attached to the specified parent JoinId
-    let private createRequestWithParent (joinStore:Join.StorageInterface<'m>) parent =
+    let private createRequestWithParent<'s> (joinStore:Join.IStorage) parent =
         async {
             let requestId =
                 {
@@ -273,7 +270,7 @@ module Agent =
                }
 
             // Create a join entry for the request
-            do! joinStore.add
+            do! joinStore.add<'s>
                     requestId
                     { status = Join.Status.Requested
                       whenAllSubscribers = []
@@ -287,8 +284,8 @@ module Agent =
 
     /// Create a new request. Should be called by the API consumer to initialize a new request
     /// to be executed with an agent and passed to `Agent.execute`
-    let public createRequest (joinStore:Join.StorageInterface<'m>) =
-        createRequestWithParent joinStore None
+    let public createRequest<'s> (joinStore:Join.IStorage) =
+        createRequestWithParent<'s> joinStore None
 
     /// Return true if all children are marked as completed
     let private allCompleted childrenStatus =
@@ -305,7 +302,7 @@ module Agent =
     let private markRequestAsCompleted (m:Agent<'s, 't, 'm>) (metadata:RequestMetadata) =
         async {
             let! updatedEntry =
-                 m.scheduler.joinStore.update
+                 m.scheduler.joinStore.update<'s>
                     metadata
                     (fun u -> { u with status = Join.Status.Completed
                                        modified = System.DateTimeOffset.UtcNow } )
@@ -317,7 +314,7 @@ module Agent =
 
                 // Update child status under the request's parent entry
                 let! joinEntry =
-                    m.scheduler.joinStore.update joinId
+                    m.scheduler.joinStore.update<'s> joinId
                         (fun driftedJoinEntry ->
                             // We need to check status from the drifeted entry in case
                             // other siblings have completed sine the update started
@@ -342,8 +339,8 @@ module Agent =
                         )
 
                 // Honor the "WhenAny" subscriptions
-                for subscriber in whenAnySubscriptions do
-                    do! m.scheduler.spawn subscriber
+                for subscriberMetadata, subscriberState in whenAnySubscriptions do
+                    do! m.scheduler.spawn (m.scheduler.embed subscriberMetadata subscriberState)
 
                 // Honor the "WhenAll" subscriptions
                 if joinEntry.status = Join.Status.Completed then
@@ -351,30 +348,22 @@ module Agent =
                     // while trying to update the fork data
 
                     // Signal the fork's subscribers
-                    for subscriber in joinEntry.whenAllSubscribers do
-                        do! m.scheduler.spawn subscriber
+                    for subscriberMetadata, subscriberState in joinEntry.whenAllSubscribers do
+                        do! m.scheduler.spawn (m.scheduler.embed subscriberMetadata subscriberState)
         }
 
-    /// Advance execution of an agent state machine.
+    /// Advance execution of an agent state machine
+    /// until reaching either completion or out-of-process sleep.
     /// The state gets persisted on every transition
     /// which allows resuming the execution in case of failure.
-    let public executeWithResult (initialState:'s) requestMetadata (m:Agent<'s, 't, 'm>) : Async<ExecutionInstruction<'s, 't>> =
-
-        /// Keep-alive function called to notify external device (e.g. Azure queue)
-        /// that more time is needed to finish executing the state machine
-        let notifyMoreTimeIsNeeded newState delay =
-            // Serialize and persist progress in external device (e.g. Azure queue message)
-            // so that we can resume where we left off if the process crashes, is killed, upgraded...
-            // Specify a timeout after which the persisted state can be deserialized if not already deleted.
-            let timeoutPeriod = delay + m.maximumExpectedStateTransitionTime
-            m.scheduler.persist (m.scheduler.embed requestMetadata newState) timeoutPeriod
+    let public executeWithResult (initialState:'s) requestMetadata (m:Agent<'s, 't, 'm>) : Async<ExecutionInstruction<'s, 't, 'm>> =
 
         let tags = m.tags@["requestGuid", requestMetadata.guid.ToString()]
-        let rec sleepAndGoto delay (currentState:'s) (nextState:'s) =
+        let rec sleepAndGoto delay (nextState:'s) =
             async {
                 if delay < m.maximumInprocessSleep then
                     m.logger (sprintf "Agent '%s' sleeping for %O in proc" m.title delay) tags
-                    do! notifyMoreTimeIsNeeded currentState delay
+                    do! m.scheduler.onInProcessSleep delay // currentState delay
                     // Short-enough to wait asynchronously in-process
                     do! Async.Sleep(delay.TotalMilliseconds |> int)
                     return! goto nextState
@@ -387,7 +376,7 @@ module Agent =
 
         and goto (state:'s) =
             async {
-                do! notifyMoreTimeIsNeeded state System.TimeSpan.Zero
+                do! m.scheduler.onGoto state
                 return! runAt state
             }
 
@@ -396,20 +385,20 @@ module Agent =
                 let! operation = m.transition currentState
                 match operation with
                 | Transition.Sleep delay ->
-                    return! sleepAndGoto delay currentState currentState
+                    return! sleepAndGoto delay currentState
 
                 | Transition.SleepAndGoto (delay, nextState) ->
-                    return! sleepAndGoto delay currentState nextState
+                    return! sleepAndGoto delay nextState
 
                 | Transition.Return result ->
                     m.logger (sprintf "Agent '%s' reached final state and returned %A" m.title result) tags
                     do! markRequestAsCompleted m requestMetadata
                     return ExecutionInstruction.Completed (Some result)
 
-                | Transition.Coreturn requestCallee ->
+                | Transition.Coreturn callee ->
                     m.logger (sprintf "Agent '%s' coreturning to another state machine" m.title) tags
-                    do! m.scheduler.spawn requestCallee
-                    return ExecutionInstruction.Completed None
+                    //do! m.scheduler.spawn requestMetadata requestCallee
+                    return ExecutionInstruction.Coreturn callee
 
                 | Transition.Goto newState ->
                     m.logger (sprintf "Agent '%s' at state %O" m.title newState) tags
@@ -435,7 +424,7 @@ module Agent =
                         |> AsyncSeq.foldAsync
                             (fun spawnChildrenSoFar spawnState ->
                                 async {
-                                    let! metadata = createRequestWithParent m.scheduler.joinStore (Some joinId)
+                                    let! metadata = createRequestWithParent<'s> m.scheduler.joinStore (Some joinId)
                                     return Map.add metadata.guid (metadata, spawnState) spawnChildrenSoFar
                                 }
                             )
@@ -443,7 +432,7 @@ module Agent =
 
                     // create the join entry
                     let now = System.DateTimeOffset.UtcNow
-                    do! m.scheduler.joinStore.add joinId
+                    do! m.scheduler.joinStore.add<'s> joinId
                             {
                                 status = Join.Status.Waiting
                                 childrenStatuses = childrenMetdata |> Map.map (fun id metadata -> Join.Requested)
@@ -462,8 +451,7 @@ module Agent =
                         |> AsyncSeq.iterAsync
                             (fun (childId, (childMetadata, spawnState)) ->
                                 async {
-                                    let spawningRequest = m.scheduler.embed childMetadata spawnState
-                                    do! m.scheduler.spawn spawningRequest
+                                    do! m.scheduler.spawn (m.scheduler.embed childMetadata spawnState)
                                 }
                             )
 
@@ -472,13 +460,13 @@ module Agent =
                 /// Join on a forked transition specified by its fork Id
                 | Transition.WhenAll (joinId, newState) ->
                     let! updatedJoinEntry =
-                        m.scheduler.joinStore.update joinId
+                        m.scheduler.joinStore.update<'s> joinId
                             (fun driftedJoin ->
                                 if allCompleted driftedJoin.childrenStatuses then
                                     driftedJoin
                                 else
                                     // Subscribe to the 'WhenAll' event
-                                    let subscriber = m.scheduler.embed requestMetadata newState
+                                    let subscriber = requestMetadata, newState
                                     { driftedJoin with whenAllSubscribers = subscriber::driftedJoin.whenAllSubscribers
                                                        modified = System.DateTimeOffset.UtcNow } )
 
@@ -491,13 +479,13 @@ module Agent =
                 /// 'WhenAny' joining
                 | Transition.WhenAny (joinId, newState) ->
                     let! updatedJoinEntry =
-                        m.scheduler.joinStore.update joinId
+                        m.scheduler.joinStore.update<'s> joinId
                             (fun driftedJoin ->
                                 if atleastOneCompleted driftedJoin.childrenStatuses then
                                     driftedJoin
                                 else
                                   // Subscribe to the 'WhenAny' event
-                                  let subscriber = m.scheduler.embed requestMetadata newState
+                                  let subscriber = requestMetadata, newState
                                   { driftedJoin with whenAnySubscribers = subscriber::driftedJoin.whenAnySubscribers
                                                      modified = System.DateTimeOffset.UtcNow } )
 
@@ -510,18 +498,41 @@ module Agent =
         in
         runAt initialState
 
-    /// Advance execution of an agent state machine.
-    /// Same as `executeWithResult` but return only the execution result
-    /// and throw away the state machine result itself.
-    let public execute (initialState:'s) requestMetadata (m:Agent<'s, 't, 'm>) :Async<ExecutionInstruction<'m, 't>> =
-        async {
-            let! instruction = executeWithResult initialState requestMetadata m
-            return
-                match instruction with
-                | ExecutionInstruction.Completed result ->
-                    ExecutionInstruction.Completed result
-                | ExecutionInstruction.SleepAndResume t ->
-                    ExecutionInstruction.SleepAndResume t
-                | ExecutionInstruction.SleepAndResumeAt (t, s) ->
-                    ExecutionInstruction.SleepAndResumeAt (t, m.scheduler.embed requestMetadata s)
+/// In-memory implementation of the storage structures required to execute an Agent
+module InMemory =
+    open Agent
+
+    /// Implements a JoinEntry storage in-memory using the provided ConcurrentDictionary
+    /// NOTE: we cannot use static type 's for the type of the value in the key-value ConcurrentDictionary
+    /// because the join store must support all kinds of state types 's (e.g. Join.Entry<'s> for 's ranging over all requets state types)
+    let newJoinStorageOf (storage:System.Collections.Concurrent.ConcurrentDictionary<JoinId, obj>) =
+        { new Agent.Join.IStorage with
+            member __.add<'s> joinId (joinEntry:Join.Entry<'s>) =
+                async {
+                    if not <| storage.TryAdd(joinId, joinEntry) then
+                        failwithf "Add: Failed to add %A" (joinId, joinEntry)
+                }
+            member __.update<'s> joinId performEntryUpdate =
+                        lock(storage) (fun () ->
+                            async {
+                                match storage.TryGetValue(joinId) with
+                                | true, entry ->
+                                    let newEntry = performEntryUpdate (entry:?>Join.Entry<'s>)
+                                    storage.[joinId] <- newEntry :> obj
+                                    return newEntry
+                                | false, _ -> return failwithf "Update: Failed to retrieve data with id: %A" joinId
+                        }
+                    )
+            member __.get<'s> joinId =
+                async {
+                    match storage.TryGetValue(joinId) with
+                    | false, _ -> return failwithf "Get: There is no request with id : %A" joinId
+                    | true, entry -> return (entry:?>Join.Entry<'s>)
+                }
+
         }
+
+    /// Implements a JoinEntry storage in-memory using a ConcurrentDictionary
+    let newJoinStorage () : Agent.Join.IStorage =
+        let storage = System.Collections.Concurrent.ConcurrentDictionary<JoinId, obj>()
+        newJoinStorageOf storage

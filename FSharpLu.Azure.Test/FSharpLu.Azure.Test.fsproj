@@ -29,8 +29,10 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Xunit.SkippableFact" Version="1.3.12" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FSharpLu.Azure\FSharpLu.Azure.fsproj" />
+    <ProjectReference Include="..\FSharpLu.Tests\FSharpLu.Tests.fsproj" />
   </ItemGroup>
 </Project>

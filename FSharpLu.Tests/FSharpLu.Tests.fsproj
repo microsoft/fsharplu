@@ -14,6 +14,7 @@
     <Compile Include="Text.fs" />
     <Compile Include="UnionTests.fs" />
     <Compile Include="StateMachineAgentTests.fs" />
+    <Compile Include="QueueSchedulerTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="test1.ini">

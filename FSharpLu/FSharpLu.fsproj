@@ -66,7 +66,9 @@
     <Compile Include="Logger.fs" />
     <Compile Include="Collections.fs" />
     <Compile Include="Async.fs" />
-    <Compile Include="StateMachineAgent.fs" />
+    <Compile Include="StateMachine.fs" />
+    <Compile Include="QueueScheduler.fs" />
+    <Compile Include="ServiceRequest.fs" />
     <Compile Include="AsyncSeq.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Configuration.fs" />

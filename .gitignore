@@ -129,3 +129,4 @@ ModelManifest.xml
 # Scripts for FSI
 FSharpLu.Json/Scripts
 /.ionide/symbolCache.db
+/FSharpLu.Azure.Test/Properties/launchSettings.json

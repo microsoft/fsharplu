@@ -1,0 +1,192 @@
+﻿module Microsoft.FSharpLu.Actor.QueueScheduler.Test
+
+open Xunit
+open Microsoft.FSharpLu.Logging
+open Microsoft.FSharpLu.Actor.StateMachine
+open Microsoft.FSharpLu.Actor.QueueScheduler
+open Microsoft.FSharpLu.Actor.ServiceRequests
+open Microsoft.FSharpLu.Actor
+
+module Example =
+    type FiboStates =
+    | Start
+    | Calculate of int * int * int
+    | End of int
+
+    type FlipCoinStates =
+    | Start
+    | Flip
+    | End
+
+    /// All supported requests
+    type ServiceRequests =
+    | Fibo of StatefulRequest<{| i : int; requestQuota : int |}, FiboStates>
+    | FlipCoin of StatefulRequest<int, FlipCoinStates>
+    | Request3
+    | Shutdown
+
+    type ServiceQueues =
+    | ImportantQueue
+    | NotImportantQueue
+
+    type Header = {| correlationId : string |}
+
+    [<NoEquality;NoComparison>]
+    type CustomContext =
+        {
+            contextName : string
+        }
+
+    let request1TestOutcome = System.Collections.Concurrent.ConcurrentDictionary<int, int>()
+
+    let request1Handler<'QueueMessage> : Handler<'QueueMessage, _, _, _, _> =
+        run "request1 handler" ["foo", "bar"] ServiceRequests.Fibo
+            (fun operations input -> function
+            | FiboStates.Start -> async {
+                printfn "Received request"
+                return Goto <| FiboStates.Calculate (input.i, 0, 1)
+                }
+            | FiboStates.Calculate (i, fibminus_1, fib) ->  async {
+                if i > 1 then
+                    return SleepAndGoto (System.TimeSpan.FromMilliseconds(10.0),
+                                            FiboStates.Calculate(i-1, fib, fibminus_1 + fib))
+                else
+                    return Goto <| FiboStates.End (fib)
+                }
+            | FiboStates.End (result) -> async {
+                if not <| request1TestOutcome.TryAdd(input.i, result) then
+                    failwith "Result overwrite!"
+                if request1TestOutcome.Count = input.requestQuota then
+
+                    do! operations.spawnNewRequest ServiceRequests.Shutdown
+                return Transition.Return (result)
+                })
+
+    let request2Handler<'QueueMessage> : Handler<'QueueMessage, _, _, _, _> =
+        run "request2 handler" ["foo", "bar"]
+            ServiceRequests.FlipCoin
+            (fun operations input -> function
+            | FlipCoinStates.Start -> async.Return <| Goto FlipCoinStates.Flip
+            | FlipCoinStates.Flip -> async {
+                let r = System.Random(System.DateTime.UtcNow.Ticks |> int)
+                if r.Next() % 2 = 0 then
+                    return Sleep <| System.TimeSpan.FromMilliseconds(10.0 * (float <| r.Next()))
+                else
+                    return Goto <| FlipCoinStates.End
+                }
+            | FlipCoinStates.End ->
+                async.Return <| Transition.Return ()
+            )
+
+    let QueuesProcessingOptions =
+        {
+            SleepDurationWhenAllQueuesAreEmpty = System.TimeSpan.FromMilliseconds(10.0)
+            HeartBeatIntervals = System.TimeSpan.FromSeconds(1.0)
+            ConcurrentRequestWorkers = 10
+            WorkerReplacementTimeout = System.TimeSpan.FromHours(1.0)
+        }
+
+    let queuesHandlersOrderedByPriority<'QueueMessage>
+            (schedulerFactory: ISchedulerFactory<'QueueMessage, Header, ServiceRequests, CustomContext>)
+            (cts:System.Threading.CancellationTokenSource)
+                :QueueProcessor<ServiceQueues,
+                                Envelope<Header, ServiceRequests>,
+                                QueueingContext<'QueueMessage, Header, ServiceRequests, CustomContext>> list =
+
+         let dispatch (c:QueueingContext<'QueueMessage, Header, ServiceRequests, CustomContext>)
+                      (k:IContinuation<Envelope<Header, ServiceRequests>>)
+                      envelope =
+              match envelope.request with
+              | ServiceRequests.Fibo _ -> k.k (request1Handler schedulerFactory c envelope)
+              | ServiceRequests.FlipCoin _ -> k.k (request2Handler schedulerFactory c envelope)
+              | ServiceRequests.Shutdown -> k.k (async {
+                                                      Trace.info "Shutdown request received"
+                                                      cts.Cancel()
+                                                      Trace.info "Token cancelled"
+                                                      return RequestStatus.Completed None
+                                                })
+              | _ -> raise RejectedMessage
+
+         [
+            {
+                queueId = ServiceQueues.ImportantQueue
+                handler = dispatch
+                maxProcessTime = System.TimeSpan.FromMinutes(1.0)
+                messageBatchSize = 10
+            }
+            {
+                queueId = ServiceQueues.NotImportantQueue
+                handler = dispatch
+                maxProcessTime = System.TimeSpan.FromMinutes(1.0)
+                messageBatchSize = 32
+            }
+        ]
+
+    let startFibonacciTest (queue:QueueingAPI<_,_>) =
+        async {
+            let fibonnaci = [|0;1;1;2;3;5;8;13;21;34;55;89;144|]
+
+            for i = 1 to fibonnaci.Length-1 do
+                do! queue.post
+                        {
+                            metadata = None
+                            header = {| correlationId = "Fibonnaci" |}
+                            request = ServiceRequests.Fibo {
+                                input = {| i = i; requestQuota = fibonnaci.Length-1 |}
+                                state = FiboStates.Start
+                            }
+                        }
+            return fibonnaci
+        }
+
+    let endFibonacciTest (expected:int[]) = 
+        async {
+            for kvp in request1TestOutcome do
+                let i = kvp.Key
+                Assert.Equal(request1TestOutcome.[i], expected.[i])
+            }
+
+module InMemorySchedulerTest =
+    open Example
+
+    let requestJoinStore = InMemory.newJoinStorage()
+
+    let queueProcessLoop (queues:Map<Example.ServiceQueues,_>)=
+        async {
+            try
+                let shutdownSource = new System.Threading.CancellationTokenSource()
+                do! QueueScheduler.processingLoopMultipleQueues<Example.ServiceQueues, Envelope<Header, Example.ServiceRequests>, _, System.Guid>
+                        (Microsoft.FSharpLu.Logging.Interfaces.fromTraceTag<System.Diagnostics.TagsTracer>)
+                        Example.QueuesProcessingOptions
+                        (Example.queuesHandlersOrderedByPriority (InMemorySchedulerFactory()) shutdownSource)
+                        (fun queueId -> Map.find queueId queues)
+                        (fun queue message -> {
+                            queue = queue
+                            queuedMessage = message
+                            joinStore = InMemory.newJoinStorage()
+                            customContext = { contextName = "bla" }
+                        })
+                        ignore // no heartbeat
+                        shutdownSource.Token
+                        (fun _ -> []) // no tags
+                        {new IOutcomeLogger<_, _> with member __.log _ = ()} // no logger
+            with
+            | ProcessingLoopCancelled ->
+                Trace.warning "Processing loop terminated by Azure."
+        }
+
+    [<Fact>]
+    let ``InMemoryScheduler Fibonnaci Test`` () =
+        async {
+            let queues =
+                [
+                    ImportantQueue, InMemoryQueue.newQueue "inmemory" ImportantQueue
+                    NotImportantQueue, InMemoryQueue.newQueue "inmemory" NotImportantQueue
+                ] |> Map.ofSeq
+
+            let! expected = startFibonacciTest queues.[ImportantQueue]
+
+            do! queueProcessLoop queues
+
+            do! endFibonacciTest expected
+        }
