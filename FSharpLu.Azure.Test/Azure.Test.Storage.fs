@@ -5,7 +5,7 @@ open FsCheck
 open Xunit
 
 open Microsoft.Azure.Cosmos
-open Microsoft.FSharpLu.StateMachineAgent
+
 
 module Tests =
     open System.Collections.Generic
@@ -113,6 +113,8 @@ module Tests =
 
 
 open Tests
+open Microsoft.FSharpLu.Actor
+open Microsoft.FSharpLu.Actor.StateMachine
 
 [<Trait("TestCategory", "Azure Storage")>]
 type AzureStorageTests () =
@@ -134,19 +136,13 @@ type AzureStorageTests () =
     member x.StorageEndpointByName() =
         Check.QuickThrowOnFailure endpointByName
 
-    [<Fact(Skip="Needs Azure Storage key configuration")>]
+    [<SkippableFact>]
     member x.``Azure Table implementation of Agent Storage interface is atomic``() =
         async {
-            let storageAccountConnectionString = 
-                failwithf "Please set azure storage account connectiong string before running this test"
-            
-            let tableName = "AgentJoinStorageTable"
+            let storageAccountConnectionString = System.Environment.GetEnvironmentVariable("TESTSTORAGEACCOUNT_CONNECTIONSTRING")
+            Skip.If(isNull storageAccountConnectionString, "No Azure stroage account available for testing. Set env var TESTSTORAGEACCOUNT_CONNECTIONSTRING to run this test.")
 
-            let joinId = 
-                {
-                    guid = System.Guid.NewGuid()
-                    timestamp = System.DateTimeOffset.UtcNow
-                }
+            let tableName = "AgentJoinStorageTable"
 
             let storageAccount = Table.CloudStorageAccount.Parse(storageAccountConnectionString)
 
@@ -158,38 +154,38 @@ type AzureStorageTests () =
                                         (System.TimeSpan.FromSeconds(10.0))
                                         "testAgent"
 
-            let entry: Agent.Join.Entry<int> =
-                {
-                    whenAllSubscribers = []
-                    whenAnySubscribers = []
-                    status = Agent.Join.Status.Requested
-                    childrenStatuses = Map.empty
-                    parent = None
-                    created = System.DateTimeOffset.UtcNow
-                    modified = System.DateTimeOffset.UtcNow
-                }
+            // new request
+            let! joinId = Agent.createRequest storage
 
-            do! storage.add joinId entry
-            let! v = storage.get joinId
+            let! entry = storage.get joinId
 
-            let expectedEntry =
-                {
-                    entry with
-                        whenAllSubscribers = [7;8;9]
-                        whenAnySubscribers = [9;8;7]
-                        parent = Some joinId
-                        status = Agent.Join.Status.Completed
-                }
+            let! ids =
+                [ for i = 0 to 5 do
+                    yield Agent.createRequest storage ]
+                |> Async.Parallel
+
+            let idsAndStates = Array.zip ids [|7;8;9;9;8;7|] |> Seq.toList
+
+            let a = idsAndStates.[0..2]
+            let b = idsAndStates.[3..5]
 
             // records will be updated in random order, and there will be one record that contains
             // all updates. That recrod has to have same data as expectedEntry
             let! results =
                 Async.Parallel [
-                    storage.update joinId (fun entry -> {entry with whenAllSubscribers = [7;8;9]; whenAnySubscribers = [9;8;7]})
+                    storage.update joinId (fun entry -> {entry with whenAllSubscribers = a; whenAnySubscribers = b})
                     storage.update joinId (fun entry -> {entry with parent = Some joinId})
                     storage.update joinId (fun entry -> {entry with status = Agent.Join.Status.Completed})
                 ]
 
+            let expectedEntry =
+                {
+                    entry with
+                        whenAllSubscribers = a
+                        whenAnySubscribers = b
+                        parent = Some joinId
+                        status = Agent.Join.Status.Completed
+                }
             let areTheSame = results |> Seq.exists(fun r -> r = expectedEntry)
 
             Assert.True(areTheSame)

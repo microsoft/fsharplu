@@ -3,7 +3,10 @@
 /// for Trace logging and System.Diagnostics
 namespace Microsoft.FSharpLu.Logging
 
-    /// We define a _strongly-typed tracer_ as any static type implementing the following "static interface":
+    /// Given an implementation of the following `TraceWriter` trait (or "static interface") over a static type ^T,
+    /// construct a _strongly-typed formatter tracer_ StronglyTypedTracer< ^T>.
+    ///
+    /// The `TraceWriter` trait is defined as:
     ///      ^T when ^T : (static member writeLine : string -> unit)
     ///          and ^T : (static member info : string -> unit)
     ///          and ^T : (static member warning : string -> unit)
@@ -15,7 +18,7 @@ namespace Microsoft.FSharpLu.Logging
     ///          and ^T : (static member indent : unit -> unit)
     ///          and ^T : (static member unindent : unit -> unit)
     /// Unfortunately, F# does not support definition of aliases for sets of static constraints so
-    /// we have to repeat this definition everytime we refer to this interface. Two related uservoices
+    /// we have to repeat the trait definition everytime we refer to this interface. Two related uservoices
     /// suggestions were declined by the F# team:
     ///   https://fslang.uservoice.com/forums/245727-f-language/suggestions/8509687-add-constraints-as-a-language-construct
     ///   https://fslang.uservoice.com/forums/245727-f-language/suggestions/8393964-interfaces-as-simple-reusable-and-named-sets-of-m
@@ -23,8 +26,10 @@ namespace Microsoft.FSharpLu.Logging
     ///   https://fslang.uservoice.com/forums/245727-f-language/suggestions/5762135-support-for-type-classes-or-implicits
 
     /// Functor used to create a strongly-typed event tracer
-    /// from a set of string tracing functions
-    type StronglyTypedTracer< ^T when ^T : (static member writeLine : string -> unit)
+    /// from a TraceWriter trait
+    type StronglyTypedTracer< ^T when
+                           // ^T implements the `TraceWriter` trait
+                            ^T : (static member writeLine : string -> unit)
                         and ^T : (static member info : string -> unit)
                         and ^T : (static member warning : string -> unit)
                         and ^T : (static member error : string -> unit)
@@ -33,7 +38,9 @@ namespace Microsoft.FSharpLu.Logging
                         and ^T : (static member writeLine : string -> unit)
                         and ^T : (static member flush : unit -> unit)
                         and ^T : (static member indent : unit -> unit)
-                        and ^T : (static member unindent : unit -> unit) > =
+                        and ^T : (static member unindent : unit -> unit)
+                        //// 
+                        > =
         static member inline info format = Printf.kprintf (fun m -> (^T:(static member info : string -> unit) m)) format
         static member inline warning format = Printf.kprintf (fun m -> (^T:(static member warning : string -> unit) m)) format
         static member inline error format = Printf.kprintf (fun m -> (^T:(static member error : string -> unit) m)) format
@@ -45,7 +52,7 @@ namespace Microsoft.FSharpLu.Logging
         static member inline indent () =  (^T:(static member indent : unit -> unit) ())
         static member inline unindent () = (^T:(static member unindent : unit -> unit) ())
 
-    /// Combine two strongly-typed tracers into one
+    /// Combine two TraceWriter trait implementations into one
     type Combine< ^T1, ^T2 when
                             ^T1 : (static member writeLine : string -> unit)
                         and ^T1 : (static member info : string -> unit)
@@ -97,29 +104,26 @@ namespace Microsoft.FSharpLu.Logging
             (^T2:(static member unindent : unit -> unit) ())
 
     module EnvironmentInfo =
-        /// Trace environment information to a strongly-typed tracer
-        let inline trace< ^T when ^T : (static member writeLine : string -> unit)
-                                        and ^T : (static member info : string -> unit)
-                                        and ^T : (static member warning : string -> unit)
-                                        and ^T : (static member error : string -> unit)
-                                        and ^T : (static member critical : string -> unit)
-                                        and ^T : (static member verbose : string -> unit)
-                                        and ^T : (static member writeLine : string -> unit)
-                                        and ^T : (static member flush : unit -> unit)
-                                        and ^T : (static member indent : unit -> unit)
-                                        and ^T : (static member unindent : unit -> unit)> () =
+        /// Trace system environment information using the specified strongly-typed tracer
+        let inline trace< ^T when 
+                        // ^T implements the `TraceWriter` trait
+                        ^T : (static member writeLine : string -> unit)
+                        and ^T : (static member info : string -> unit)
+                        and ^T : (static member warning : string -> unit)
+                        and ^T : (static member error : string -> unit)
+                        and ^T : (static member critical : string -> unit)
+                        and ^T : (static member verbose : string -> unit)
+                        and ^T : (static member writeLine : string -> unit)
+                        and ^T : (static member flush : unit -> unit)
+                        and ^T : (static member indent : unit -> unit)
+                        and ^T : (static member unindent : unit -> unit)
+                        ////
+                    > () =
             StronglyTypedTracer< ^T>.indent()
-            #if dotnetcore16
-            StronglyTypedTracer< ^T>.writeLine "Operating system: %O" System.Runtime.InteropServices.RuntimeInformation.OSDescription
-            StronglyTypedTracer< ^T>.writeLine "Computer name: %s" System.Environment.MachineName
-            StronglyTypedTracer< ^T>.writeLine "User name: %s" System.Environment.UserName
-            StronglyTypedTracer< ^T>.writeLine "CLR runtime version: %O" System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription
-            #else
             StronglyTypedTracer< ^T>.writeLine "Operating system: %O" System.Environment.OSVersion
             StronglyTypedTracer< ^T>.writeLine "Computer name: %s" System.Environment.MachineName
             StronglyTypedTracer< ^T>.writeLine "User name: %s" System.Environment.UserName
             StronglyTypedTracer< ^T>.writeLine "CLR runtime version: %O" System.Environment.Version
-            #endif
             StronglyTypedTracer< ^T>.writeLine "Command line: %s" System.Environment.CommandLine
             StronglyTypedTracer< ^T>.unindent()
 
@@ -292,8 +296,9 @@ namespace Microsoft.FSharpLu.Logging
         let inline event name properties = Trace.writeLine "Event: %s: %s" name (propertiesToString properties)
         let inline trackException (exn:System.Exception) properties = Trace.critical "Exception: %O: %s" exn (propertiesToString properties)
 
-        /// Combine two tag tracers into one
+        /// Combine two implementations of the `TraceTags` trait
         type Combine< ^T1, ^T2 when
+                            // ^T1 implements the `TraceTags` trait
                                 ^T1 : (static member writeLine : string -> Tags -> unit)
                             and ^T1 : (static member info : string -> Tags -> unit)
                             and ^T1 : (static member warning : string -> Tags -> unit)
@@ -306,6 +311,7 @@ namespace Microsoft.FSharpLu.Logging
                             and ^T1 : (static member unindent : unit -> unit)
                             and ^T1 : (static member trackException : System.Exception -> Tags -> unit)
                     
+                            // ^T2 implements the `TraceTags` trait
                             and ^T2 : (static member writeLine : string -> Tags -> unit)
                             and ^T2 : (static member info : string -> Tags -> unit)
                             and ^T2 : (static member warning : string -> Tags -> unit)
@@ -373,3 +379,104 @@ namespace System.Diagnostics
         static member inline flush () = Trace.flush()
         static member inline indent () = Trace.indent()
         static member inline unindent () = Trace.unindent()
+
+
+namespace Microsoft.FSharpLu.Logging
+
+/// Trace logging exposed as interface instead of via static modules
+module Interfaces =
+
+    /// TagTracer defined has an interface, used to pass tracing functions as parameters to other functions
+    /// (as opposed to a static SRTP-based module as defined above)
+    type ITagsTracer =
+        abstract member writeLine : string -> TraceTags.Tags -> unit
+        abstract member info : string -> TraceTags.Tags -> unit
+        abstract member warning : string -> TraceTags.Tags -> unit
+        abstract member error : string -> TraceTags.Tags -> unit
+        abstract member critical : string -> TraceTags.Tags -> unit
+        abstract member verbose : string -> TraceTags.Tags -> unit
+        abstract member event : string -> TraceTags.Tags -> unit
+        abstract member flush : unit -> unit
+        abstract member indent : unit -> unit
+        abstract member unindent : unit -> unit
+        abstract member trackException : System.Exception -> TraceTags.Tags -> unit
+        abstract member failwith : string -> TraceTags.Tags -> 'a
+
+    /// Tracer defined has an interface, used to pass tracing functions as parameters to other functions
+    /// (as opposed to a static SRTP-based module as defined above)
+    type ITracer =
+        abstract member writeLine : Printf.StringFormat<'a, unit> -> 'a
+        abstract member info : Printf.StringFormat<'a, unit> -> 'a
+        abstract member warning : Printf.StringFormat<'a, unit> ->  'a
+        abstract member error : Printf.StringFormat<'a, unit> -> 'a
+        abstract member critical : Printf.StringFormat<'a, unit> -> 'a
+        abstract member verbose : Printf.StringFormat<'a, unit> -> 'a
+        abstract member event : Printf.StringFormat<'a, unit> -> 'a
+        abstract member flush : unit -> unit
+        abstract member indent : unit -> unit
+        abstract member unindent : unit -> unit
+        abstract member trackException : System.Exception -> unit
+        abstract member failwith<'a> : Printf.StringFormat<'a, unit> -> 'a
+
+    // Return an implementation of interface ITracer from a type implementing the static `TraceWriter` trait
+    let inline fromTraceWriter< ^T when 
+                    // ^T implements the `TraceWriter` trait
+                            ^T : (static member writeLine : string -> unit)
+                        and ^T : (static member info : string -> unit)
+                        and ^T : (static member warning : string -> unit)
+                        and ^T : (static member error : string -> unit)
+                        and ^T : (static member critical : string -> unit)
+                        and ^T : (static member verbose : string -> unit)
+                        and ^T : (static member event : string -> unit)
+                        and ^T : (static member writeLine : string -> unit)
+                        and ^T : (static member flush : unit -> unit)
+                        and ^T : (static member indent : unit -> unit)
+                        and ^T : (static member unindent : unit -> unit)
+                        and ^T : (static member trackException : System.Exception -> unit)> =
+        {
+            new ITracer with
+                member __.info<'a> format = StronglyTypedTracer< ^T>.info<'a> format
+                member __.warning format = StronglyTypedTracer< ^T>.warning format
+                member __.error format = StronglyTypedTracer< ^T>.error format
+                member __.critical format = StronglyTypedTracer< ^T>.critical format
+                member __.failwith format = StronglyTypedTracer< ^T>.failwith format
+                member __.verbose format = StronglyTypedTracer< ^T>.verbose format
+                member __.event format = StronglyTypedTracer< ^T>.writeLine format
+                member __.writeLine format  = StronglyTypedTracer< ^T>.writeLine format
+                member __.flush () = StronglyTypedTracer< ^T>.flush()
+                member __.indent () =  StronglyTypedTracer< ^T>.indent()
+                member __.unindent () = StronglyTypedTracer< ^T>.unindent()
+                member __.trackException e = StronglyTypedTracer< ^T>.error "Exception: %O" e
+        }
+
+    // Return an implementation of interface ITagsTracer from a type implementing the static `TraceTags` trait
+    let inline fromTraceTag< ^T when 
+                    // ^T implements the `TraceTags` trait
+                        ^T : (static member writeLine : string -> TraceTags.Tags -> unit)
+                    and ^T : (static member info : string -> TraceTags.Tags -> unit)
+                    and ^T : (static member warning : string -> TraceTags.Tags -> unit)
+                    and ^T : (static member error : string -> TraceTags.Tags -> unit)
+                    and ^T : (static member critical : string -> TraceTags.Tags -> unit)
+                    and ^T : (static member verbose : string -> TraceTags.Tags -> unit)
+                    and ^T : (static member event : string -> TraceTags.Tags -> unit)
+                    and ^T : (static member flush : unit -> unit)
+                    and ^T : (static member indent : unit -> unit)
+                    and ^T : (static member unindent : unit -> unit)
+                    and ^T : (static member trackException : System.Exception -> TraceTags.Tags -> unit)
+                    /////
+                > =
+        {
+            new ITagsTracer with
+                member __.info message tags = (^T:(static member info : string -> TraceTags.Tags -> unit) (message, tags))
+                member __.warning message tags = (^T:(static member warning : string -> TraceTags.Tags -> unit) (message, tags))
+                member __.error message tags = (^T:(static member error : string -> TraceTags.Tags -> unit) (message, tags))
+                member __.critical message tags = (^T:(static member critical : string -> TraceTags.Tags -> unit) (message, tags))
+                member __.failwith message tags = (^T:(static member critical : string -> TraceTags.Tags -> unit) (message, tags)); failwith message 
+                member __.verbose message tags = (^T:(static member verbose : string -> TraceTags.Tags -> unit) (message, tags))
+                member __.event message tags = (^T:(static member event : string -> TraceTags.Tags -> unit) (message, tags))
+                member __.writeLine message tags  = (^T:(static member writeLine : string -> TraceTags.Tags -> unit) (message, tags))
+                member __.flush () = (^T:(static member flush : unit -> unit) ())
+                member __.indent () =  (^T:(static member indent : unit -> unit) ())
+                member __.unindent () = (^T:(static member unindent : unit -> unit) ())
+                member __.trackException e tags = (^T:(static member trackException : System.Exception -> TraceTags.Tags -> unit) (e, tags))
+        }

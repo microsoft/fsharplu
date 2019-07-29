@@ -2,7 +2,6 @@
 module Microsoft.FSharpLu.Azure.SettingProvider
 
 open Microsoft.FSharpLu.Configuration
-open Microsoft.Azure
 open System.Configuration
 
 type SettingProvider =

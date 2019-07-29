@@ -1,7 +1,8 @@
 ﻿namespace Microsoft.FSharpLu.StateMachineAgent
 open System
 open Xunit
-
+open Microsoft.FSharpLu.Actor.StateMachine
+open Microsoft.FSharpLu.Actor.StateMachine.Agent
 
 [<Trait("TestCategory", "StateMachineAgent")>]
 module StateMachineAgentTests =
@@ -21,54 +22,12 @@ module StateMachineAgentTests =
         | WaitForFork2 of JoinId * JoinId
         | WaitForFork1 of JoinId
 
-
-
-    let newInMemoryForkProgressStorage (storage: Collections.Concurrent.ConcurrentDictionary<_, _>)
-        : Agent.Join.StorageInterface<'m> =
-        {
-            add =
-                fun joinId joinEntry ->
-                    async {
-                        match storage.TryGetValue(joinId) with
-                        | false, _ ->
-                            match storage.TryAdd(joinId, joinEntry) with
-                            | false -> return failwithf "Add: Failed to add %A" (joinId, joinEntry)
-                            | true -> return ()
-                        | true, existingEntry ->
-                            return failwithf "add: Entry with id : %A already exists in the storage.`
-Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEntry
-                    }
-
-            //RequestId -> Status -> ChildrenStatus option -> Async<unit>
-            update =
-                fun joinId performEntryUpdate ->
-                        lock(storage) (fun () ->
-                            async {
-                                match storage.TryGetValue(joinId) with
-                                | true, entry ->
-                                    let newEntry = performEntryUpdate entry
-                                    storage.[joinId] <- newEntry
-                                    return newEntry
-                                | false, _ -> return failwithf "Update: Failed to retrieve data with id: %A" joinId
-                        }
-                    )
-
-            /// Get the state of an existing request
-            get = fun joinId ->
-                    async {
-                        match storage.TryGetValue(joinId) with
-                        | false, _ -> return failwithf "Get: There is no request with id : %A" joinId
-                        | true, entry -> return entry
-                    }
-
-        }
-
     let rec newAgent(storage) : Agent.Agent<_, _, _> =
         let spawn (metadata: Agent.RequestMetadata, state: TestStates) =
             async {
                 printfn "Operations.post %A" (metadata, state)
                 let agent = newAgent(storage)
-                let! _ = Agent.execute state metadata agent
+                let! _ = Agent.executeWithResult state metadata agent
                 return ()
             }
         {
@@ -114,82 +73,78 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
 
                             }
 
-            maximumExpectedStateTransitionTime = TimeSpan.FromSeconds 1.0
-
             maximumInprocessSleep = TimeSpan.FromSeconds 1.0
 
             scheduler =  {
-                embed = fun metadata state -> (metadata, state)
-
-                persist = fun m ts -> async {return ()}
-
                 joinStore = storage
-
                 spawn = spawn
-
-                spawnIn = fun request ts ->
-                            async {
-                                printfn "Operations.postIn [%A] %A" ts request
-                                do! Async.Sleep (int ts.TotalMilliseconds)
-                                return! spawn request
-                            }
+                onGoto = fun s -> async.Return ()
+                onInProcessSleep = fun _ -> async.Return ()
+                embed = fun m s -> (m, s)
             }
         }
+
+    /// Cast a value entry of type 'obj from the join dictonary of type obj into type Join.Entry<TestStates>
+    let cast (e: Collections.Generic.KeyValuePair<_,obj>) = e.Value :?> Join.Entry<TestStates>
 
     [<Fact>]
     let waitAllSuccessForkTest() =
         async {
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
-            let agent = newAgent(newInMemoryForkProgressStorage storage)
-            let! request = Agent.createRequest agent.scheduler.joinStore
+            let agent = newAgent (InMemory.newJoinStorageOf storage)
+            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
             let! result = Agent.executeWithResult (State1 23) request agent
-            Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
-            Assert.True(storage.Count = 4)
+            Assert.Equal(4, storage |> Seq.filter (fun x -> (cast x).status = Agent.Join.Status.Completed) |> Seq.length)
+            Assert.Equal(4, storage.Count)
         } |> Async.RunSynchronously
 
     [<Fact>]
     let expectFailureOnEmptyForkSpawnList() =
         async {
-            let storage = Collections.Concurrent.ConcurrentDictionary()
+            let storage = Collections.Concurrent.ConcurrentDictionary<JoinId, _>()
             Assert.Empty storage
             let! _ =
                 Assert.ThrowsAsync<System.NotSupportedException>(
                     fun () ->
                         async {
-                            let agent = newAgent(newInMemoryForkProgressStorage storage)
-                            let! request = Agent.createRequest agent.scheduler.joinStore
+                            let agent = newAgent(InMemory.newJoinStorageOf storage)
+                            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
                             let! _ = Agent.executeWithResult (State2 "blah") request agent
                             return ()
                         } |> Async.StartAsTask :> System.Threading.Tasks.Task
                     ) |> Async.AwaitTask
-            Assert.True(storage.Count = 1)
+            Assert.Equal(1, storage.Count)
             return ()
         } |> Async.RunSynchronously
-
 
     [<Fact>]
     let waitAnySuccessForkTest() =
         async {
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
-            let agent = newAgent(newInMemoryForkProgressStorage storage)
-            let! request = Agent.createRequest agent.scheduler.joinStore
+            let agent = newAgent(InMemory.newJoinStorageOf storage)
+            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
             let! _ =  Agent.executeWithResult (State3 (1, "blah")) request agent
-
-            let completedChild = storage |> Seq.tryFind (fun x -> x.Value.status = Agent.Join.Status.Completed && x.Value.parent.IsSome)
-            Assert.True (completedChild.IsSome)
+            
+            let completedChild =
+                    storage
+                    |> Seq.tryFind (fun x ->
+                                        let v = cast x
+                                        v.status = Agent.Join.Status.Completed && v.parent.IsSome)
+            Assert.True(completedChild.IsSome)
             Assert.True(storage
                             |> Seq.exists (fun x ->
-                                                x.Value.status = Agent.Join.Status.Completed &&
-                                                not x.Value.childrenStatuses.IsEmpty &&
-                                                x.Value.childrenStatuses.[completedChild.Value.Key.guid] = Agent.Join.Status.Completed
+                                                let v = cast x
+                                                v.status = Agent.Join.Status.Completed &&
+                                                not v.childrenStatuses.IsEmpty &&
+                                                v.childrenStatuses.[completedChild.Value.Key.guid] = Agent.Join.Status.Completed
                                             )
                         )
-            Assert.True(storage.Count = 4)
-            Assert.True(storage |> Seq.filter (fun x -> not x.Value.childrenStatuses.IsEmpty ) |> Seq.length = 1)
-            Assert.True(storage |> Seq.filter (fun x -> x.Value.parent.IsSome) |> Seq.length = 2)
-            Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
+            Assert.Equal(4, storage.Count)
+            Assert.Equal(2, storage |> Seq.filter (fun x -> (cast x).parent.IsSome) |> Seq.length)
+            Assert.Equal(4, storage |> Seq.filter (fun x -> (cast x).status = Agent.Join.Status.Completed) |> Seq.length)
+            Assert.Equal(1, storage |> Seq.filter (fun x -> not (cast x).childrenStatuses.IsEmpty) |> Seq.length)
         } |> Async.RunSynchronously
 
     [<Fact>]
@@ -197,14 +152,14 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
         async {
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
-            let agent = newAgent(newInMemoryForkProgressStorage storage)
-            let! request = Agent.createRequest agent.scheduler.joinStore
+            let agent = newAgent(InMemory.newJoinStorageOf storage)
+            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
             let! _ = Agent.executeWithResult (Fork1) request agent
 
-            Assert.True(storage |> Seq.forall (fun x -> x.Value.status = Agent.Join.Status.Completed))
-            Assert.True(storage |> Seq.filter(fun x -> x.Value.parent.IsSome) |> Seq.length = 4)
-            Assert.True(storage |> Seq.filter(fun x -> not x.Value.childrenStatuses.IsEmpty) |> Seq.length = 2)
-            Assert.True(storage.Count = 7)
+            Assert.Equal(7, storage |> Seq.filter(fun x -> (cast x).status = Agent.Join.Status.Completed) |> Seq.length)
+            Assert.Equal(4, storage |> Seq.filter(fun x -> (cast x).parent.IsSome) |> Seq.length)
+            Assert.Equal(2, storage |> Seq.filter(fun x -> not (cast x).childrenStatuses.IsEmpty) |> Seq.length)
+            Assert.Equal(7, storage.Count)
         } |> Async.RunSynchronously
 
     [<Fact>]
@@ -212,15 +167,14 @@ Storage entry contents: %A. New entry contents: %A" joinId existingEntry joinEnt
         async {
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
-            let agent = newAgent(newInMemoryForkProgressStorage storage)
-            let! request = Agent.createRequest agent.scheduler.joinStore
+            let agent = newAgent(InMemory.newJoinStorageOf storage)
+            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
             let! _ =
                 Assert.ThrowsAnyAsync(
                     fun () ->
-                        async {
-                            let! result = Agent.executeWithResult (Join1 { guid = System.Guid.Empty; timestamp = System.DateTimeOffset.UtcNow }) request agent
-                            return ()
-                        } |> Async.StartAsTask :> System.Threading.Tasks.Task
+                         Agent.executeWithResult (Join1 { guid = System.Guid.Empty
+                                                          timestamp = System.DateTimeOffset.UtcNow }) request agent
+                         |> Async.StartAsTask :> System.Threading.Tasks.Task
                 ) |> Async.AwaitTask
             return ()
         } |> Async.RunSynchronously
