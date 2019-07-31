@@ -38,6 +38,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A76DC263-365A-457C-A1C2-E4C05986061B}"
 	ProjectSection(SolutionItems) = preProject
 		scripts\build.ps1 = scripts\build.ps1
+		scripts\Get-Version.ps1 = scripts\Get-Version.ps1
 		scripts\packnuget.ps1 = scripts\packnuget.ps1
 	EndProjectSection
 EndProject
