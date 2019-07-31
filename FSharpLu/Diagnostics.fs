@@ -142,7 +142,7 @@ module Process =
                     ),
             EnableRaisingEvents = true)
 
-    /// Starts a process and returns an asynchronous workflow that waits
+    /// Starts a process and asynchronously wait
     /// for it to terminate
     let startProcessAsync command arguments workingDir (flags:ProcessStartFlags) (timeout:ProcessTimeoutAction) (environmentVariables:List<string*string> option) =
         async {
@@ -181,14 +181,14 @@ module Process =
             instance.Exited.Add
                 (fun _ ->
                     timer.Stop()
-                    /// ... but then this handler still gets called if the process instance gets killed
-                    /// with .Kill() before the underlying OS process gets actually started with .Start()!
-                    /// which then causes the below evaluation of `.ExitCode` to throw
+                    // ... but this handler still gets called if the process instance gets killed
+                    // (e.g. using .Kill() function) before the underlying OS process gets actually 
+                    /// started with .Start()!
+                    /// Thise then causes the below evaluation of `.ExitCode` to throw
                     //    `System.InvalidOperationException: No process is associated with this object`
+                    // we thus to wrap this code in a try ..catch block
+                    // to swallow such exception.
                     try
-                        // we still need to check if HasExited otherwise the call to .ExitCode can throw
-                        //  `System.InvalidOperationException: No process is associated with this object`
-                        // on some .NET runtimes (e.g. unit tests in AppVeyor) if the process was forced terminated.
                         Trace.info "Process execution terminated in %O with exit code 0x%X: '%O %O'" timer.Elapsed (int32 instance.ExitCode) command arguments
                         ()
                     with :? System.InvalidOperationException ->
@@ -203,8 +203,6 @@ module Process =
                 | AttemptToKillProcessAfterTimeout t
                 | KeepTheProcessRunningAfterTimeout t ->
                     Async.StartChild(waitEvent, int t.TotalMilliseconds)
-
-            let! t = Async.Sleep(2000) /// attempt to trigger bug
 
             // Standard output must be read prior to waiting on the instance to exit.
             // Otherwise, a deadlock is created when the child process has filled its output

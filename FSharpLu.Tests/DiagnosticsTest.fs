@@ -194,3 +194,74 @@ type ProcessTests() =
     [<TestCategory("Utilities")>]
     member this.ProcessAsyncAuxMultiLineStandardOutput() =
         processAsyncAuxMultiLineStandardOutput()
+
+    [<TestMethod>]
+    [<Description("No hang in logic to await process exit")>]
+    [<TestCategory("Utilities")>]
+    member this.NoHangInStartProcessLogic() =
+        let attemptToHang i = async {
+            let timeoutInMilliseconds = 3000
+            let command = "ping"
+            let arguments = "-?"
+            let workingDir = ""
+            use instance = Process.createProcessInstance command arguments workingDir Process.ProcessStartFlags.Elevated
+            let timer = System.Diagnostics.Stopwatch()
+            
+            timer.Start()
+            let eventFired = System.Diagnostics.Stopwatch()
+            
+            let mutable eventTriggered = false
+            use instanceExit = new System.Threading.AutoResetEvent(false)
+            instance.Exited.Add
+                (fun _ ->
+                    eventTriggered <- true
+                    eventFired.Start()
+                    instanceExit.Set() |> ignore
+                    try
+                        printfn "[%d:Exit Event] Process execution terminated in %O with exit code 0x%X: '%O %O'" i timer.Elapsed (int32 instance.ExitCode) command arguments
+                    with :? System.InvalidOperationException ->
+                        printfn "[%d:Exit Event] Process execution terminated abruptly in %O with no exit code: '%O %O'" i timer.Elapsed command arguments
+                        )
+
+            #if BUGGY_WAITPROCESSEXIT
+            // Keeping the old buggy version to make sure it never 
+            // gets reintroduced in the future.
+            // For some unexplained reason the Exited event may not
+            // always signal Async.AwaitEvent, even though the
+            // event added via instance.Exited.Add does get fired!
+            let! waitAsync = 
+                let waitEvent = Async.AwaitEvent(instance.Exited)
+                Async.StartChild(waitEvent, timeoutInMilliseconds) 
+            #else
+            // working implementation  (passing the test)
+            let waitAsync = Async.AwaitWaitHandle(instanceExit, timeoutInMilliseconds)
+            #endif
+
+            if not (instance.Start()) then
+                failwithf "[%d] Could not start command: '%s' with parameters '%s'" i command arguments
+            else
+                try
+                    let! _ = waitAsync
+                    printfn "waitAsync completed"
+                with 
+                | :? System.TimeoutException -> 
+                    if eventTriggered then
+                        failwithf "The wait timed out %O after the exit event fired!" eventFired.Elapsed
+                    else
+                        failwith "Test inconclusive: Exit event has not fired, need to increase timeout in the unit test"
+
+                printfn "[%d] %s %s exited with code: %d" i command arguments instance.ExitCode
+
+            Assert.IsTrue ((instance.ExitCode = 0), "Process should return error code 0")
+            
+        }
+        // depending on the machine CPU, 
+        //a higher number may be needed to repro
+        let processCount = 50
+        seq { 1..processCount } 
+        |> Seq.map attemptToHang
+        |> Async.Parallel
+        |> Async.Ignore
+        |> Async.RunSynchronously
+        
+
