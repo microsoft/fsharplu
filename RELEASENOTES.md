@@ -1,3 +1,8 @@
+- 0.11.3
+
+  - New: Fork and Join (WhenAll, WhenAny) for agent state machines
+  - Fix: Under stressed condition, the call to `Async.AwaitEvent` in `startProcessAsync` could hang even if the process does terminate.
+
 - 0.11.2 Add WMI and Hyper providers + minor fixes
 
   - Add WMI helpers, Win32 management and HyperV modules

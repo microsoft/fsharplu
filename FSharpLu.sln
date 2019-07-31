@@ -22,6 +22,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		LICENSE.MD = LICENSE.MD
 		msft-StrongName.pub = msft-StrongName.pub
 		README.md = README.md
+		RELEASENOTES.md = RELEASENOTES.md
 		THIRDPARTYNOTICE.md = THIRDPARTYNOTICE.md
 	EndProjectSection
 EndProject
