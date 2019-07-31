@@ -175,34 +175,43 @@ module Process =
             let timer = System.Diagnostics.Stopwatch()
 
             timer.Start()
+            use instanceExit = new System.Threading.AutoResetEvent(false)
 
-            // Note: it's important to register this event before calling instance.Start()
+            // Note: it's important to register this event __before__ calling instance.Start()
             // to avoid a deadlock if the process terminates too quickly...
             instance.Exited.Add
                 (fun _ ->
                     timer.Stop()
                     // ... but this handler still gets called if the process instance gets killed
-                    // (e.g. using .Kill() function) before the underlying OS process gets actually 
+                    // (e.g. using .Kill() function) before the underlying OS process gets actually
                     /// started with .Start()!
-                    /// Thise then causes the below evaluation of `.ExitCode` to throw
+                    /// This then causes below  evaluation of property `.ExitCode` to throw with:
                     //    `System.InvalidOperationException: No process is associated with this object`
-                    // we thus to wrap this code in a try ..catch block
-                    // to swallow such exception.
+                    // we thus wrap the handler within a try .. catch block.
                     try
                         Trace.info "Process execution terminated in %O with exit code 0x%X: '%O %O'" timer.Elapsed (int32 instance.ExitCode) command arguments
-                        ()
                     with :? System.InvalidOperationException ->
                         Trace.info "Process execution terminated abruptly in %O with no exit code: '%O %O'" timer.Elapsed command arguments
-                        ())
+                    if not instanceExit.SafeWaitHandle.IsClosed then
+                        instanceExit.Set() |> ignore)
 
-            let waitEvent = Async.AwaitEvent(instance.Exited)
-            let! waitAsync =
+            // IMPORTANT NOTE:
+            // It is tempting here to use 
+            //      Async.AwaitEvent(instance.Exited) 
+            // to detect when the process ends, instead of relying on 
+            // an extra System.Threading.AutoResetEvent.
+            //
+            // However this can hang when stars don't align...
+            // (See unit test `NoHangInStartProcessLogic` for details.)
+            // Also, awaiting with process.Wait also leads to hang when
+            // attempting to capture stdout/stderr.
+            let waitAsync =
                match timeout with
                 | NoTimeout ->
-                    Async.StartChild(waitEvent)
+                    Async.AwaitWaitHandle(instanceExit)
                 | AttemptToKillProcessAfterTimeout t
                 | KeepTheProcessRunningAfterTimeout t ->
-                    Async.StartChild(waitEvent, int t.TotalMilliseconds)
+                    Async.AwaitWaitHandle(instanceExit, int <| t.TotalMilliseconds)
 
             // Standard output must be read prior to waiting on the instance to exit.
             // Otherwise, a deadlock is created when the child process has filled its output
@@ -233,49 +242,60 @@ module Process =
                 let message = sprintf "Could not start command: '%s' with parameters '%s'" command arguments
                 return raise <| System.InvalidOperationException(message)
             else
-                try
-                    if redirectOutput then
-                        instance.BeginOutputReadLine()
-                    if redirectErrors then
-                        instance.BeginErrorReadLine()
+                if redirectOutput then
+                    instance.BeginOutputReadLine()
+                if redirectErrors then
+                    instance.BeginErrorReadLine()
 
-                    let! _ = waitAsync
-                    Trace.info "%s %s exited with code: %d" command arguments instance.ExitCode
+                let! exitedBeforeTimeout = waitAsync
+
+                let exitCode = 
+                    if exitedBeforeTimeout then
+                        Trace.info "(%d) %s %s exited with code: %d" instance.Id command arguments instance.ExitCode
+                        instance.ExitCode
+                    else
+                        match timeout with
+                        | NoTimeout ->
+                            failwith "Impossible case: waitAsync timed out with an infinite timeout value!"
+                        | AttemptToKillProcessAfterTimeout t
+                        | KeepTheProcessRunningAfterTimeout t ->
+                            Trace.info "Process (%d) [%s %s] did not exit within allocated time out of %f seconds." instance.Id command arguments t.TotalSeconds
+                            // Note: calling instance.ExitCode would throw:
+                            //  System.InvalidOperationException: Process must exit before requested information can be determined.
+                            -1
+
+                if exitedBeforeTimeout then
+                    // Read the stdout and stderr
                     if redirectOutput then
                         let! _ = Async.AwaitWaitHandle noMoreOutput
-                        ()
+                        Trace.verbose "Standard output captured (%d) [%s %s]" instance.Id command arguments
 
                     if redirectErrors then
                         let! _ = Async.AwaitWaitHandle noMoreError
-                        ()
-
-                    return
-                        {
-                            ProcessResult.ProcessExited = true
-                            ProcessId = instance.Id
-                            ExitCode = instance.ExitCode
-                            ExecutionTime = timer.Elapsed
-                            StandardOutput = standardOutput.ToString()
-                            StandardError = standardError.ToString()
-                        }
-                with
-                | :? System.TimeoutException as e ->
+                        Trace.verbose "Standard error captured (%d) [%s %s]" instance.Id command arguments
+                else
+                    // We should not read stdoud/stderr since the time out period is already exceeded,
+                    // and reading the standard outputerror would indirectly wait for the process to terminate!
                     match timeout with
+                    | KeepTheProcessRunningAfterTimeout _
                     | NoTimeout -> ()
                     | AttemptToKillProcessAfterTimeout t ->
-                        Trace.info "%s %s did not exit within allocated time out of %f seconds. Killing process." command arguments t.TotalSeconds
-                        try instance.Kill() with _ -> ()
-                    | KeepTheProcessRunningAfterTimeout t ->
-                        Trace.info "%s %s did not exit within allocated time out of %f seconds." command arguments t.TotalSeconds
-                    return
-                        {
-                            ProcessResult.ProcessExited = false
-                            ProcessId = instance.Id
-                            ExitCode = instance.ExitCode
-                            ExecutionTime = timer.Elapsed
-                            StandardOutput = standardOutput.ToString()
-                            StandardError = standardError.ToString()
-                        }
+                        Trace.info "Killing timed-out process (%d) [%s %s]" instance.Id command arguments
+                        try 
+                            instance.Kill()
+                            Trace.info "Process killed (%d) [%s %s]" instance.Id command arguments
+                        with _ ->
+                            Trace.warning "Failed to kill process (%d) [%s %s]" instance.Id command arguments
+
+                return
+                    {
+                        ProcessResult.ProcessExited = exitedBeforeTimeout
+                        ProcessId = instance.Id
+                        ExitCode = exitCode
+                        ExecutionTime = timer.Elapsed
+                        StandardOutput = standardOutput.ToString()
+                        StandardError = standardError.ToString()
+                    }
         }
 
     // Start a process and returns an asynchronous workflow that waits

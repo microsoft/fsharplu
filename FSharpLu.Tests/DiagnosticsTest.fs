@@ -224,11 +224,11 @@ type ProcessTests() =
                         )
 
             #if BUGGY_WAITPROCESSEXIT
-            // Keeping the old buggy version to make sure it never 
-            // gets reintroduced in the future.
-            // For some unexplained reason the Exited event may not
-            // always signal Async.AwaitEvent, even though the
-            // event added via instance.Exited.Add does get fired!
+            // Buggy version kept for reference to make sure it never
+            // gets reintroduced in the future:
+            // for some unexplained reason, the Exited event may not always 
+            // signal Async.AwaitEvent, even though the
+            // event added above via instance.Exited.Add does get fired!
             let! waitAsync = 
                 let waitEvent = Async.AwaitEvent(instance.Exited)
                 Async.StartChild(waitEvent, timeoutInMilliseconds) 
