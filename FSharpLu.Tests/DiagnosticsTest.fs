@@ -201,8 +201,8 @@ type ProcessTests() =
     member this.NoHangInStartProcessLogic() =
         let attemptToHang i = async {
             let timeoutInMilliseconds = 3000
-            let command = "ping"
-            let arguments = "-?"
+            let command = "cmd"
+            let arguments = "/c echo NoHangInStartProcessLogic"
             let workingDir = ""
             use instance = Process.createProcessInstance command arguments workingDir Process.ProcessStartFlags.Elevated
             let timer = System.Diagnostics.Stopwatch()
@@ -229,28 +229,37 @@ type ProcessTests() =
             // for some unexplained reason, the Exited event may not always 
             // signal Async.AwaitEvent, even though the
             // event added above via instance.Exited.Add does get fired!
-            let! waitAsync = 
+            let! startWaiting = 
                 let waitEvent = Async.AwaitEvent(instance.Exited)
                 Async.StartChild(waitEvent, timeoutInMilliseconds) 
+
+            let waitAsync = 
+                async {
+                    try
+                        let! _ = startWaiting
+                        return true
+                    with 
+                    | :? System.TimeoutException -> return false
+                }
             #else
             // working implementation  (passing the test)
             let waitAsync = Async.AwaitWaitHandle(instanceExit, timeoutInMilliseconds)
             #endif
 
-            if not (instance.Start()) then
-                failwithf "[%d] Could not start command: '%s' with parameters '%s'" i command arguments
-            else
-                try
-                    let! _ = waitAsync
-                    printfn "waitAsync completed"
-                with 
-                | :? System.TimeoutException -> 
+            if instance.Start() then
+                let! noTimeOut = waitAsync
+                printfn "waitAsync completed"
+
+                if noTimeOut then
+                    printfn "[%d] %s %s exited with code: %d" i command arguments instance.ExitCode
+                else
+                    printfn "[%d] %s %s timedout" i command arguments
                     if eventTriggered then
                         failwithf "The wait timed out %O after the exit event fired!" eventFired.Elapsed
                     else
                         failwith "Test inconclusive: Exit event has not fired, need to increase timeout in the unit test"
-
-                printfn "[%d] %s %s exited with code: %d" i command arguments instance.ExitCode
+            else
+                failwithf "[%d] Could not start command: '%s' with parameters '%s'" i command arguments
 
             Assert.IsTrue ((instance.ExitCode = 0), "Process should return error code 0")
             
