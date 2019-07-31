@@ -151,6 +151,8 @@ steps:
       https://www.nuget.org/packages/Microsoft.FSharpLu.Json/
       https://www.nuget.org/packages/Microsoft.FSharpLu.Windows/'
     isDraft: true
+    addChangeLog: true
+    compareWith: lastRelease
 
 - task: NuGetCommand@2
   displayName: Publish release to nuget
