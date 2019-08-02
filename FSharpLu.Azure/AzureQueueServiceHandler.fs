@@ -91,7 +91,7 @@ module QueueScheduler =
         abstract k<'Request, 'Result> : Async<Agent.ExecutionInstruction<'Request, 'Result>> -> Async<unit>
 
     /// Loggger interface for request outcome
-    type OutcomeLogger =
+    type OutcomeLogger<'Request, 'QueueMessage> =
         abstract log : RequestOutcome<'Request, 'Result, 'QueueMessage> -> unit
 
     /// Handler for queued requests
@@ -156,7 +156,7 @@ module QueueScheduler =
             (queuedMessage:'QueueMessage)
             (handler:Handler<'Context, 'Request>)
             (getTags:'Request -> (string*string) list)
-            (logger: OutcomeLogger) =
+            (logger: OutcomeLogger<'Request, 'QueueMessage>) =
         async {
 
             let requestInsertionTime =
@@ -264,7 +264,7 @@ module QueueScheduler =
                 (signalHeartBeat : unit -> unit)
                 (terminationRequested: System.Threading.CancellationToken)
                 getTags
-                logger
+                (logger:OutcomeLogger<'Request, 'QueueMessage>)
                 =
         async {
             use processingPool = new Microsoft.FSharpLu.Async.Synchronization.Pool(options.ConcurrentRequestWorkers)
@@ -471,7 +471,7 @@ module AzureQueue =
         : QueueScheduler.QueueingAPI<CloudQueueMessage, ^QueueContent> =
         // Create the reference to the Azure queue
         let queueClient = azureStorage.CreateCloudQueueClient()
-        let queueName = sprintf "%s-%A" queueNamePrefix queueId
+        let queueName = queueNamePrefix + "-" + ((sprintf "%A" queueId).ToLowerInvariant())
         let queue = queueClient.GetQueueReference(queueName)
         if not <| queue.CreateIfNotExists() then
             Trace.info "Queue %s was already created." queueName

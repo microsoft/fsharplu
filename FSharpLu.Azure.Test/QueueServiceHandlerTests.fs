@@ -217,7 +217,7 @@ module InMemorySchedulerTest =
                         ignore // no heartbeat
                         cts.Token
                         (fun _ -> []) // no tags
-                        {new OutcomeLogger with member __.log _ = ()} // no logger
+                        {new OutcomeLogger<_, _> with member __.log _ = ()} // no logger
             with
             | QueueScheduler.ProcessingLoopCancelled ->
                 Trace.warning "Processing loop terminated by Azure."
@@ -289,7 +289,7 @@ module AzureQueueSchedulerTest =
                         ignore // no heartbeat
                         terminationRequested
                         (fun _ -> []) // no tags
-                        {new OutcomeLogger with member __.log _ = ()} // no logger
+                        {new OutcomeLogger<_,_> with member __.log _ = ()} // no logger
             with
             | QueueScheduler.ProcessingLoopCancelled ->
                 Trace.warning "Processing loop terminated by Azure."
