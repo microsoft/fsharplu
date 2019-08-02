@@ -1,3 +1,7 @@
+- 0.11.4
+  - Build with dotnet SDK 2.2.401 and F# 4.6
+  - Minor changes in state machine OutcomeLogger<_,_>
+
 - 0.11.3
 
   - New: Fork and Join (WhenAll, WhenAny) for agent state machines
