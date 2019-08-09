@@ -162,14 +162,14 @@ let setAccessPolicy
             && permissionsToSecrets.IsNone
             && permissionsToCertificates.IsNone
             && permissionsToStorage.IsNone then
-                raise <| new System.ArgumentException("No permissions specified")
+                raise <| System.ArgumentException("No permissions specified")
 
         use c = new Microsoft.Azure.Management.KeyVault.KeyVaultManagementClient(
                         Microsoft.Rest.TokenCredentials(authenticationToken),
                         SubscriptionId = subscriptionId)
 
         if isNull vault then
-            raise <| new System.NullReferenceException("Vault parameter is null: vault")
+            raise <| System.NullReferenceException("Vault parameter is null: vault")
 
         let emptyPermissions (s:(string []) option) =
             s.IsNone || Seq.isEmpty s.Value
@@ -302,7 +302,7 @@ let trySetAccessPolicy
              && permissionsToSecrets.IsNone
              && permissionsToCertificates.IsNone
              && permissionsToStorage.IsNone then
-                 raise <| new System.ArgumentException("No permissions specified")
+                 raise <| System.ArgumentException("No permissions specified")
 
          use c = new Microsoft.Azure.Management.KeyVault.KeyVaultManagementClient(
                          Microsoft.Rest.TokenCredentials(authenticationToken),

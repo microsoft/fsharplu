@@ -54,7 +54,7 @@ let exists2 (azure:Auth.Subscription) groupName =
 /// Create an Azure Resource Group (does not fail if it already exists)
 let create (c:Context.InfrastructureContext) groupName location tagsMap =
     async {
-    
+
         TraceTags.info "Creating the resource group" (c.tags @ ["groupName", groupName])
         let resourceGroup =
             ResourceGroup(
@@ -159,7 +159,7 @@ let generateRandomAzureDeploymentName (prefix:string) =
     // one char for the underscode and another one for at least one random character
     let minimalSuffixLength = 2
     if prefix.Length + minimalSuffixLength > MaxAzureDeploymentNameLength then
-        raise (new System.ArgumentOutOfRangeException(sprintf "The prefix length should me be less than %d" MaxAzureDeploymentNameLength))
+        raise (System.ArgumentOutOfRangeException(sprintf "The prefix length should me be less than %d" MaxAzureDeploymentNameLength))
 
     let charList = "01234567891abcdefghijklmnopqrstuvwxyz"
     let generator = Random(int System.DateTime.UtcNow.Ticks)

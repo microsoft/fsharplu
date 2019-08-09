@@ -364,11 +364,11 @@ module Client =
 
                 clientHandler.ClientCertificates.Add(certificate) |> ignore
                 new HttpClient(clientHandler,
-                            BaseAddress = new Uri(httpOptions.ServerEndpoint),
+                            BaseAddress = Uri(httpOptions.ServerEndpoint),
                             Timeout = httpOptions.Timeout)
             | None ->
                 new HttpClient(
-                                BaseAddress = new Uri(httpOptions.ServerEndpoint),
+                                BaseAddress = Uri(httpOptions.ServerEndpoint),
                                 Timeout = httpOptions.Timeout
                             )
         client.DefaultRequestHeaders.ConnectionClose <- (System.Nullable<bool> true)
@@ -381,7 +381,7 @@ module Client =
 
         client.DefaultRequestHeaders.Add(Constants.CorrelationIdHeader, correlationId)
         client.DefaultRequestHeaders.Accept.Clear()
-        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(Constants.JsonMediaType))
+        client.DefaultRequestHeaders.Accept.Add(MediaTypeWithQualityHeaderValue(Constants.JsonMediaType))
         client
 
     module Methods =

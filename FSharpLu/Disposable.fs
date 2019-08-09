@@ -51,7 +51,7 @@ module Seq =
 
     open System.Collections
 
-    let noReset() = raise (new System.NotSupportedException("Reset not supported on this enumerable"))
+    let noReset() = raise (System.NotSupportedException("Reset not supported on this enumerable"))
 
     let IEnumerator_cast (e : IEnumerator) : IEnumerator<'T> =
         {
