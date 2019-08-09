@@ -25,11 +25,11 @@ type CaseInsensitiveComparer() =
 
 /// Extension methods for String
 type System.String with
-            
+
     /// Extend the string replace function to allow for StringComparison options to be specified
     member this.Replace (oldString:string, newString:string, comparisonType:System.StringComparison): string =
         let index = this.IndexOf(oldString, comparisonType)
-            
+
         if index >= 0 then
             this.Remove(index, oldString.Length).Replace(oldString, newString, comparisonType).Insert(index, newString)
         else
@@ -167,7 +167,7 @@ let decodeFromBase64 (base64Encoded:byte[]) =
 /////// Implementation of Knuth–Morris–Pratt on Stream
 
 /// Used by kmpTryFindBytesInStream below to compute the backtrack array
-let computeKmpBacktrack (searchBytes: uint8[]) = 
+let computeKmpBacktrack (searchBytes: uint8[]) =
     let backtrack = Array.zeroCreate (searchBytes.Length+1)
     let rec back b j =
         if j >= 0 && b <> searchBytes.[j] then
@@ -205,7 +205,7 @@ let kmpFindBytesInStream (findOptions:FindOptions) (stream:System.IO.Stream) (se
     let mutable k = 0
     let mutable byteRead = stream.ReadByte()
     let mutable results = []
-    while byteRead <> -1 && (results = [] || findOptions = FindAll) do
+    while byteRead <> -1 && (List.isEmpty results || findOptions = FindAll) do
         if searchBytes.[k] = (byteRead |> uint8) then
             k <- k + 1
             if k = searchBytes.Length then

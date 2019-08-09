@@ -26,7 +26,7 @@ let public getExistingDir path =
 
 /// Return the size in bytes of a file
 let fileLength filePath =
-    let f = new System.IO.FileInfo(filePath)
+    let f = System.IO.FileInfo(filePath)
     f.Length
 
 /// Append a line to a text file
@@ -257,14 +257,14 @@ let getIniValue (file:string) textToSearchFor =
 module private Constants =
     let [<Literal>] FILE_ALREADY_EXISTS = 0x80070050
 
-/// Create a new file if it does not already exist and atomically write to it using the specified FileStream function. 
+/// Create a new file if it does not already exist and atomically write to it using the specified FileStream function.
 /// If the file already exists then do nothing and return None.
 let asyncTryCreateFile filePath (f: System.IO.FileStream -> Async<'a>) =
     async {
         if System.IO.File.Exists(filePath) then
             return None
         else
-            let fs = 
+            let fs =
                 try
                     Some (new System.IO.FileStream(filePath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
                 with
@@ -272,9 +272,9 @@ let asyncTryCreateFile filePath (f: System.IO.FileStream -> Async<'a>) =
 
             match fs with
             | Some fileStream ->
-                use stream = fileStream 
+                use stream = fileStream
                 let! result = f stream
                 return Some result
-            | None -> 
+            | None ->
                 return None
     }

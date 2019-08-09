@@ -17,7 +17,7 @@ let mutable public tryGetConfigValue =
         | v -> Some v
 
 /// Read a configuration value
-let public getConfigValue key = 
+let public getConfigValue key =
     tryGetConfigValue key |> Option.orDo (fun () -> invalidOp (sprintf "Configuration key %s missing from config file" key))
 
 /// Set a configuration value
@@ -33,18 +33,18 @@ let public getConfigArray name =
 
 /// Use a user-specified .config file
 let public loadCustomConfig filePath =
-    let configFileMap = new ExeConfigurationFileMap(ExeConfigFilename = filePath)
+    let configFileMap = ExeConfigurationFileMap(ExeConfigFilename = filePath)
     let config = ConfigurationManager.OpenMappedExeConfiguration(configFileMap, ConfigurationUserLevel.None)
-    if config.AppSettings = null || config.AppSettings.Settings = null then
+    if isNull config.AppSettings || isNull config.AppSettings.Settings then
         invalidOp (sprintf "Settings missing from config file: %s" filePath)
     let settings = config.AppSettings.Settings
-    tryGetConfigValue <- fun (key:string) -> 
+    tryGetConfigValue <- fun (key:string) ->
                             match settings.[key] with
                             | null -> None
                             | v -> Some v.Value
 
-    setConfigValue <- fun (key:string) value -> 
-                                if settings.[key] <> null then
+    setConfigValue <- fun (key:string) value ->
+                                if not <| isNull settings.[key] then
                                     settings.Remove(key)
                                 settings.Add(key, value)
     config

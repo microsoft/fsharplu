@@ -52,7 +52,7 @@ let registerPortRedirections tags (c:Microsoft.Azure.Management.Network.INetwork
         // Create port redirect rule in load balancer
         let addRule (assignedPublicPort, (localPort, name, protocol)) =
 
-            let rule = new Models.InboundNatRule(
+            let rule = Models.InboundNatRule(
                                 protocol = protocol,
                                 backendPort = System.Nullable localPort,
                                 frontendIPConfiguration = frontendIp,

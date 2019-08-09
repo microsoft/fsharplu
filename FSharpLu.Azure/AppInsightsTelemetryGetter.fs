@@ -36,13 +36,13 @@ let newHttpClient (auth:Auth.ADAuthenticationMethod) =
 type AppInsightsTelemetryGetter(httpClient:HttpClient, subscription: Subscription, resourceGroup: string, appInsightsDeployment: string) =
 
     // App Insights API team asked to add this header to the requests, this way they can easier debug and diagnose issues that might happen on the API controller side
-    let [<Literal>] msClientIdHeader = "x-ms-client-request-id"
+    let [<Literal>] MsClientIdHeader = "x-ms-client-request-id"
 
     let getAppInsights (url: string) =
         async {
             let requestId = Guid.NewGuid()
-            httpClient.DefaultRequestHeaders.Remove(msClientIdHeader) |> ignore
-            httpClient.DefaultRequestHeaders.Add(msClientIdHeader, requestId.ToString())
+            httpClient.DefaultRequestHeaders.Remove(MsClientIdHeader) |> ignore
+            httpClient.DefaultRequestHeaders.Add(MsClientIdHeader, requestId.ToString())
 
             //This try/catch a work around for the bug in dotnet core where we get OperationCancelledException raised on a timeout (https://github.com/dotnet/corefx/issues/20296)
             //IMPORTANT: this work item will break the timeout handling after it gets fixed.
