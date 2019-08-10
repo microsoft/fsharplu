@@ -41,36 +41,40 @@ steps:
       **\\*test*.fsproj
       **\\*test*.csproj
 
-- task: DotNetCoreCLI@2
-  displayName: dotnet build with delaysigning
-  inputs:
-    arguments: '--no-incremental /t:rebuild /p:Configuration="$(BuildConfiguration)" /p:DELAYSIGNING=True'
+#-------------------------------------------------------------------------------------------------------------------#
+#                                                  Signed build                                                     #
+#-------------------------------------------------------------------------------------------------------------------#
+- ${{ if eq(variables['SignBuild'], 'true') }}:
+  - task: DotNetCoreCLI@2
+    displayName: dotnet build with delaysigning
+    inputs:
+      arguments: '--no-incremental /t:rebuild /p:Configuration="$(BuildConfiguration)" /p:DELAYSIGNING=True'
 
-- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
-  displayName: ESRP CodeSign .Net assemblies
-  condition: eq(variables['SignBuild'], 'true')
-  inputs:
-    ConnectedServiceName: 'MSR Springfield Code Signing'
-    FolderPath: '$(System.DefaultWorkingDirectory)'
-    Pattern: 'microsoft.fsharplu.windows.dll,microsoft.fsharplu.dll,microsoft.fsharplu.json.dll'
-    signConfigType: inlineSignParams
-    inlineOperation: |
-     [
-         {
-             "keyCode": "CP-235845-SN",
-             "operationSetCode": "StrongNameSign",
-             "parameters": [ ],
-             "toolName": "sign",
-             "toolVersion": "1.0"
-         },
-         {
-             "keyCode": "CP-235845-SN",
-             "operationSetCode": "StrongNameVerify",
-             "parameters": [ ],
-             "toolName": "sign",
-             "toolVersion": "1.0"
-         }
-     ]
+  - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+    displayName: ESRP CodeSign .Net assemblies
+    inputs:
+      ConnectedServiceName: 'MSR Springfield Code Signing'
+      FolderPath: '$(System.DefaultWorkingDirectory)'
+      Pattern: 'microsoft.fsharplu.windows.dll,microsoft.fsharplu.dll,microsoft.fsharplu.json.dll'
+      signConfigType: inlineSignParams
+      inlineOperation: |
+       [
+           {
+               "keyCode": "CP-235845-SN",
+               "operationSetCode": "StrongNameSign",
+               "parameters": [ ],
+               "toolName": "sign",
+               "toolVersion": "1.0"
+           },
+           {
+               "keyCode": "CP-235845-SN",
+               "operationSetCode": "StrongNameVerify",
+               "parameters": [ ],
+               "toolName": "sign",
+               "toolVersion": "1.0"
+           }
+       ]
+#-------------------------------------------------------------------------------------------------------------------#
 
 - task: DotNetCoreCLI@2
   displayName: dotnet pack nuget
@@ -81,31 +85,36 @@ steps:
     versioningScheme: byEnvVar
     versionEnvVar: 'NUGET_PACKAGE_VERSION'
 
-- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
-  displayName: ESRP CodeSign Nuget Package
-  condition: eq(variables['SignBuild'], 'true')
-  inputs:
-    ConnectedServiceName: 'MSR Springfield Code Signing'
-    FolderPath: '$(Build.ArtifactStagingDirectory)\nuget'
-    Pattern: '*.nupkg'
-    signConfigType: inlineSignParams
-    inlineOperation: |
-     [
-         {
-             "keyCode": "CP-401405",
-             "operationSetCode": "NuGetSign",
-             "parameters": [ ],
-             "toolName": "sign",
-             "toolVersion": "1.0"
-         },
-         {
-             "keyCode": "CP-401405",
-             "operationSetCode": "NuGetVerify",
-             "parameters": [ ],
-             "toolName": "sign",
-             "toolVersion": "1.0"
-         }
-     ]
+
+#-------------------------------------------------------------------------------------------------------------------#
+#                                                  Signed build                                                     #
+#-------------------------------------------------------------------------------------------------------------------#
+- ${{ if eq(variables['SignBuild'], 'true') }}:
+  - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+    displayName: ESRP CodeSign Nuget Package
+    inputs:
+      ConnectedServiceName: 'MSR Springfield Code Signing'
+      FolderPath: '$(Build.ArtifactStagingDirectory)\nuget'
+      Pattern: '*.nupkg'
+      signConfigType: inlineSignParams
+      inlineOperation: |
+          [
+              {
+                  "keyCode": "CP-401405",
+                  "operationSetCode": "NuGetSign",
+                  "parameters": [ ],
+                  "toolName": "sign",
+                  "toolVersion": "1.0"
+              },
+              {
+                  "keyCode": "CP-401405",
+                  "operationSetCode": "NuGetVerify",
+                  "parameters": [ ],
+                  "toolName": "sign",
+                  "toolVersion": "1.0"
+              }
+          ]
+#-------------------------------------------------------------------------------------------------------------------#
 
 - task: DotNetCoreCLI@2
   displayName: dotnet push nuget
@@ -134,31 +143,35 @@ steps:
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact: drop'
 
-- task: GitHubRelease@0
-  condition: eq(variables['PublishRelease'], 'true')
-  inputs:
-    gitHubConnection: 'FSharpLu-Github'
-    repositoryName: '$(Build.Repository.Name)'
-    action: 'create'
-    target: '$(Build.SourceVersion)'
-    tag: 'release-$(Build.SourceVersion)'
-    tagSource: 'manual'
-    title: 'FSharpLu Release $(NUGET_PACKAGE_VERSION)'
-    releaseNotesSource: 'input'
-    releaseNotes: 'Signed release $(NUGET_PACKAGE_VERSION)
+#-------------------------------------------------------------------------------------------------------------------#
+#                                                  Signed build                                                     #
+#-------------------------------------------------------------------------------------------------------------------#
+- ${{ if and(eq(variables['SignBuild'], 'true'), eq(variables['PublishRelease'], 'true')) }}:
+  - task: GitHubRelease@0
+    condition: eq(variables['PublishRelease'], 'true')
+    inputs:
+      gitHubConnection: 'FSharpLu-Github'
+      repositoryName: '$(Build.Repository.Name)'
+      action: 'create'
+      target: '$(Build.SourceVersion)'
+      tag: 'release-$(Build.SourceVersion)'
+      tagSource: 'manual'
+      title: 'FSharpLu Release $(NUGET_PACKAGE_VERSION)'
+      releaseNotesSource: 'input'
+      releaseNotes: 'Signed release $(NUGET_PACKAGE_VERSION)
+  
+        https://www.nuget.org/packages/Microsoft.FSharpLu/
+        https://www.nuget.org/packages/Microsoft.FSharpLu.Json/
+        https://www.nuget.org/packages/Microsoft.FSharpLu.Windows/'
+      isDraft: true
+      addChangeLog: true
+      compareWith: lastRelease
 
-      https://www.nuget.org/packages/Microsoft.FSharpLu/
-      https://www.nuget.org/packages/Microsoft.FSharpLu.Json/
-      https://www.nuget.org/packages/Microsoft.FSharpLu.Windows/'
-    isDraft: true
-    addChangeLog: true
-    compareWith: lastRelease
-
-- task: NuGetCommand@2
-  displayName: Publish release to nuget
-  condition: eq(variables['PublishRelease'], 'true')
-  inputs:
-    command: 'push'
-    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/Microsoft.*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
-    nuGetFeedType: 'external'
-    publishFeedCredentials: 'FSharpLu-nuget'
+  - task: NuGetCommand@2
+    displayName: Publish release to nuget
+    inputs:
+      command: 'push'
+      packagesToPush: '$(Build.ArtifactStagingDirectory)/**/Microsoft.*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+      nuGetFeedType: 'external'
+      publishFeedCredentials: 'FSharpLu-nuget'
+#-------------------------------------------------------------------------------------------------------------------#
