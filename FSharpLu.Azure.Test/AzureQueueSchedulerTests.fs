@@ -27,11 +27,12 @@ let queueProcessLoop (storageAccountConnectionString:string) queues maximumExpec
                                     (System.TimeSpan.FromSeconds(4.0))
                                     "testAgent"
         let shutdownSource = new System.Threading.CancellationTokenSource()
+        let sf = createAzureSchedulerFactory<Example.Header, Example.ServiceRequests, Example.CustomContext>(maximumExpectedStateTransitionTime)
         try
             do! QueueScheduler.processingLoopMultipleQueues<Example.ServiceQueues, Envelope<Example.Header, Example.ServiceRequests>, _, CloudQueueMessage>
                     (Microsoft.FSharpLu.Logging.Interfaces.fromTraceTag<Microsoft.FSharpLu.Azure.AppInsights.TagsTracer>)
                     Example.QueuesProcessingOptions
-                    (Example.queuesHandlersOrderedByPriority (AzureQueueSchedulerFactory<Example.Header, Example.ServiceRequests, Example.CustomContext>(maximumExpectedStateTransitionTime)) shutdownSource)
+                    (Example.queuesHandlersOrderedByPriority<CloudQueueMessage> sf shutdownSource)
                     (fun queueId -> Map.find queueId queues)
                     (fun queue queuedMessage -> {
                         queue = queue

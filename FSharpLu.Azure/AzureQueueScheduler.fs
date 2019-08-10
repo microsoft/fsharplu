@@ -90,13 +90,21 @@ type AzureQueueSchedulerFactory<'Header, 'Request, 'CustomContext>
                 spawn = context.queue.post
                 joinStore = context.joinStore
 
-                onInProcessSleep = fun sleepTime -> 
+                onInProcessSleep = fun sleepTime ->
                     // Increase visibility timeout of the Azure queue message
                     // so that we can resume where we left off if the process crashes, is killed, upgraded...
                     context.queue.updateVisibility context.queuedMessage (sleepTime + maximumExpectedStateTransitionTime)
 
-                onGoto = fun (newState:'State) -> 
+                onGoto = fun (newState:'State) ->
                     let amendedEnvelop = envelope.updateState<'Input, 'State> newState
                     context.queue.update context.queuedMessage amendedEnvelop maximumExpectedStateTransitionTime
                 embed = fun metadata state -> envelope.updateMetadataAndState<'Input, 'State> metadata state
             }
+
+/// Workaround for F# compiler bug when building with `dotnet build`
+/// C:\sources\fsharpLu\FSharpLu.Azure.Test\AzureQueueSchedulerTests.fs(36,81):
+///  error FS0001: The type 'AzureQueueSchedulerFactory<Header,ServiceRequests,CustomContext>' is not compatible
+///  with the type 'ISchedulerFactory<CloudQueueMessage,Header,ServiceRequests,CustomContext>'
+let createAzureSchedulerFactory<'Header, 'Request, 'CustomContext> maximumExpectedStateTransitionTime =
+    AzureQueueSchedulerFactory<'Header, 'Request, 'CustomContext>(maximumExpectedStateTransitionTime)
+                            :> ISchedulerFactory<CloudQueueMessage, 'Header, 'Request, 'CustomContext>
