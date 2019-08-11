@@ -6,6 +6,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="HofstadterCallTest.fs" />
     <Compile Include="Async.fs" />
     <Compile Include="CacheMapTest.fs" />
     <Compile Include="DiagnosticsTest.fs" />

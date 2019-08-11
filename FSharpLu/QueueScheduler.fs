@@ -11,6 +11,10 @@ type RequestStatus<'m, 't> =
 /// The request has been processed and can be removed from the scheduling system
 | Completed of 't option
 
+/// The request has been suspended (e.g. waiting for another call to return)
+/// and should be removed from the scheduling system
+| Suspended
+
 /// Mark the request as completed and initiate another request
 | Coreturn of 'm
 
@@ -167,7 +171,7 @@ type Options =
 exception RejectedMessage
 
 /// Process a single request from a Queue
-let processRequest<'Context, 'Request, 'QueueMessage>
+let inline processRequest<'Context, 'Request, 'QueueMessage>
         (trace:Microsoft.FSharpLu.Logging.Interfaces.ITagsTracer)
         (context:'Context)
         (queueSystem:QueueingAPI<'QueueMessage, 'Request>)
@@ -209,6 +213,8 @@ let processRequest<'Context, 'Request, 'QueueMessage>
                                     processingTime.Stop()
                                     match executionStatus with
                                     | RequestStatus.Completed _ ->
+                                        do! queueSystem.delete queuedMessage
+                                    | RequestStatus.Suspended ->
                                         do! queueSystem.delete queuedMessage
                                     | RequestStatus.SleepAndResume visibilityTimeout ->
                                         do! queueSystem.updateVisibility queuedMessage visibilityTimeout
@@ -271,7 +277,7 @@ exception ProcessingLoopCancelled
 
 /// A processing loop handling requests posted on multiple
 /// queues with different assigned priorities
-let processingLoopMultipleQueues<'QueueId, 'Request, 'Context, 'QueueMessage>
+let inline processingLoopMultipleQueues<'QueueId, 'Request, 'Context, 'QueueMessage>
             (trace:Microsoft.FSharpLu.Logging.Interfaces.ITagsTracer)
             (options:Options)
             (queueProcessorsOrderedByPriority: (QueueProcessor<'QueueId, 'Request, 'Context>) list)
@@ -299,7 +305,7 @@ let processingLoopMultipleQueues<'QueueId, 'Request, 'Context, 'QueueMessage>
             }
 
         /// Process a batch of messages
-        let processMessageBatch handler queue (queueMessageBatch:'QueueMessage list) =
+        let inline processMessageBatch handler queue (queueMessageBatch:'QueueMessage list) =
             Async.Parallel
                 [
                     for queuedMessage in queueMessageBatch ->

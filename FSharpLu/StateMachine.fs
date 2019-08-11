@@ -36,6 +36,9 @@ type Transition<'s, 't, 'm> =
     | WhenAll of JoinId * 's
     /// Go to the specified state when any child request of the specified fork has completed
     | WhenAny of JoinId * 's
+    /// Call another request 'm (with provided JoinId metadata) and when the callee returns, continue the 
+    /// execution of the current agent at state 's
+    | Call of (JoinId -> 'm) * 's 
 
 /// A state machine with simple transitions (no support for Forking, Coroutines nor out-of-process pause/resume)
 module SimpleStateMachine =
@@ -75,6 +78,9 @@ module SimpleStateMachine =
 
                 | WhenAny _ ->
                     return failwith "StateMachine.execute does not support `WhenAny` since it only runs within a single state machine."
+        
+                | Call _ ->
+                    return failwith "StateMachine.execute does not support `Call` since it only runs within a single state machine."
 
                 | Goto newState ->
                     do! transitionCallback newState
@@ -122,6 +128,10 @@ module Agent =
         /// The request has been processed and can be removed from the scheduling system
         | Completed of 't option
 
+        /// The request has been suspended (e.g. waiting for another call to return)
+        /// and should be removed from the scheduling system
+        | Suspended
+
         /// The request completes and at the same time spawn another request
         | Coreturn of 'm
 
@@ -152,15 +162,15 @@ module Agent =
 
         /// List of subscriptions to a join condition.
         /// Encoded as requests to be posted via the Scheduler when the join condition is met.
-        type Subscriptions<'s> = (RequestMetadata * 's) list
+        type Subscriptions<'m> = 'm list
 
         /// A persistable entry storing information about a join
-        type Entry<'s> =
+        type Entry<'m> =
             {
                 /// Subscribers to notify when all children completes
-                whenAllSubscribers : Subscriptions<'s>
+                whenAllSubscribers : Subscriptions<'m>
                 /// Subscribers to notify when any child completes
-                whenAnySubscribers : Subscriptions<'s>
+                whenAnySubscribers : Subscriptions<'m>
                 /// For a fork: status is Completed if all children status are completed
                 /// For a request: status is Completed if the request as completed (Transition.Return was called)
                 status : Status
@@ -174,16 +184,16 @@ module Agent =
                 modified : System.DateTimeOffset
             }
 
-        /// Storage provider interface used to persist state of
-        /// joining points (either an agent request or a fork point)
-        /// Requirement: underlying READ/WRITE opeations need to be atomic.
-        type IStorage =
+        /// Storage provider interface used to persist 
+        /// spawning requests for joining points (either an agent request or a fork point)
+        /// Requirement: tne underlying READ/WRITE opeations need to be atomic.
+        type IStorage<'m> =
             /// An a new entry to track a request
-            abstract add<'s> : JoinId -> Entry<'s> -> Async<unit>
+            abstract add : JoinId -> Entry<'m> -> Async<unit>
             /// Update the state of a fork
-            abstract update<'s> : JoinId -> (Entry<'s> -> Entry<'s>) -> Async<Entry<'s>>
+            abstract update : JoinId -> (Entry<'m> -> Entry<'m>) -> Async<Entry<'m>>
             /// Get the state of a fork
-            abstract get<'s> : JoinId -> Async<Entry<'s>>
+            abstract get : JoinId -> Async<Entry<'m>>
 
 
     /// A scheduler responsible for scheduling execution of agents via calls to Agent.execute.
@@ -224,7 +234,7 @@ module Agent =
             spawn : 'm -> Async<unit>
 
             /// Provides an implementation of join storage (e.g. using Azure Table)
-            joinStore : Join.IStorage
+            joinStore : Join.IStorage<'m>
         }
 
     /// An agent state machine with return type 't, underlying state type 's,
@@ -261,7 +271,7 @@ module Agent =
         }
 
     /// Create a new request attached to the specified parent JoinId
-    let private createRequestWithParent<'s> (joinStore:Join.IStorage) parent =
+    let private createRequestWithParent<'m> (joinStore:Join.IStorage<'m>) parent =
         async {
             let requestId =
                 {
@@ -270,7 +280,7 @@ module Agent =
                }
 
             // Create a join entry for the request
-            do! joinStore.add<'s>
+            do! joinStore.add
                     requestId
                     { status = Join.Status.Requested
                       whenAllSubscribers = []
@@ -284,8 +294,8 @@ module Agent =
 
     /// Create a new request. Should be called by the API consumer to initialize a new request
     /// to be executed with an agent and passed to `Agent.execute`
-    let public createRequest<'s> (joinStore:Join.IStorage) =
-        createRequestWithParent<'s> joinStore None
+    let public createRequest<'m> (joinStore:Join.IStorage<'m>) =
+        createRequestWithParent<'m> joinStore None
 
     /// Return true if all children are marked as completed
     let private allCompleted childrenStatus =
@@ -302,7 +312,7 @@ module Agent =
     let private markRequestAsCompleted (m:Agent<'s, 't, 'm>) (metadata:RequestMetadata) =
         async {
             let! updatedEntry =
-                 m.scheduler.joinStore.update<'s>
+                 m.scheduler.joinStore.update
                     metadata
                     (fun u -> { u with status = Join.Status.Completed
                                        modified = System.DateTimeOffset.UtcNow } )
@@ -314,7 +324,7 @@ module Agent =
 
                 // Update child status under the request's parent entry
                 let! joinEntry =
-                    m.scheduler.joinStore.update<'s> joinId
+                    m.scheduler.joinStore.update joinId
                         (fun driftedJoinEntry ->
                             // We need to check status from the drifeted entry in case
                             // other siblings have completed sine the update started
@@ -339,8 +349,8 @@ module Agent =
                         )
 
                 // Honor the "WhenAny" subscriptions
-                for subscriberMetadata, subscriberState in whenAnySubscriptions do
-                    do! m.scheduler.spawn (m.scheduler.embed subscriberMetadata subscriberState)
+                for schedulerSpawnRequest in whenAnySubscriptions do
+                    do! m.scheduler.spawn schedulerSpawnRequest
 
                 // Honor the "WhenAll" subscriptions
                 if joinEntry.status = Join.Status.Completed then
@@ -348,8 +358,8 @@ module Agent =
                     // while trying to update the fork data
 
                     // Signal the fork's subscribers
-                    for subscriberMetadata, subscriberState in joinEntry.whenAllSubscribers do
-                        do! m.scheduler.spawn (m.scheduler.embed subscriberMetadata subscriberState)
+                    for schedulerSpawnRequest in joinEntry.whenAllSubscribers do
+                        do! m.scheduler.spawn schedulerSpawnRequest
         }
 
     /// Advance execution of an agent state machine
@@ -424,7 +434,7 @@ module Agent =
                         |> AsyncSeq.foldAsync
                             (fun spawnChildrenSoFar spawnState ->
                                 async {
-                                    let! metadata = createRequestWithParent<'s> m.scheduler.joinStore (Some joinId)
+                                    let! metadata = createRequestWithParent<'m> m.scheduler.joinStore (Some joinId)
                                     return Map.add metadata.guid (metadata, spawnState) spawnChildrenSoFar
                                 }
                             )
@@ -432,7 +442,7 @@ module Agent =
 
                     // create the join entry
                     let now = System.DateTimeOffset.UtcNow
-                    do! m.scheduler.joinStore.add<'s> joinId
+                    do! m.scheduler.joinStore.add joinId
                             {
                                 status = Join.Status.Waiting
                                 childrenStatuses = childrenMetdata |> Map.map (fun id metadata -> Join.Requested)
@@ -457,16 +467,49 @@ module Agent =
 
                     return! goto (newStateFromJoinId joinId)
 
+                /// Call another state machine agent and move to the specified state when it completes
+                | Transition.Call (calleeRequestBuilder, returnState) ->
+                    
+                    // allocate an ID for the caller's join entry
+                    let callerJoinId =
+                        {
+                            guid = System.Guid.NewGuid()
+                            timestamp = System.DateTimeOffset.UtcNow
+                        }
+
+                    // create a join entry for the callee
+                    let! calleeMetdata = createRequestWithParent<'m> m.scheduler.joinStore (Some callerJoinId)
+
+                    // create the join entry implementing the return call
+                    let now = System.DateTimeOffset.UtcNow
+                    do! m.scheduler.joinStore.add callerJoinId
+                            {
+                                status = Join.Status.Waiting
+                                childrenStatuses = [ calleeMetdata.guid, Join.Requested ] |> Map.ofList
+                                whenAllSubscribers = [ m.scheduler.embed requestMetadata returnState ]
+                                whenAnySubscribers = []
+                                parent = None
+                                created = now
+                                modified = now
+                            }
+
+                    // spawn the callee's request
+                    do! m.scheduler.spawn <| calleeRequestBuilder calleeMetdata
+
+                    // The request is suspended and will be resumed when the callee completes
+                    return ExecutionInstruction.Suspended
+
+                
                 /// Join on a forked transition specified by its fork Id
                 | Transition.WhenAll (joinId, newState) ->
                     let! updatedJoinEntry =
-                        m.scheduler.joinStore.update<'s> joinId
+                        m.scheduler.joinStore.update joinId
                             (fun driftedJoin ->
                                 if allCompleted driftedJoin.childrenStatuses then
                                     driftedJoin
                                 else
                                     // Subscribe to the 'WhenAll' event
-                                    let subscriber = requestMetadata, newState
+                                    let subscriber = m.scheduler.embed requestMetadata newState
                                     { driftedJoin with whenAllSubscribers = subscriber::driftedJoin.whenAllSubscribers
                                                        modified = System.DateTimeOffset.UtcNow } )
 
@@ -474,18 +517,18 @@ module Agent =
                         // The 'WhenAll' condition is already met
                         return! goto newState
                     else
-                        return ExecutionInstruction.Completed None
+                        return ExecutionInstruction.Suspended
 
                 /// 'WhenAny' joining
                 | Transition.WhenAny (joinId, newState) ->
                     let! updatedJoinEntry =
-                        m.scheduler.joinStore.update<'s> joinId
+                        m.scheduler.joinStore.update joinId
                             (fun driftedJoin ->
                                 if atleastOneCompleted driftedJoin.childrenStatuses then
                                     driftedJoin
                                 else
                                   // Subscribe to the 'WhenAny' event
-                                  let subscriber = requestMetadata, newState
+                                  let subscriber = m.scheduler.embed requestMetadata newState
                                   { driftedJoin with whenAnySubscribers = subscriber::driftedJoin.whenAnySubscribers
                                                      modified = System.DateTimeOffset.UtcNow } )
 
@@ -493,7 +536,7 @@ module Agent =
                         // The 'WhenAny' condition is already met
                         return! goto newState
                     else
-                        return ExecutionInstruction.Completed None
+                        return ExecutionInstruction.Suspended
             }
         in
         runAt initialState
@@ -503,36 +546,37 @@ module InMemory =
     open Agent
 
     /// Implements a JoinEntry storage in-memory using the provided ConcurrentDictionary
-    /// NOTE: we cannot use static type 's for the type of the value in the key-value ConcurrentDictionary
-    /// because the join store must support all kinds of state types 's (e.g. Join.Entry<'s> for 's ranging over all requets state types)
-    let newJoinStorageOf (storage:System.Collections.Concurrent.ConcurrentDictionary<JoinId, obj>) =
-        { new Agent.Join.IStorage with
-            member __.add<'s> joinId (joinEntry:Join.Entry<'s>) =
+    let newJoinStorageOf (storage:System.Collections.Concurrent.ConcurrentDictionary<JoinId, Join.Entry<'m>>) =
+        { new Agent.Join.IStorage<'m> with
+            member __.add joinId (joinEntry:Join.Entry<'m>) =
                 async {
                     if not <| storage.TryAdd(joinId, joinEntry) then
                         failwithf "Add: Failed to add %A" (joinId, joinEntry)
                 }
-            member __.update<'s> joinId performEntryUpdate =
-                        lock(storage) (fun () ->
-                            async {
-                                match storage.TryGetValue(joinId) with
-                                | true, entry ->
-                                    let newEntry = performEntryUpdate (entry:?>Join.Entry<'s>)
-                                    storage.[joinId] <- newEntry :> obj
-                                    return newEntry
-                                | false, _ -> return failwithf "Update: Failed to retrieve data with id: %A" joinId
-                        }
-                    )
-            member __.get<'s> joinId =
+
+            member __.update joinId performEntryUpdate =
+                lock(storage) (fun () ->
+                    async {
+                        match storage.TryGetValue(joinId) with
+                        | true, entry ->
+                            let newEntry = performEntryUpdate entry
+                            storage.[joinId] <- newEntry
+                            return newEntry
+
+                        | false, _ -> return failwithf "Update: Failed to retrieve data with id: %A" joinId
+                    }
+                )
+
+            member __.get joinId =
                 async {
                     match storage.TryGetValue(joinId) with
                     | false, _ -> return failwithf "Get: There is no request with id : %A" joinId
-                    | true, entry -> return (entry:?>Join.Entry<'s>)
+                    | true, entry -> return entry
                 }
 
         }
 
     /// Implements a JoinEntry storage in-memory using a ConcurrentDictionary
-    let newJoinStorage () : Agent.Join.IStorage =
-        let storage = System.Collections.Concurrent.ConcurrentDictionary<JoinId, obj>()
+    let newJoinStorage<'m> () : Agent.Join.IStorage<'m> =
+        let storage = System.Collections.Concurrent.ConcurrentDictionary<JoinId, Join.Entry<'m>>()
         newJoinStorageOf storage

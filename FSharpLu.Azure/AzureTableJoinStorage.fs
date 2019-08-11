@@ -14,13 +14,13 @@ open System.Collections.Generic
 
 /// Instantiate an implementation of Agent.Join.StorageInterface
 /// backed up by an Azure Table
-let newStorage
+let newStorage<'m>
         (storage: Table.CloudStorageAccount)
         (tableName: string)
         (retryInterval: System.TimeSpan)
         (totalTimeout: System.TimeSpan)
         (agentId: string) /// Customer identifier that gets recorded in every entry in Azure Table
-    : Async<Agent.Join.IStorage> =
+    : Async<Agent.Join.IStorage<'m>> =
     async {
         let tableClient = Table.CloudTableClient(storage.TableStorageUri, storage.Credentials)
         let table = tableClient.GetTableReference(tableName)
@@ -64,7 +64,7 @@ let newStorage
 
         return
             {
-                new Agent.Join.IStorage with
+                new Agent.Join.IStorage<_> with
                 member __.add joinId joinEntry =
                         async {
                             let partitionKey = joinId.timestamp.Ticks.ToString("D19")
