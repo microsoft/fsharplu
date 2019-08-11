@@ -80,9 +80,9 @@ module Example =
 
     let QueuesProcessingOptions =
         {
-            SleepDurationWhenAllQueuesAreEmpty = System.TimeSpan.FromMilliseconds(10.0)
+            SleepDurationWhenAllQueuesAreEmpty = System.TimeSpan.FromMilliseconds(0.0)
             HeartBeatIntervals = System.TimeSpan.FromSeconds(1.0)
-            ConcurrentRequestWorkers = 10
+            ConcurrentRequestWorkers = 100
             WorkerReplacementTimeout = System.TimeSpan.FromHours(1.0)
         }
 
@@ -149,11 +149,10 @@ module Example =
 module InMemorySchedulerTest =
     open Example
 
-    let requestJoinStore = InMemory.newJoinStorage()
-
     let queueProcessLoop (queues:Map<Example.ServiceQueues,_>)=
         async {
             try
+                let joinStore = InMemory.newJoinStorage()
                 let shutdownSource = new System.Threading.CancellationTokenSource()
                 do! QueueScheduler.processingLoopMultipleQueues<Example.ServiceQueues, Envelope<Header, Example.ServiceRequests>, _, System.Guid>
                         (Microsoft.FSharpLu.Logging.Interfaces.fromTraceTag<System.Diagnostics.TagsTracer>)
@@ -163,7 +162,7 @@ module InMemorySchedulerTest =
                         (fun queue message -> {
                             queue = queue
                             queuedMessage = message
-                            joinStore = InMemory.newJoinStorage()
+                            joinStore = joinStore
                             customContext = { contextName = "bla" }
                         })
                         ignore // no heartbeat

@@ -18,6 +18,7 @@
     <RepositoryType>Git</RepositoryType>
     <PackageTags>F#, FSharp, Utilities, Azure, ARM</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <AssemblyName>Microsoft.FSharpLu.Azure</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(DELAYSIGNING)' == 'True' ">
     <SignAssembly>true</SignAssembly>

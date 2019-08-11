@@ -9,6 +9,7 @@
     <Version>$(NUGET_PACKAGE_VERSION)</Version>
     <Title>Microsoft.FSharpLu.Azure.Test</Title>
     <IsTestProject>true</IsTestProject>
+    <AssemblyName>Microsoft.FSharpLu.Azure.Test</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Azure.Test.Keyvault.fs" />

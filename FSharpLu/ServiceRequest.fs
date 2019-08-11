@@ -148,7 +148,7 @@ type QueueingContext<'QueueMessage, 'Header, 'Request, 'CustomContext> =
         /// the message that has just been dequeued and need to be processed
         queuedMessage : 'QueueMessage
         /// the storage system used to record join/fork points
-        joinStore : Join.IStorage
+        joinStore : Join.IStorage<Envelope<'Header, 'Request>>
         /// Custom context defined by the QueueProcessing API user
         customContext : 'CustomContext
     }
@@ -189,7 +189,7 @@ type Handler<'QueueMessage, 'Header, 'Request, 'CustomContext, 'Result>
 ///   type 'Request = ... | SomeRequest of StatefulRequest<'Input, 'State> | ...
 /// for any possible value `SomeRequest { input = ...; state = ...}`
 /// of `envelope.Request`.
-let inline run
+let run
         title
         tags
         /// Ghost parameter: helps infer that the request type
@@ -213,7 +213,7 @@ let inline run
 
         let! metadata =
             match envelope.metadata with
-            | None ->Agent.createRequest context.joinStore
+            | None -> Agent.createRequest<Envelope<'Header, 'Request>> context.joinStore
             | Some m -> async.Return m
         
         let! r = Agent.executeWithResult statefulRequest.state metadata agent
@@ -221,6 +221,8 @@ let inline run
             match r with
             | ExecutionInstruction.Completed result ->
                 RequestStatus.Completed result
+            | ExecutionInstruction.Suspended ->
+                RequestStatus.Suspended
             | ExecutionInstruction.Coreturn request ->
                 RequestStatus.Coreturn request
             | ExecutionInstruction.SleepAndResume sleepTime ->

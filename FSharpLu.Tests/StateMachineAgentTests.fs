@@ -83,9 +83,8 @@ module StateMachineAgentTests =
                 embed = fun m s -> (m, s)
             }
         }
-
-    /// Cast a value entry of type 'obj from the join dictonary of type obj into type Join.Entry<TestStates>
-    let cast (e: Collections.Generic.KeyValuePair<_,obj>) = e.Value :?> Join.Entry<TestStates>
+    
+    type SpawnRequest = RequestMetadata * TestStates
 
     [<Fact>]
     let waitAllSuccessForkTest() =
@@ -93,9 +92,9 @@ module StateMachineAgentTests =
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
             let agent = newAgent (InMemory.newJoinStorageOf storage)
-            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
+            let! request = Agent.createRequest<SpawnRequest> agent.scheduler.joinStore
             let! result = Agent.executeWithResult (State1 23) request agent
-            Assert.Equal(4, storage |> Seq.filter (fun x -> (cast x).status = Agent.Join.Status.Completed) |> Seq.length)
+            Assert.Equal(4, storage |> Seq.filter (fun x -> x.Value.status = Agent.Join.Status.Completed) |> Seq.length)
             Assert.Equal(4, storage.Count)
         } |> Async.RunSynchronously
 
@@ -109,7 +108,7 @@ module StateMachineAgentTests =
                     fun () ->
                         async {
                             let agent = newAgent(InMemory.newJoinStorageOf storage)
-                            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
+                            let! request = Agent.createRequest<SpawnRequest> agent.scheduler.joinStore
                             let! _ = Agent.executeWithResult (State2 "blah") request agent
                             return ()
                         } |> Async.StartAsTask :> System.Threading.Tasks.Task
@@ -124,27 +123,24 @@ module StateMachineAgentTests =
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
             let agent = newAgent(InMemory.newJoinStorageOf storage)
-            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
+            let! request = Agent.createRequest<SpawnRequest> agent.scheduler.joinStore
             let! _ =  Agent.executeWithResult (State3 (1, "blah")) request agent
             
             let completedChild =
                     storage
-                    |> Seq.tryFind (fun x ->
-                                        let v = cast x
-                                        v.status = Agent.Join.Status.Completed && v.parent.IsSome)
+                    |> Seq.tryFind (fun x -> x.Value.status = Agent.Join.Status.Completed && x.Value.parent.IsSome)
             Assert.True(completedChild.IsSome)
             Assert.True(storage
                             |> Seq.exists (fun x ->
-                                                let v = cast x
-                                                v.status = Agent.Join.Status.Completed &&
-                                                not v.childrenStatuses.IsEmpty &&
-                                                v.childrenStatuses.[completedChild.Value.Key.guid] = Agent.Join.Status.Completed
+                                                x.Value.status = Agent.Join.Status.Completed &&
+                                                not x.Value.childrenStatuses.IsEmpty &&
+                                                x.Value.childrenStatuses.[completedChild.Value.Key.guid] = Agent.Join.Status.Completed
                                             )
                         )
             Assert.Equal(4, storage.Count)
-            Assert.Equal(2, storage |> Seq.filter (fun x -> (cast x).parent.IsSome) |> Seq.length)
-            Assert.Equal(4, storage |> Seq.filter (fun x -> (cast x).status = Agent.Join.Status.Completed) |> Seq.length)
-            Assert.Equal(1, storage |> Seq.filter (fun x -> not (cast x).childrenStatuses.IsEmpty) |> Seq.length)
+            Assert.Equal(2, storage |> Seq.filter (fun x -> x.Value.parent.IsSome) |> Seq.length)
+            Assert.Equal(4, storage |> Seq.filter (fun x -> x.Value.status = Agent.Join.Status.Completed) |> Seq.length)
+            Assert.Equal(1, storage |> Seq.filter (fun x -> not x.Value.childrenStatuses.IsEmpty) |> Seq.length)
         } |> Async.RunSynchronously
 
     [<Fact>]
@@ -153,12 +149,12 @@ module StateMachineAgentTests =
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
             let agent = newAgent(InMemory.newJoinStorageOf storage)
-            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
+            let! request = Agent.createRequest<SpawnRequest> agent.scheduler.joinStore
             let! _ = Agent.executeWithResult (Fork1) request agent
 
-            Assert.Equal(7, storage |> Seq.filter(fun x -> (cast x).status = Agent.Join.Status.Completed) |> Seq.length)
-            Assert.Equal(4, storage |> Seq.filter(fun x -> (cast x).parent.IsSome) |> Seq.length)
-            Assert.Equal(2, storage |> Seq.filter(fun x -> not (cast x).childrenStatuses.IsEmpty) |> Seq.length)
+            Assert.Equal(7, storage |> Seq.filter(fun x -> x.Value.status = Agent.Join.Status.Completed) |> Seq.length)
+            Assert.Equal(4, storage |> Seq.filter(fun x -> x.Value.parent.IsSome) |> Seq.length)
+            Assert.Equal(2, storage |> Seq.filter(fun x -> not x.Value.childrenStatuses.IsEmpty) |> Seq.length)
             Assert.Equal(7, storage.Count)
         } |> Async.RunSynchronously
 
@@ -168,7 +164,7 @@ module StateMachineAgentTests =
             let storage = Collections.Concurrent.ConcurrentDictionary()
             Assert.Empty storage
             let agent = newAgent(InMemory.newJoinStorageOf storage)
-            let! request = Agent.createRequest<TestStates> agent.scheduler.joinStore
+            let! request = Agent.createRequest<SpawnRequest> agent.scheduler.joinStore
             let! _ =
                 Assert.ThrowsAnyAsync(
                     fun () ->
