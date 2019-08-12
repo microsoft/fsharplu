@@ -45,11 +45,11 @@
     <Compile Include="AzureBlob.fs" />
     <Compile Include="AzureVM.fs" />
     <Compile Include="AzureQueue.fs" />
-    <Compile Include="AzureQueueServiceHandler.fs" />
+    <Compile Include="AzureQueueScheduler.fs" />
     <Compile Include="LoadBalancer.fs" />
     <Compile Include="AzureStorage.fs" />
     <Compile Include="AzureTable.fs" />
-    <Compile Include="AzureTableAgentJoinStorage.fs" />
+    <Compile Include="AzureTableJoinStorage.fs" />
     <Compile Include="AzureMetrics.fs" />
     <Compile Include="AzureFiles.fs" />
     <Compile Include="AzureFunctions.fs" />
