@@ -15,7 +15,7 @@
     <Compile Include="CommunicationTests.fs" />
     <Compile Include="Generators.fs" />
     <Compile Include="Azure.Test.Storage.fs" />
-    <Compile Include="QueueServiceHandlerTests.fs" />
+    <Compile Include="AzureQueueSchedulerTests.fs" />
     <Compile Include="Azure.Test.Queue.fs" />
   </ItemGroup>
   <ItemGroup>
