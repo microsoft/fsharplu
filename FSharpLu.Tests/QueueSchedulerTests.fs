@@ -3,6 +3,7 @@
 open Xunit
 open Microsoft.FSharpLu.Logging
 open Microsoft.FSharpLu.Actor.StateMachine
+open Microsoft.FSharpLu.Actor.StateMachine.Agent
 open Microsoft.FSharpLu.Actor.QueueScheduler
 open Microsoft.FSharpLu.Actor.ServiceRequests
 open Microsoft.FSharpLu.Actor
@@ -131,6 +132,7 @@ module Example =
                         {
                             metadata = None
                             header = {| correlationId = "Fibonnaci" |}
+                            calleeReturnResult = None
                             request = ServiceRequests.Fibo {
                                 input = {| i = i; requestQuota = fibonnaci.Length-1 |}
                                 state = FiboStates.Start

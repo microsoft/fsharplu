@@ -1,65 +1,27 @@
-﻿/// State machine and agent
+﻿/// State machine-based asynchronous agents
 namespace Microsoft.FSharpLu.Actor.StateMachine
-
-open FSharp.Control
-
-/// ID used to identify joining points (either an agent request or a fork)
-type JoinId =
-    {
-        /// Unique GUID identifying the join entry
-        guid : System.Guid
-        /// Timestamp when the join was created
-        timestamp : System.DateTimeOffset
-    }
-
-/// A state machine transition with return type 't.
-/// state type 's, and a set of callable state machines represented by type 'm
-type Transition<'s, 't, 'm> =
-    /// Sleep for the specified amount of type and come back to the same state
-    | Sleep of System.TimeSpan
-    /// Sleep for the specified amount of type and then transition to the specified state
-    | SleepAndGoto of System.TimeSpan * 's
-    /// Go to the specified state
-    | Goto of 's
-    /// Reached a final state
-    | Return of 't
-    /// Suspend the state machine and spawn a new state machine (type 'm)
-    | Coreturn of 'm
-    /// Fork the agent into multiple new instances of the same agent spawned at different states,
-    /// then move the current agent instance to a new state without
-    /// waiting for the spawned agents to complete.
-    /// Takes:
-    ///    - a list of states to spawn new agents at,
-    ///    - a function that given a joinId, returns the next state the current agent should go to.
-    | ForkAndGoto of 's list * (JoinId -> 's)
-    /// Go to the specified state when all the child requests of the specified fork have completed
-    | WhenAll of JoinId * 's
-    /// Go to the specified state when any child request of the specified fork has completed
-    | WhenAny of JoinId * 's
-    /// Call another request 'm (with provided JoinId metadata) and when the callee returns, continue the 
-    /// execution of the current agent at state 's
-    | Call of (JoinId -> 'm) * 's 
 
 /// A state machine with simple transitions (no support for Forking, Coroutines nor out-of-process pause/resume)
 module SimpleStateMachine =
 
+    /// A state machine transition with state type 's and return type 't
+    type Transition<'s, 't> =
+        /// Sleep for the specified amount of type and then transition to the specified state
+        | SleepAndGoto of System.TimeSpan * 's
+        /// Go to the specified state
+        | Goto of 's
+        /// Reached a final state
+        | Return of 't
+   
     /// Execute the state machine and call transitionCallback on each state transition.
     /// The call-back function can be used to report progress, send a heartbeat
     /// or persist the state (e.g. on an Azure Queue) to allow resuming processing
     /// at a later stage in case of process failure (crash or Azure migration).
-    //
-    /// This version of state machine execution implements 'sleep' using in-process asynchronous sleep (Async.Sleep).
-    /// See Agent module below for a version implementing out-of-process asynchronous sleep.
-    let rec execute (transitionFunction:'s -> Async<Transition<'s, 't, 'm>>) initialState transitionCallback =
+    let rec execute (transitionFunction:'s -> Async<Transition<'s, 't>>) initialState transitionCallback =
         let rec goto currentState =
             async {
                 let! operation = transitionFunction currentState
                 match operation with
-                | Sleep delay ->
-                    // Pause asynchronously (in-process)
-                    do! Async.Sleep(delay.TotalMilliseconds |> int)
-                    return! goto currentState
-
                 | SleepAndGoto (delay, state) ->
                     do! Async.Sleep(delay.TotalMilliseconds |> int)
                     return! goto state
@@ -67,27 +29,11 @@ module SimpleStateMachine =
                 | Return result ->
                     return result
 
-                | Coreturn _ ->
-                    return failwith "StateMachine.execute does not support `Coreturn` since it only runs within a single state machine."
-
-                | ForkAndGoto _ ->
-                    return failwith "StateMachine.execute does not support `Fork` since it only runs within a single state machine."
-
-                | WhenAll _ ->
-                    return failwith "StateMachine.execute does not support `WhenAll` since it only runs within a single state machine."
-
-                | WhenAny _ ->
-                    return failwith "StateMachine.execute does not support `WhenAny` since it only runs within a single state machine."
-        
-                | Call _ ->
-                    return failwith "StateMachine.execute does not support `Call` since it only runs within a single state machine."
-
                 | Goto newState ->
                     do! transitionCallback newState
                     return! goto newState
             }
         goto initialState
-
 
 /// An agent state machine that supports out-of-process sleeping,
 /// spawning new agents, coreturning to another agent,
@@ -104,6 +50,50 @@ module SimpleStateMachine =
 /// in a background thread, or possibly by queuing up request on some queue (e.g. Azure Queue)
 /// This gives flexibility to the API user in scheduling execution of the agent state machine.
 module Agent =
+
+    /// ID used to identify joining points (either an agent request or a fork)
+    type JoinId =
+        {
+            /// Unique GUID identifying the join entry
+            guid : System.Guid
+            /// Timestamp when the join was created
+            timestamp : System.DateTimeOffset
+        }
+    
+    /// Defines how a call-returned value should be embedded in a spawning request of type 'm
+    type ICallReturnEmbedder<'m> =
+        /// Embed a returned value of type 't in a spawning request of type 'm
+        abstract embed<'t> : 't -> 'm -> 'm
+                  
+    /// A state machine transition with return type 't.
+    /// state type 's, and a set of callable state machines represented by type 'm
+    type Transition<'s, 't, 'm> =
+        /// Sleep for the specified amount of type and come back to the same state
+        | Sleep of System.TimeSpan
+        /// Sleep for the specified amount of type and then transition to the specified state
+        | SleepAndGoto of System.TimeSpan * 's
+        /// Go to the specified state
+        | Goto of 's
+        /// Reached a final state
+        | Return of 't
+        /// Suspend the state machine and spawn a new state machine (type 'm)
+        | Coreturn of 'm
+        /// Fork the agent into multiple new instances of the same agent spawned at different states,
+        /// then move the current agent instance to a new state without
+        /// waiting for the spawned agents to complete.
+        /// Takes:
+        ///    - a list of states to spawn new agents at,
+        ///    - a function that given a joinId, returns the next state the current agent should go to.
+        | ForkAndGoto of 's list * (JoinId -> 's)
+        /// Go to the specified state when all the child requests of the specified fork have completed
+        | WhenAll of JoinId * 's
+        /// Go to the specified state when any child request of the specified fork has completed
+        | WhenAny of JoinId * 's
+        /// Call another request of type 'm and when the callee returns, continue the 
+        /// execution of the current agent at state 's
+        | Call of (JoinId -> 'm) * 's
+
+    open FSharp.Control
 
     /// Interface defining operations required to "execute" an agent.
     ///
@@ -153,9 +143,9 @@ module Agent =
     module Join =
         /// Status of a join point
         type Status =
-            | Requested
-            | Waiting
-            | Completed
+        | Requested
+        | Waiting
+        | Completed
 
         /// Status of a join's children
         type ChildrenStatus = Map<System.Guid, Status>
@@ -229,6 +219,9 @@ module Agent =
             /// Embed the specified state and request metadata into a scheduling
             /// request spawning for a new instance of the same state machine agent
             embed : RequestMetadata -> 's -> 'm
+
+            /// Embed the specified call-returned value in a spawning request of type 'm
+            embedCallReturnValue : ICallReturnEmbedder<'m>
 
             /// Request spawning of a new state machine agent (with embedded state and metadata)
             spawn : 'm -> Async<unit>
@@ -309,7 +302,7 @@ module Agent =
 
     /// Mark a request as completed and recursively
     /// update status of (fork) parents
-    let private markRequestAsCompleted (m:Agent<'s, 't, 'm>) (metadata:RequestMetadata) =
+    let private markRequestAsCompleted (m:Agent<'s, 't, 'm>) (metadata:RequestMetadata) (result:'t) =
         async {
             let! updatedEntry =
                  m.scheduler.joinStore.update
@@ -349,8 +342,9 @@ module Agent =
                         )
 
                 // Honor the "WhenAny" subscriptions
-                for schedulerSpawnRequest in whenAnySubscriptions do
-                    do! m.scheduler.spawn schedulerSpawnRequest
+                for spawnRequest in whenAnySubscriptions do
+                    let spawnRequestWithResult = m.scheduler.embedCallReturnValue.embed<'t> result spawnRequest
+                    do! m.scheduler.spawn spawnRequestWithResult
 
                 // Honor the "WhenAll" subscriptions
                 if joinEntry.status = Join.Status.Completed then
@@ -358,8 +352,9 @@ module Agent =
                     // while trying to update the fork data
 
                     // Signal the fork's subscribers
-                    for schedulerSpawnRequest in joinEntry.whenAllSubscribers do
-                        do! m.scheduler.spawn schedulerSpawnRequest
+                    for spawnRequest in joinEntry.whenAllSubscribers do
+                        let spawnRequestWithResult = m.scheduler.embedCallReturnValue.embed<'t> result spawnRequest
+                        do! m.scheduler.spawn spawnRequestWithResult
         }
 
     /// Advance execution of an agent state machine
@@ -402,7 +397,7 @@ module Agent =
 
                 | Transition.Return result ->
                     m.logger (sprintf "Agent '%s' reached final state and returned %A" m.title result) tags
-                    do! markRequestAsCompleted m requestMetadata
+                    do! markRequestAsCompleted m requestMetadata result
                     return ExecutionInstruction.Completed (Some result)
 
                 | Transition.Coreturn callee ->

@@ -90,9 +90,16 @@ open Microsoft.FSharpLu.Actor.QueueScheduler
 /// so unfortunately we can only validate this requirement dynamically via reflection and casting...
 type Envelope<'Header, 'Request> =
     {
+        /// Request metadata used to run state machine-based agents
         metadata : RequestMetadata option
+        /// Custom header information
         header : 'Header
-        request : 'Request // Must be StatelessRequest<'Input> or StatefulRequest<'Input, 'State> for some 'Input and  'State
+        /// The request itself
+        request : 'Request // 'Request must be StatelessRequest<'Input> or StatefulRequest<'Input, 'State> for some 'Input and  'State
+        
+        /// If the request results from a returned callee intruction (i.e. another agent called via Transiation.Call has returned)
+        /// then this holds the result value returned by the callee.
+        calleeReturnResult : obj option
     } 
     with  
     /// Create a new envelop with same request but updated state
@@ -115,6 +122,20 @@ type Envelope<'Header, 'Request> =
                 metadata = Some metadata
         }
 
+    /// Embed a callee returned result in the request envelope
+    member e.embedResult<'t> (result:'t) =
+        { e with calleeReturnResult = Some (result :> obj) }
+
+    /// Return the callee result cast to type 't
+    member e.ReturnResult<'t> () =
+        match e.calleeReturnResult with 
+        | None -> failwith "This request was not produced from a returned callee."
+        | Some result ->
+            match result with
+            | :? 't as r -> r
+            | _ ->
+                failwithf "The actual agent return type is %s instead of the expected %s" (result.GetType().FullName) typeof<'t>.FullName
+
 /// Operations that can be performed by a request handler
 type Operations<'QueueMessage, 'Header, 'Request>
     (
@@ -126,15 +147,19 @@ type Operations<'QueueMessage, 'Header, 'Request>
     ) =
     /// Spawn a new request with a new request metadata but preserving the same header
     member __.spawnNewRequest (r: 'Request) =
-        queue.post { metadata = None; request = r; header = envelope.header }
+        queue.post { metadata = None; request = r; header = envelope.header; calleeReturnResult = None }
     
     /// Spawn a request with the specific request metadata and preserving the same header
     member __.spawnRequest metadata (r: 'Request) =
-        queue.post { metadata = metadata; request = r; header = envelope.header }
+        queue.post { metadata = metadata; request = r; header = envelope.header; calleeReturnResult = None }
 
     /// Spawn a new request already wrapped in an envelope
     member __.spawnRequestEnvelop (e:Envelope<'Header,'Request>) =
         queue.post e
+    
+    /// Return the callee result cast to type 't
+    member __.ReturnResult<'t> () =
+        envelope.ReturnResult<'t>()
 
 /// Context parameters passed to every request handler
 /// - 'QueueMessage is the underlying queueing system message type
@@ -168,8 +193,12 @@ type InMemorySchedulerFactory<'QueueMessage, 'Header, 'Request, 'CustomContext> 
                 joinStore = context.joinStore
                 onInProcessSleep = fun delay -> async.Return ()
                 onGoto = fun state -> async.Return ()
-                embed = fun metadata state -> envelope.updateMetadataAndState<'Input, 'State> metadata state
                 spawn = fun request -> context.queue.post request
+                embed = fun metadata state -> envelope.updateMetadataAndState<'Input, 'State> metadata state
+                embedCallReturnValue = 
+                    { new ICallReturnEmbedder<_> with
+                        member __.embed<'t> (result:'t) m = m.embedResult result
+                    }
             }
 
 /// Type of a request handler

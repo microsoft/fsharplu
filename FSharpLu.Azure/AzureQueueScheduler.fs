@@ -98,7 +98,13 @@ type AzureQueueSchedulerFactory<'Header, 'Request, 'CustomContext>
                 onGoto = fun (newState:'State) ->
                     let amendedEnvelop = envelope.updateState<'Input, 'State> newState
                     context.queue.update context.queuedMessage amendedEnvelop maximumExpectedStateTransitionTime
+
                 embed = fun metadata state -> envelope.updateMetadataAndState<'Input, 'State> metadata state
+
+                embedCallReturnValue = 
+                    { new Microsoft.FSharpLu.Actor.StateMachine.Agent.ICallReturnEmbedder<_> with
+                        member __.embed<'t> (result:'t) m = m.embedResult result
+                    }
             }
 
 /// Workaround for F# compiler bug when building with `dotnet build`

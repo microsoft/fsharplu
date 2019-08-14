@@ -5,15 +5,17 @@ module Microsoft.FSharpLu.Actor.Call.Test
 open Xunit
 open Microsoft.FSharpLu.Logging
 open Microsoft.FSharpLu.Actor.StateMachine
+open Microsoft.FSharpLu.Actor.StateMachine.Agent
 open Microsoft.FSharpLu.Actor.QueueScheduler
 open Microsoft.FSharpLu.Actor.ServiceRequests
 open Microsoft.FSharpLu.Actor
+
 open System.Collections.Generic
 
 type States =
     | Start
     | FirstCallReturn
-    | SecondCallReturn of int
+    | SecondCallReturn
     | ReturnResult of int
 
 type Gender =
@@ -54,15 +56,14 @@ let transition<'QueueMessage> (operations:Operations<'QueueMessage, Header, Mess
     function
     | States.Start -> async {
         Trace.info "%A agent starting" gender
-        match n with
-        | 0 ->
-            return Transition.Goto (States.ReturnResult femaleAndMaleSequence.[gender].[0])
-        | n ->
-            match femaleAndMaleSequence.[gender].TryGetValue(n) with
-            | true, v ->
-                return Transition.Goto (States.ReturnResult v)
-
-            | false, _ ->
+        match femaleAndMaleSequence.[gender].TryGetValue(n) with
+        | true, v ->
+            return Transition.Goto (States.ReturnResult v)
+        | false, _ ->
+            match n with
+            | 0 ->
+                return Transition.Goto (States.ReturnResult femaleAndMaleSequence.[gender].[0])
+            | n ->
                 // Assuming gender is Female then we have 
                 // F(n) = n - M(F(n-1)), n>0  (resp. M(n) = n - M(F(n-1)) if gender is Male)
                 // so we first calculated F(n-1) (resp. M(n-1))
@@ -70,6 +71,7 @@ let transition<'QueueMessage> (operations:Operations<'QueueMessage, Header, Mess
                         ((fun m -> {
                             metadata = Some m
                             header = ()
+                            calleeReturnResult = None
                             request = Calculate {
                                 state = States.Start
                                 input = gender, n-1
@@ -79,28 +81,26 @@ let transition<'QueueMessage> (operations:Operations<'QueueMessage, Header, Mess
        }
 
     | States.FirstCallReturn -> async {
-        let success, samegender_Of_n_minus_1 = femaleAndMaleSequence.[gender].TryGetValue(n-1)
-        if not success then
-            failwithf "The call to %A agent did not set the result in global result cache" gender
-
+        let samegender_Of_n_minus_1 = operations.ReturnResult<int>()
         return Transition.Call
                             ((fun m ->
                                 { 
                                     metadata = Some m
                                     header = ()
+                                    calleeReturnResult = None
                                     request = Calculate { 
                                         state = States.Start
                                         input = gender.Opposite, samegender_Of_n_minus_1
                                     }
                                 }),
-                            States.SecondCallReturn samegender_Of_n_minus_1)
+                            States.SecondCallReturn)
       }
 
-    | States.SecondCallReturn samegender_Of_n_minus_1 -> async {
-        let success, oppositeGender_Of_sameGender_Of_n_minus_1 = femaleAndMaleSequence.[gender.Opposite].TryGetValue(samegender_Of_n_minus_1)
-        if not success then
-            failwithf "The call to %A agent did not set the result in the global result cache" gender.Opposite
-        let r = n - oppositeGender_Of_sameGender_Of_n_minus_1 // F(n) = n - M(F(N-1)) and M(n) = n - M(F(N-1)) for n>0
+    | States.SecondCallReturn -> async {
+        let oppositeGender_Of_sameGender_Of_n_minus_1 = operations.ReturnResult<int>()
+
+        // F(n) = n - M(F(N-1)) and M(n) = n - M(F(N-1)) for n>0
+        let r = n - oppositeGender_Of_sameGender_Of_n_minus_1 
         return Transition.Goto <| ReturnResult r
       }
 
@@ -123,7 +123,11 @@ let transition<'QueueMessage> (operations:Operations<'QueueMessage, Header, Mess
 let startTest (queue:Map<Gender,QueueingAPI<_, Envelope<Header,Message>>>) =
     async {
         let n = expected.[Gender.Female].Length-1
-        do! queue.[Gender.Female].post { metadata = None; header = (); request = Message.Female { input = n } }
+        do! queue.[Gender.Female].post { 
+            metadata = None
+            header = ()
+            calleeReturnResult = None
+            request = Message.Female { input = n } }
     }
 
 let endTest () = 
@@ -170,6 +174,7 @@ let ``Hofstadter sequence - mutually recursive calls`` () =
                                                 k.k (async.Return <| Coreturn
                                                             {   header = envelope.header
                                                                 metadata = envelope.metadata
+                                                                calleeReturnResult = None
                                                                 request = Message.Calculate { 
                                                                     input = Gender.Male, r.input
                                                                     state = States.Start }
@@ -179,6 +184,7 @@ let ``Hofstadter sequence - mutually recursive calls`` () =
                                                 k.k (async.Return <| Coreturn
                                                             {   header = envelope.header
                                                                 metadata = envelope.metadata
+                                                                calleeReturnResult = None
                                                                 request = Message.Calculate {
                                                                     input = Gender.Female, r.input
                                                                     state = States.Start }
