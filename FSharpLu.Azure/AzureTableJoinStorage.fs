@@ -7,6 +7,7 @@ module Microsoft.FSharpLu.Actor.AzureTableJoinStorage
 
 open Microsoft.Azure.Cosmos
 open Microsoft.FSharpLu.Actor.StateMachine
+open Microsoft.FSharpLu.Actor.StateMachine.Agent
 open Microsoft.FSharpLu
 open Microsoft.FSharpLu.ErrorHandling
 open Microsoft.FSharpLu.Azure.Request.ErrorHandling

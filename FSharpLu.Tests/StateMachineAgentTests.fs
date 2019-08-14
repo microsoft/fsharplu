@@ -1,4 +1,4 @@
-﻿namespace Microsoft.FSharpLu.StateMachineAgent
+﻿namespace Microsoft.FSharpLu.StateMachine.Agent
 open System
 open Xunit
 open Microsoft.FSharpLu.Actor.StateMachine
@@ -81,6 +81,10 @@ module StateMachineAgentTests =
                 onGoto = fun s -> async.Return ()
                 onInProcessSleep = fun _ -> async.Return ()
                 embed = fun m s -> (m, s)
+                embedCallReturnValue = {
+                    new ICallReturnEmbedder<_> with
+                    member __.embed<'t> (t:'t) m = m // No Call instruction used in the state machine
+                }
             }
         }
     
