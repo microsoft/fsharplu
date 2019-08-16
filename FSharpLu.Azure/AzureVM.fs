@@ -1219,7 +1219,7 @@ let getVirtualMachineRemoteInfo(context:InfrastructureContext) vmName vmPort =
     async {
         let! vmRequest = context.compute.VirtualMachines.GetWithHttpMessagesAsync(context.groupName, vmName).AsAsync
         let vm = vmRequest.Body
-        assertStatusCodeIs context.tags System.Net.HttpStatusCode.OK vmRequest.Response.StatusCode "Could not retrieve RDP connection file."
+        assertStatusCodeIs context.tags System.Net.HttpStatusCode.OK vmRequest.Response.StatusCode "Could not retrieve VM resource information."
 
         let networkInterfaceGroup, networkInterfaceName =
             match vm.NetworkProfile.NetworkInterfaces.[0].Id.Split([|'/'|]) |> Seq.toList |> List.rev with
@@ -1247,8 +1247,8 @@ let getVirtualMachineRemoteInfo(context:InfrastructureContext) vmName vmPort =
         let rule =
             lb.Body.InboundNatRules
             |> Seq.tryFind (fun r -> r.BackendPort.HasValue && r.BackendPort.Value = vmPort
-                                     && r.BackendIPConfiguration.Id = vmIpConfigId )
-            |> Option.orDo (fun () -> TraceTags.failwith "Cannot find RDP rule on load balancer" context.tags)
+                                     && r.BackendIPConfiguration.Id = vmIpConfigId)
+            |> Option.orDo (fun () -> TraceTags.failwith "Cannot find load balancer rule with requested backend port number" context.tags)
 
         // Get public IP address of the load balancer
         let publicIpResourceGroup, publicIpName =

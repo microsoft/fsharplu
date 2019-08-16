@@ -1,3 +1,6 @@
+- 0.11.5
+  - State machine agents can call each others via `Call` instruction and consume result returned by the callee
+
 - 0.11.4
   - Build with dotnet SDK 2.2.401 and F# 4.6
   - Minor changes in state machine OutcomeLogger<_,_>
