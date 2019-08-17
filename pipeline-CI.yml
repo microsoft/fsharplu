@@ -1,0 +1,14 @@
+# Azure DevOps Pipeline for continuous integration to build, test and package the nuget
+#
+# The following variables are settable at queue time.
+#  BuildConfiguration    - Debug | Release
+#  NUGET_PACKAGE_VERSION - (Optional) Override the Nuget version tag that normally gets inferred from RELEASENOTES.md file
+
+pool:
+  vmImage: windows-2019
+
+steps:
+- template: pipeline-template-build-test-sign.yml
+  parameters:
+    SignBuild: 'false'
+    PublishRelease: 'false'
