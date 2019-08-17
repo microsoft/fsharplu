@@ -1,0 +1,20 @@
+# VSTS pipeline to build, test, package, sign and release a new nuget package
+#
+# Requirements: define the following Azure DevOps connections
+#   FSharpLu-nuget      - Nuget feed service connection (for pushing new packages)
+#   FSharpLu-Github     - Github service connection (for pushing new releases)
+#
+# Variables overridden at queue time:
+#  NUGET_PACKAGE_VERSION - (Optional) Override the Nuget version tag that normally gets inferred from releasenotes.md file
+
+pool:
+  vmImage: windows-2019
+
+variables:
+  BuildConfiguration: 'release'
+
+steps:
+- template: pipeline-template-build-test-sign.yml
+  parameters:
+    SignBuild: true
+    PublishRelease: true

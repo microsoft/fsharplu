@@ -1,18 +1,14 @@
-# VSTS pipeline to build, test, package, sign and release a new nuget package
+# The following variables are used.
+#  BuildConfiguration    - Debug | Release
+#  NUGET_PACKAGE_VERSION - (Optional) Override the Nuget version tag that normally gets inferred from releasenotes.md file
 #
-# Requirements: define the following Azure DevOps connections
-#   FSharpLu-nuget      - Nuget feed service connection (for pushing new packages)
-#   FSharpLu-Github     - Github service connection (for pushing new releases)
-#
-# The following variables are settable at queue time.
-#  BuildConfiguration
-#  BuildPlatform
+# The following template parameters are consumed:
 #  SignBuild             - Set to 'true' if code signing is required
 #  PublishRelease        - Set to 'true' to publish a new release to Github and Nuget
-#  NUGET_PACKAGE_VERSION - (Optional) Override the Nuget version tag that normally gets inferred from releasenotes.md file
 
-pool:
-  vmImage: windows-2019
+parameters:
+  SignBuild: 'false'
+  PublishRelease: 'false'
 
 steps:
 - task: DotNetCoreInstaller@0
@@ -44,7 +40,7 @@ steps:
 #-------------------------------------------------------------------------------------------------------------------#
 #                                                  Signed build                                                     #
 #-------------------------------------------------------------------------------------------------------------------#
-- ${{ if eq(variables['SignBuild'], 'true') }}:
+- ${{ if eq(parameters.SignBuild, 'true') }}:
   - task: DotNetCoreCLI@2
     displayName: dotnet build with delaysigning
     inputs:
@@ -89,7 +85,7 @@ steps:
 #-------------------------------------------------------------------------------------------------------------------#
 #                                                  Signed build                                                     #
 #-------------------------------------------------------------------------------------------------------------------#
-- ${{ if eq(variables['SignBuild'], 'true') }}:
+- ${{ if eq(parameters.SignBuild, 'true') }}:
   - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
     displayName: ESRP CodeSign Nuget Package
     inputs:
@@ -146,9 +142,8 @@ steps:
 #-------------------------------------------------------------------------------------------------------------------#
 #                                                  Signed build                                                     #
 #-------------------------------------------------------------------------------------------------------------------#
-- ${{ if and(eq(variables['SignBuild'], 'true'), eq(variables['PublishRelease'], 'true')) }}:
+- ${{ if and(eq(parameters.SignBuild, 'true'), eq(parameters.PublishRelease, 'true')) }}:
   - task: GitHubRelease@0
-    condition: eq(variables['PublishRelease'], 'true')
     inputs:
       gitHubConnection: 'FSharpLu-Github'
       repositoryName: '$(Build.Repository.Name)'
@@ -159,7 +154,7 @@ steps:
       title: 'FSharpLu Release $(NUGET_PACKAGE_VERSION)'
       releaseNotesSource: 'input'
       releaseNotes: 'Signed release $(NUGET_PACKAGE_VERSION)
-  
+
         https://www.nuget.org/packages/Microsoft.FSharpLu/
         https://www.nuget.org/packages/Microsoft.FSharpLu.Json/
         https://www.nuget.org/packages/Microsoft.FSharpLu.Windows/'
