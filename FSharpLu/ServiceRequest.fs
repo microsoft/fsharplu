@@ -140,7 +140,7 @@ type Envelope<'Header, 'Request> =
 type Operations<'QueueMessage, 'Header, 'Request>
     (
         /// The queue scheduling system
-        queue:QueueingAPI<'QueueMessage,Envelope<'Header,'Request>>,
+        queue:IQueueingAPI<'QueueMessage,Envelope<'Header,'Request>>,
 
         /// The envelope of the current request being processed by the handler
         envelope:Envelope<'Header,'Request>
@@ -169,7 +169,7 @@ type Operations<'QueueMessage, 'Header, 'Request>
 type QueueingContext<'QueueMessage, 'Header, 'Request, 'CustomContext> =
     {
         /// the underlying queing system.
-        queue : QueueingAPI<'QueueMessage, Envelope<'Header, 'Request>>
+        queue : IQueueingAPI<'QueueMessage, Envelope<'Header, 'Request>>
         /// the message that has just been dequeued and need to be processed
         queuedMessage : 'QueueMessage
         /// the storage system used to record join/fork points
