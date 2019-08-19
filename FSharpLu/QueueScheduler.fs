@@ -31,29 +31,27 @@ type RequestStatus<'m, 't> =
 
 /// Queue interface implemented by the underlying queueing infrastructure
 /// (e.g. Azure Queue, mailbox processor, ConcurrentQueue, ...)
-type QueueingAPI<'QueueMessage, 'QueueContent> =
-    {
-        /// queue name
-        queueName : string
-        /// update content and visibility of a queue message
-        update : 'QueueMessage -> 'QueueContent -> System.TimeSpan -> Async<unit>
-        /// update visibility of a queue message
-        updateVisibility : 'QueueMessage -> System.TimeSpan -> Async<unit>
-        /// delete a queue message
-        delete : 'QueueMessage -> Async<unit>
-        /// convert a queue message to string for debugging/logging purpose
-        prettyPrintQueueMessage : 'QueueMessage -> string
-        /// extract the content of a queue message
-        tryGetContent : 'QueueMessage -> Result<'QueueContent, string>
-        /// get queue message insertion time
-        insertionTime : 'QueueMessage -> System.DateTimeOffset
-        /// try to pop specified number of messages from the queue
-        tryGetMessageBatch : int -> System.TimeSpan -> Async<'QueueMessage list>
-        /// post a new message onto the queue
-        post : 'QueueContent -> Async<unit>
-        /// post a new message onto the queue with the specified visibility
-        postIn : 'QueueContent -> System.TimeSpan -> Async<unit>
-    }
+type IQueueingAPI<'QueueMessage, 'QueueContent> =
+    /// queue name
+    abstract queueName : string
+    /// update content and visibility of a queue message
+    abstract update : 'QueueMessage -> 'QueueContent -> System.TimeSpan -> Async<unit>
+    /// update visibility of a queue message
+    abstract updateVisibility : 'QueueMessage -> System.TimeSpan -> Async<unit>
+    /// delete a queue message
+    abstract delete : 'QueueMessage -> Async<unit>
+    /// convert a queue message to string for debugging/logging purpose
+    abstract prettyPrintQueueMessage : 'QueueMessage -> string
+    /// extract the content of a queue message
+    abstract tryGetContent : 'QueueMessage -> Result<'QueueContent, System.Exception>
+    /// get queue message insertion time
+    abstract insertionTime : 'QueueMessage -> System.DateTimeOffset
+    /// try to pop specified number of messages from the queue
+    abstract tryGetMessageBatch : int -> System.TimeSpan -> Async<'QueueMessage list>
+    /// post a new message onto the queue
+    abstract post : 'QueueContent -> Async<unit>
+    /// post a new message onto the queue with the specified visibility
+    abstract postIn : 'QueueContent -> System.TimeSpan -> Async<unit>
 
 /// Info returned for a request successfully processed
 /// 'Request is the type of request
@@ -174,7 +172,7 @@ exception RejectedMessage
 let inline processRequest<'Context, 'Request, 'QueueMessage>
         (trace:Microsoft.FSharpLu.Logging.Interfaces.ITagsTracer)
         (context:'Context)
-        (queueSystem:QueueingAPI<'QueueMessage, 'Request>)
+        (queueSystem:IQueueingAPI<'QueueMessage, 'Request>)
         (queuedMessage:'QueueMessage)
         (handler:Handler<'Context, 'Request>)
         (getTags:'Request -> (string*string) list)
@@ -187,7 +185,7 @@ let inline processRequest<'Context, 'Request, 'QueueMessage>
                 RequestOutcome.Error
                     {
                         errorMessage = "Could not parse queued message"
-                        details = deserializationError
+                        details = deserializationError.ToString()
                         request = None
                         requestInsertionTime = requestInsertionTime
                         processingTime = System.TimeSpan.Zero
@@ -281,8 +279,8 @@ let inline processingLoopMultipleQueues<'QueueId, 'Request, 'Context, 'QueueMess
             (trace:Microsoft.FSharpLu.Logging.Interfaces.ITagsTracer)
             (options:Options)
             (queueProcessorsOrderedByPriority: (QueueProcessor<'QueueId, 'Request, 'Context>) list)
-            (getQueue:'QueueId -> QueueingAPI<_,_>)
-            (createRequestContext : QueueingAPI<_,_> -> 'QueueMessage -> 'Context)
+            (getQueue:'QueueId -> IQueueingAPI<_,_>)
+            (createRequestContext : IQueueingAPI<_,_> -> 'QueueMessage -> 'Context)
             (signalHeartBeat : unit -> unit)
             (terminationRequested: System.Threading.CancellationToken)
             getTags
@@ -293,7 +291,7 @@ let inline processingLoopMultipleQueues<'QueueId, 'Request, 'Context, 'QueueMess
         let pool = processingPool :> Microsoft.FSharpLu.Async.Synchronization.IPool
 
         /// Find pending request from the queue with highest priority
-        let rec findHighestPriorityRequests queues =
+        let rec findHighestPriorityRequests (queues:(IQueueingAPI<_,_>*QueueProcessor<'QueueId, 'Request, 'Context>) list) =
             async {
                 match queues with
                 | [] -> return None
@@ -375,22 +373,22 @@ let inline processingLoopMultipleQueues<'QueueId, 'Request, 'Context, 'QueueMess
 /// with not fault-tolerance (if the process crashes the queue content is lost)
 /// and not visiblity timeout when consuming messages
 module InMemoryQueue =
-    type QueueEntry< ^QueueContent> =
+    type QueueEntry<'QueueContent> =
         {
             insertionTime : System.DateTimeOffset
-            content : ^QueueContent
+            content : 'QueueContent
             visible : bool
         }
 
     /// Create an instance of an queue processor based on mailbox processor
-    let inline newQueue<'QueueId, ^QueueContent> queueNamePrefix (queueId:'QueueId)
-           : QueueingAPI<System.Guid, ^QueueContent> =
+    type InMemoryQueueProcessor<'QueueId, 'QueueContent>(queueNamePrefix, queueId:'QueueId) =
         let queueName = sprintf "%s-%A" queueNamePrefix queueId
-        let queue = new System.Collections.Concurrent.ConcurrentDictionary<System.Guid, QueueEntry< ^QueueContent>>()
-        {
-            queueName = queueName
+        let queue = new System.Collections.Concurrent.ConcurrentDictionary<System.Guid, QueueEntry<'QueueContent>>()
+        
+        interface IQueueingAPI<System.Guid, 'QueueContent> with
+            member __.queueName = queueName
 
-            update = fun queuedRequest queueContent visibility -> async {
+            member __.update queuedRequest queueContent visibility = async {
                     let newContent =
                         queue.AddOrUpdate(
                                 queuedRequest,
@@ -402,32 +400,37 @@ module InMemoryQueue =
                 }
 
             // no-op: visiblity timeout is infinite in this implementation
-            updateVisibility = fun queuedRequest visibilityTimeout -> async.Return ()
+            member __.updateVisibility queuedRequest visibilityTimeout = async {
+                    if not <| queue.ContainsKey(queuedRequest) then
+                        failwith "could not find queue entry"
+                }
 
-            delete = fun queuedRequest -> async {
+            member __.delete queuedRequest =
+                async {
                     let success, _ = queue.TryRemove(queuedRequest)
                     if not success then
                         failwith "could not remove entry from queue"
                 }
 
-            insertionTime = fun queueMessage ->
+            member __.insertionTime queueMessage =
                 let success, message = queue.TryGetValue(queueMessage)
                 if not success then
                     failwith "could not find queue entry"
                 message.insertionTime
 
-            prettyPrintQueueMessage = fun queueMessage ->
+            member __.prettyPrintQueueMessage queueMessage =
                 let success, message = queue.TryGetValue(queueMessage)
                 if not success then
                     failwith "could not find queue entry"
                 sprintf "%A"message.content
 
-            tryGetContent = fun k -> 
-                                match queue.TryGetValue k with
-                                | true, c -> Result.Ok c.content
-                                | false, _ -> Result.Error "Specified message queue ID not found"
+            member __.tryGetContent k : Result<'QueueContent, System.Exception> =
+                match queue.TryGetValue k with
+                | true, c -> Result.Ok c.content
+                | false, _ -> Result.Error (System.ArgumentException("Specified message queue ID not found") :> System.Exception)
 
-            tryGetMessageBatch = fun batchSize _  -> async {
+            member __.tryGetMessageBatch batchSize _ =
+                async {
                     let nextBatch =
                         lock queue (fun () ->
                             queue :> seq<_>
@@ -445,23 +448,25 @@ module InMemoryQueue =
                     return nextBatch
                 }
 
-            post = fun (content:^QueueContent) -> async {
+            member __.post (content:'QueueContent) =
+                async {
                     let id = System.Guid.NewGuid()
                     let queueEntry =
-                        { insertionTime = System.DateTimeOffset.UtcNow
-                          content = content
-                          visible = true
+                        {   insertionTime = System.DateTimeOffset.UtcNow
+                            content = content
+                            visible = true
                         }
                     if not <| queue.TryAdd(id, queueEntry) then
                         failwith "impossible: guid collision"
-            }
+                }
 
-            postIn = fun (content:^QueueContent) delay -> async {
+            member __.postIn (content:'QueueContent) delay =
+                async {
                     let id = System.Guid.NewGuid()
                     let queueEntry =
-                        { insertionTime = System.DateTimeOffset.UtcNow
-                          content = content
-                          visible = true
+                        {   insertionTime = System.DateTimeOffset.UtcNow
+                            content = content
+                            visible = true
                         }
                     let child = async {
                         do! Async.Sleep (int <| delay.TotalMilliseconds)
@@ -470,5 +475,4 @@ module InMemoryQueue =
                     }
                     let r = Async.StartChild child
                     return ()
-            }
-        }
+                }

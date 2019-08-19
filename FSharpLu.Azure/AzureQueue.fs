@@ -63,6 +63,22 @@ let inline dequeueAndDeleteMessages< ^T> tags queueUri count =
                                                         (tags @ ["message", json]))
     }
 
+/// Azure queue message visibility validation outcome
+type VisibilityTimeoutValidation =
+    /// The requested visibility timeout is too long to be updated in place, the message needs to be
+    /// deleted and recreated
+    | MustRecreate of System.TimeSpan
+    /// The visibility timeout is short enought to be updated in place in the Azure Queue
+    | UpdateInplace of System.TimeSpan
+
+/// Validate granularity of an Azure Queue message timeout
+let validateGranularity (timeout:System.TimeSpan) =
+    if timeout.Milliseconds > 0 then
+        Trace.warning "Azure Queues do not support message visibility with milliseconds granularity, specified value will be truncated!"
+        System.TimeSpan.FromSeconds(float (int (timeout.TotalSeconds)))
+    else
+        timeout
+
 /// Validates that the specified visibility timeout is within the required bounds for Azure Queue messages and
 /// returns the timeout that should be used to update visibility and whether the message should be deleted and
 /// re-created.
@@ -84,20 +100,22 @@ let validateVisibilityTimeout timeout (messageExpirationTime:System.DateTimeOffs
                         the requested invisibility duration of %O could exceed the Azure hard-coded limit of %O.
                         See https://msdn.microsoft.com/en-us/library/azure/dd179474.aspx)"
                         MaximumExpectedMessageProcessingTime timeout AzureHardCodedMaximumVisibilityTimeout
-        Some (AzureHardCodedMaximumVisibilityTimeout - MaximumExpectedMessageProcessingTime)
+        MustRecreate (AzureHardCodedMaximumVisibilityTimeout - MaximumExpectedMessageProcessingTime)
     | Some expirationTime when System.DateTimeOffset.UtcNow + timeout + MaximumExpectedMessageProcessingTime > expirationTime ->
         // If the desired message lifetime after being extended by 'timeout' is later than the expiration time,
         // then the message must be deleted and re-created since it will expire even though the specified
         // timeout value is less than the allowable maximum value.
-        Some timeout
+        MustRecreate <| validateGranularity timeout
     | Some _
     | None ->
-        None
+        UpdateInplace <| validateGranularity timeout
 
 /// Validates that the specified visibility timeout is within the required bounds, and returns the
 /// maximum allowed value if the argument exceeds the allowed maximum.
 let softValidateVisibilityTimeout timeout =
-   defaultArg (validateVisibilityTimeout timeout None) timeout
+    match validateVisibilityTimeout timeout None with
+    | UpdateInplace timeout -> timeout
+    | MustRecreate timeout -> timeout
 
 /// Post a message on Azure Queue that should only be visible a later point in time
 /// specified by a timeout value.
@@ -120,11 +138,11 @@ let public updateMessage (queue:CloudQueue) (queuedRequest:CloudQueueMessage) me
         let messageExpirationTime = Option.fromNullable queuedRequest.ExpirationTime
 
         match validateVisibilityTimeout visibilityTimeout messageExpirationTime with
-        | None ->
+        | UpdateInplace timeout ->
             queuedRequest.SetMessageContent2(json, false)
-            do! queue.UpdateMessageAsync(queuedRequest, visibilityTimeout,
+            do! queue.UpdateMessageAsync(queuedRequest, timeout,
                                 MessageUpdateFields.Visibility ||| MessageUpdateFields.Content).AsAsync
-        | Some timeout ->
+        | MustRecreate timeout ->
             // delete and re-post the same message to get around the Azure Queue message lifetime of 7 days.
             do! queue.DeleteMessageAsync(queuedRequest).AsAsync
             do! queue.AddMessageAsync(
@@ -142,9 +160,9 @@ let public increaseVisibilityTimeout (queue:CloudQueue) (queuedRequest:CloudQueu
         let messageExpirationTime = Option.fromNullable queuedRequest.ExpirationTime
 
         match validateVisibilityTimeout visibilityTimeout messageExpirationTime with
-        | None ->
-            do! queue.UpdateMessageAsync(queuedRequest, visibilityTimeout, MessageUpdateFields.Visibility) |> Async.AwaitTask
-        | Some timeout ->
+        | UpdateInplace timeout ->
+            do! queue.UpdateMessageAsync(queuedRequest, timeout, MessageUpdateFields.Visibility) |> Async.AwaitTask
+        | MustRecreate timeout -> 
             let json = queuedRequest.AsString
             do! queue.DeleteMessageAsync(queuedRequest).AsAsync
             do! queue.AddMessageAsync(

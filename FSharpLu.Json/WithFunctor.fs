@@ -39,13 +39,13 @@ type With< ^S when ^S : (static member settings : JsonSerializerSettings)
         use jsonTextWriter = new JsonTextWriter(streamWriter)
         serializer.Serialize(jsonTextWriter, obj)
 
-    /// Deserialize a Json to an object of type 'T
+    /// Deserialize a Json to an object of statically-resolved type ^T
     static member inline public deserialize< ^T> json :^T =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())
         let formatting = (^S:(static member formatting : Formatting)())
         JsonConvert.DeserializeObject< ^T>(json, settings)
 
-    /// Deserialize a stream to an object of type 'T
+    /// Deserialize a stream to an object of statically-resolved type ^T
     static member inline public deserializeStream< ^T> (stream:System.IO.Stream) =
         let settings = (^S:(static member settings :  JsonSerializerSettings)())
         let serializer = JsonSerializer.Create(settings)
@@ -53,21 +53,21 @@ type With< ^S when ^S : (static member settings : JsonSerializerSettings)
         use jsonTextReader = new JsonTextReader(streamReader)
         serializer.Deserialize< ^T>(jsonTextReader)
 
-    /// Read Json from a file and desrialized it to an object of type ^T
+    /// Read Json from a file and desrialized it to an object statically-resolved type ^T
     static member inline deserializeFile< ^T> file :^T =
         System.IO.File.ReadAllText file |> With< ^S>.deserialize
 
-    /// Try to deserialize a stream to an object of type ^T
+    /// Try to deserialize a stream to an object statically-resolved type ^T
     static member inline tryDeserializeStream< ^T> stream =
         Helpers.tryCatchJsonSerializationException< ^T, System.IO.Stream> false (With< ^S>.deserializeStream) stream
         |> Helpers.exceptionToString
 
-    /// Try to deserialize json to an object of type ^T
+    /// Try to deserialize json to an object ostatically-resolved type ^T
     static member inline tryDeserialize< ^T> json =
         Helpers.tryCatchJsonSerializationException< ^T, string> false (With< ^S>.deserialize) json
         |> Helpers.exceptionToString
 
-    /// Try to read Json from a file and desrialized it to an object of type 'T
+    /// Try to read Json from a file and desrialized it to an object statically-resolved type ^T
     static member inline tryDeserializeFile< ^T> file =
         Helpers.tryCatchJsonSerializationException< ^T, string> false (With< ^S>.deserializeFile) file
         |> Helpers.exceptionToString

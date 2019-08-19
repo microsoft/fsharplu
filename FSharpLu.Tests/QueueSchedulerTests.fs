@@ -7,6 +7,7 @@ open Microsoft.FSharpLu.Actor.StateMachine.Agent
 open Microsoft.FSharpLu.Actor.QueueScheduler
 open Microsoft.FSharpLu.Actor.ServiceRequests
 open Microsoft.FSharpLu.Actor
+open System.Collections.Concurrent
 
 module Example =
     type FiboStates =
@@ -38,9 +39,7 @@ module Example =
             contextName : string
         }
 
-    let request1TestOutcome = System.Collections.Concurrent.ConcurrentDictionary<int, int>()
-
-    let request1Handler<'QueueMessage> : Handler<'QueueMessage, _, _, _, _> =
+    let request1Handler<'QueueMessage> (request1TestOutcome:ConcurrentDictionary<int, int>) : Handler<'QueueMessage, _, _, _, _> =
         run "request1 handler" ["foo", "bar"] ServiceRequests.Fibo
             (fun operations input -> function
             | FiboStates.Start -> async {
@@ -48,17 +47,18 @@ module Example =
                 return Goto <| FiboStates.Calculate (input.i, 0, 1)
                 }
             | FiboStates.Calculate (i, fibminus_1, fib) ->  async {
-                if i > 1 then
+                if i = 0 then
+                    return Goto <| FiboStates.End (fibminus_1)
+                else if i = 1 then
+                    return Goto <| FiboStates.End (fib)
+                else
                     return SleepAndGoto (System.TimeSpan.FromMilliseconds(10.0),
                                             FiboStates.Calculate(i-1, fib, fibminus_1 + fib))
-                else
-                    return Goto <| FiboStates.End (fib)
                 }
             | FiboStates.End (result) -> async {
                 if not <| request1TestOutcome.TryAdd(input.i, result) then
                     failwith "Result overwrite!"
-                if request1TestOutcome.Count = input.requestQuota then
-
+                if request1TestOutcome.Count >= input.requestQuota then
                     do! operations.spawnNewRequest ServiceRequests.Shutdown
                 return Transition.Return (result)
                 })
@@ -88,6 +88,7 @@ module Example =
         }
 
     let queuesHandlersOrderedByPriority<'QueueMessage>
+            (request1TestOutcome:ConcurrentDictionary<int, int>)
             (schedulerFactory: ISchedulerFactory<'QueueMessage, Header, ServiceRequests, CustomContext>)
             (cts:System.Threading.CancellationTokenSource)
                 :QueueProcessor<ServiceQueues,
@@ -98,7 +99,7 @@ module Example =
                       (k:IContinuation<Envelope<Header, ServiceRequests>>)
                       envelope =
               match envelope.request with
-              | ServiceRequests.Fibo _ -> k.k (request1Handler schedulerFactory c envelope)
+              | ServiceRequests.Fibo _ -> k.k (request1Handler request1TestOutcome schedulerFactory c envelope)
               | ServiceRequests.FlipCoin _ -> k.k (request2Handler schedulerFactory c envelope)
               | ServiceRequests.Shutdown -> k.k (async {
                                                       Trace.info "Shutdown request received"
@@ -123,11 +124,12 @@ module Example =
             }
         ]
 
-    let startFibonacciTest (queue:QueueingAPI<_,_>) =
+    let startFibonacciTest (queue:IQueueingAPI<_,_>) =
         async {
+            let request1TestOutcome = ConcurrentDictionary<int, int>()
             let fibonnaci = [|0;1;1;2;3;5;8;13;21;34;55;89;144|]
 
-            for i = 1 to fibonnaci.Length-1 do
+            for i = 0 to fibonnaci.Length-1 do
                 do! queue.post
                         {
                             metadata = None
@@ -138,10 +140,10 @@ module Example =
                                 state = FiboStates.Start
                             }
                         }
-            return fibonnaci
+            return request1TestOutcome, fibonnaci
         }
 
-    let endFibonacciTest (expected:int[]) = 
+    let endFibonacciTest (request1TestOutcome:ConcurrentDictionary<int, int>, expected:int[]) = 
         async {
             for kvp in request1TestOutcome do
                 let i = kvp.Key
@@ -151,7 +153,7 @@ module Example =
 module InMemorySchedulerTest =
     open Example
 
-    let queueProcessLoop (queues:Map<Example.ServiceQueues,_>)=
+    let queueProcessLoop (request1TestOutcome, _) (queues:Map<Example.ServiceQueues,_>)=
         async {
             try
                 let joinStore = InMemory.newJoinStorage()
@@ -159,7 +161,7 @@ module InMemorySchedulerTest =
                 do! QueueScheduler.processingLoopMultipleQueues<Example.ServiceQueues, Envelope<Header, Example.ServiceRequests>, _, System.Guid>
                         (Microsoft.FSharpLu.Logging.Interfaces.fromTraceTag<System.Diagnostics.TagsTracer>)
                         Example.QueuesProcessingOptions
-                        (Example.queuesHandlersOrderedByPriority (InMemorySchedulerFactory()) shutdownSource)
+                        (Example.queuesHandlersOrderedByPriority request1TestOutcome (InMemorySchedulerFactory()) shutdownSource)
                         (fun queueId -> Map.find queueId queues)
                         (fun queue message -> {
                             queue = queue
@@ -181,13 +183,13 @@ module InMemorySchedulerTest =
         async {
             let queues =
                 [
-                    ImportantQueue, InMemoryQueue.newQueue "inmemory" ImportantQueue
-                    NotImportantQueue, InMemoryQueue.newQueue "inmemory" NotImportantQueue
+                    ImportantQueue, InMemoryQueue.InMemoryQueueProcessor("inmemory", ImportantQueue) :> IQueueingAPI<_,_>
+                    NotImportantQueue, InMemoryQueue.InMemoryQueueProcessor("inmemory", NotImportantQueue) :> IQueueingAPI<_,_>
                 ] |> Map.ofSeq
 
-            let! expected = startFibonacciTest queues.[ImportantQueue]
+            let! testState = startFibonacciTest queues.[ImportantQueue]
 
-            do! queueProcessLoop queues
+            do! queueProcessLoop testState queues
 
-            do! endFibonacciTest expected
+            do! endFibonacciTest testState
         }

@@ -12,12 +12,13 @@ open Microsoft.Azure.Cosmos
 open Microsoft.Azure.Storage.Queue
 open Microsoft.FSharpLu
 open Microsoft.FSharpLu.Actor.QueueScheduler.AzureQueue
+open System.Collections.Concurrent
 
 let JoinTableName = "QueueServiceTestAgentJoinStorageTable"
-let QueueNamePrefix  = "QueueServiceTest"
+let QueueNamePrefix = "QueueServiceTest"
 let MaximumExpectedStateTransitionTime = System.TimeSpan.FromSeconds(5.0)
 
-let queueProcessLoop (storageAccountConnectionString:string) queues maximumExpectedStateTransitionTime =
+let queueProcessLoop (request1TestOutcome:ConcurrentDictionary<int, int>, _) (storageAccountConnectionString:string) queues maximumExpectedStateTransitionTime =
     async {
         let! joinStore =
             AzureTableJoinStorage.newStorage
@@ -32,7 +33,7 @@ let queueProcessLoop (storageAccountConnectionString:string) queues maximumExpec
             do! QueueScheduler.processingLoopMultipleQueues<Example.ServiceQueues, Envelope<Example.Header, Example.ServiceRequests>, _, CloudQueueMessage>
                     (Microsoft.FSharpLu.Logging.Interfaces.fromTraceTag<Microsoft.FSharpLu.Azure.AppInsights.TagsTracer>)
                     Example.QueuesProcessingOptions
-                    (Example.queuesHandlersOrderedByPriority<CloudQueueMessage> sf shutdownSource)
+                    (Example.queuesHandlersOrderedByPriority<CloudQueueMessage> request1TestOutcome sf shutdownSource)
                     (fun queueId -> Map.find queueId queues)
                     (fun queue queuedMessage -> {
                         queue = queue
@@ -59,13 +60,13 @@ let ``AzureQueue Fibonnaci Test`` () =
         let azureStorage = Azure.Context.getStorageAccountFromConnectionString storageAccountConnectionString
         let queues =
             [
-                ImportantQueue, AzureQueue.newQueue azureStorage QueueNamePrefix ImportantQueue
-                NotImportantQueue, AzureQueue.newQueue azureStorage QueueNamePrefix NotImportantQueue
+                ImportantQueue, AzureQueue.AzureQueueScheduler(azureStorage, QueueNamePrefix, ImportantQueue, true) :> IQueueingAPI<_,_>
+                NotImportantQueue, AzureQueue.AzureQueueScheduler(azureStorage, QueueNamePrefix, NotImportantQueue, true) :> IQueueingAPI<_,_>
             ] |> Map.ofSeq
 
-        let! expected = startFibonacciTest queues.[ImportantQueue]
+        let! testState = startFibonacciTest queues.[ImportantQueue]
         
-        do! queueProcessLoop storageAccountConnectionString queues MaximumExpectedStateTransitionTime
+        do! queueProcessLoop testState storageAccountConnectionString queues MaximumExpectedStateTransitionTime
 
-        do! endFibonacciTest expected
+        do! endFibonacciTest testState
     }

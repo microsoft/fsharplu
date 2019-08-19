@@ -120,7 +120,7 @@ let transition<'QueueMessage> (operations:Operations<'QueueMessage, Header, Mess
         return Transition.Return result
       }
 
-let startTest (queue:Map<Gender,QueueingAPI<_, Envelope<Header,Message>>>) =
+let startTest (queue:Map<Gender, IQueueingAPI<_, Envelope<Header,Message>>>) =
     async {
         let n = expected.[Gender.Female].Length-1
         do! queue.[Gender.Female].post { 
@@ -145,8 +145,8 @@ let ``Hofstadter sequence - mutually recursive calls`` () =
     async {
 
         let agentQueues = 
-            [ yield Gender.Female, InMemoryQueue.newQueue<int,Envelope<Header, Message>> "Hofstadter-female" 0
-              yield Gender.Male, InMemoryQueue.newQueue<int,Envelope<Header, Message>> "Hofstadter-male" 1
+            [ yield Gender.Female, InMemoryQueue.InMemoryQueueProcessor<int,Envelope<Header, Message>>("Hofstadter-female", 0) :> IQueueingAPI<_,_>
+              yield Gender.Male, InMemoryQueue.InMemoryQueueProcessor<int,Envelope<Header, Message>>("Hofstadter-male", 1) :> IQueueingAPI<_,_>
             ] |> Map.ofSeq
                     
         let shutdownSource = new System.Threading.CancellationTokenSource()
