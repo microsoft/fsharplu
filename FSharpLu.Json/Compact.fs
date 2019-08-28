@@ -166,6 +166,8 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                 writer.WriteEndObject()
 
     override __.ReadJson(reader:JsonReader, objectType:System.Type, existingValue:obj, serializer:JsonSerializer) =
+        let failreadwith s = raise (JsonReaderException s)
+        let failreadwithf format = Printf.ksprintf failreadwith format
         // Option type?
         if isOptionType objectType then
             let cases = getUnionCasesMemorised objectType
@@ -205,10 +207,10 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                         someAttributeValue.ToObject(nestedType, serializer)
 
                     | Some someAttributeValue ->
-                        failwithf "Unexpected 'Some' Json attribute. Attribute value: %O" someAttributeValue
+                        failreadwithf "Unexpected 'Some' Json attribute. Attribute value: %O" someAttributeValue
 
                     | None when hasFieldNamedSome nestedType ->
-                        failwith "Types with a field named 'Some' and nested under an option type must be boxed under a 'Some' attribute when serialized to Json."
+                        failreadwith "Types with a field named 'Some' and nested under an option type must be boxed under a 'Some' attribute when serialized to Json."
 
                     | None ->
                         // type is option<'a> where 'a is not an option type and not a
@@ -230,12 +232,12 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                 // if reader.TokenType is StartObject then we should expecte legacy JSON format for tuples
                 let jToken = Linq.JObject.Load(reader)
                 if isNull jToken then
-                    failwithf "Expecting a legacy tuple, got null"
+                    failreadwithf "Expecting a legacy tuple, got null"
                 else
                     let readProperty (prop: PropertyInfo) =
                         match jToken.TryGetValue(prop.Name) with
                         | false,_ ->
-                            failwithf "Cannot parse legacy tuple value: %O. Missing property: %s" jToken prop.Name
+                            failreadwithf "Cannot parse legacy tuple value: %O. Missing property: %s" jToken prop.Name
                         | true, jsonProp ->
                             jsonProp.ToObject(prop.PropertyType, serializer)
                     let tupleValues =
@@ -253,7 +255,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                 let readElement elementType =
                     let more = reader.Read()
                     if not more then
-                        failwith "Missing array element in deserialized JSON"
+                        failreadwith "Missing array element in deserialized JSON"
 
                     let jToken = Linq.JToken.ReadFrom(reader)
                     jToken.ToObject(elementType, serializer)
@@ -264,11 +266,11 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
 
                 let more = reader.Read()
                 if reader.TokenType <> JsonToken.EndArray then
-                    failwith "Expecting end of array token in deserialized JSON"
+                    failreadwith "Expecting end of array token in deserialized JSON"
 
                 FSharpValue.MakeTuple(deserializedAsUntypedArray, tupleType)
             | _ ->
-                failwithf "Expecting a JSON array or a JSON object, got something else: %A" reader.TokenType
+                failreadwithf "Expecting a JSON array or a JSON object, got something else: %A" reader.TokenType
         // Discriminated union
         else
             // There are three types of union cases:
@@ -292,14 +294,14 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                 | Some case -> constructUnionCase case [||]
                 | None ->
                     let cases = getUnionCasesMemorised objectType
-                    failwithf "Cannot parse DU field-less value: %O. Expected names: %O" caseName (System.String.Join(", ", cases |> Seq.map(fun c->c.Name)))
+                    failreadwithf "Cannot parse DU field-less value: %O. Expected names: %O" caseName (System.String.Join(", ", cases |> Seq.map(fun c->c.Name)))
 
             // Type 2 or 3: Case with fields
             elif jToken.Type = Linq.JTokenType.Object then
                 let jObject = jToken :?> Linq.JObject
                 let jObjectProperties = jObject.Properties()
                 if Seq.length jObjectProperties <> 1 then
-                    failwith "Incorrect Json format for discriminated union. A DU value with fields must be serialized to a Json object with a single Json attribute"
+                    failreadwith "Incorrect Json format for discriminated union. A DU value with fields must be serialized to a Json object with a single Json attribute"
 
                 let caseProperty = jObjectProperties |> Seq.head
                 /// Lookup the DU case by name
@@ -307,7 +309,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                 
                 match matchingCase with
                 | None ->
-                    failwithf "Case with fields '%s' does not exist for discriminated union %s" caseProperty.Name objectType.Name
+                    failreadwithf "Case with fields '%s' does not exist for discriminated union %s" caseProperty.Name objectType.Name
                 | Some case  -> 
                     let propertyInfosForCase = getUnionCaseProperyInfoFields case
                     // Type 2: A union case with a single field: Case2 of 'a
@@ -327,7 +329,7 @@ type CompactUnionJsonConverter(?tupleAsHeterogeneousArray:bool, ?usePropertyForm
                             |> Seq.toArray
                         constructUnionCase case fields
             else
-                failwithf "Unexpected Json token type %O: %O" jToken.Type jToken
+                failreadwithf "Unexpected Json token type %O: %O" jToken.Type jToken
 
 /// Compact serializer
 module Compact =
