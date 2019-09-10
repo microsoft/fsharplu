@@ -1018,7 +1018,7 @@ let getManagedImageNameAndResourceGroupById tags (imageResourceId: string) =
     let imageUri = Uri (Uri Microsoft.FSharpLu.Azure.Constants.management, imageResourceId)
     match imageUri.Segments |> Seq.toList with
     | [_; _; _; "resourceGroups/"; resourceGroupName; _; _;"images/"; imageName] -> imageName, resourceGroupName.Replace("/","")
-    | _ -> TraceTags.failwith "Format of managed image resource Id is incorrect"
+    | _ -> TraceTags.failwith "Format of managed image resource Id is incorrect."
                     (tags @ [ "imageResourceId", imageResourceId ])
 
 /// Get a managed image with specified Resource Id
@@ -1031,18 +1031,19 @@ let tryGetManagedImageByResourceId (context: Context.InfrastructureContext) (ima
             if isNull image then
                 return None
             else
-                TraceTags.info "Found an image with matching name in the resource group." tags
+                TraceTags.info "Found a managed image with matching name in the resource group." tags
                 return Some image
         with
         | e ->
-            TraceTags.warning "Failed to get a managed image" (["exception", e.ToString(); "imageResourceId", imageResourceId]@tags)
+            TraceTags.warning "Failed to retrieve a managed image." (["exception", e.ToString(); "imageResourceId", imageResourceId]@tags)
             return None
     }
 
 /// Delete a manage image with a specified Resource Id
 let tryDeleteManagedImage (context:Context.InfrastructureContext) (imageResourceId:string) =
     async {
-        let tags = context.tags @ ["imageResourceId", imageResourceId]
+        let tags = context.tags @ ["imageResourceId", imageResourceId
+                                   "resourceGroup", context.groupName ]
         try
             let imageName, resourceGroupName = getManagedImageNameAndResourceGroupById tags imageResourceId
             let! image = tryGetManagedImageByResourceId context imageResourceId
@@ -1054,8 +1055,8 @@ let tryDeleteManagedImage (context:Context.InfrastructureContext) (imageResource
                 TraceTags.info "Deletion of managed image completed." tags
             return image
         with
-        | _  as e ->
-            return TraceTags.failwithException e "Failed deleting a managed image" tags
+        | e ->
+            return TraceTags.failwithException e "Failed deleting a managed image." tags
     }
 
 

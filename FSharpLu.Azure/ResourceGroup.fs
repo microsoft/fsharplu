@@ -724,10 +724,9 @@ let waitUntilDeploymentSucceedsOrTimeout context deploymentName (timeout:System.
 
 let private ensureTagHasNoSingleQuoteCharacters (s:string) tags =
     if s.Contains("'") then
-        TraceTags.failwith "Search criteria contains unsupported single quote characters" tags
+        TraceTags.failwith "Search criteria contains unsupported single quote characters." tags
 
-/// List disks in a given resource group with the specified resource type
-/// and with the specified tag name and tag value
+/// List disks in a given resource group and with the specified tag name and tag value.
 let listDisksByResourceGroupAndTag
         (context:Context.InfrastructureContext)
         resourceGroupName
