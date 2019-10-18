@@ -10,9 +10,9 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 
 | Branch | Status |
 |--------|--------|
-| current status | [![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu) |
-|master | [![Build status](https://ci.appveyor.com/api/projects/status/y2lrc49c0lxprg77/branch/master?svg=true)](https://ci.appveyor.com/project/blumu/fsharplu/branch/master) |
-| released builds | [![Build Status](https://dev.azure.com/msrp/Springfield/_apis/build/status/GitHub-repositories/FSharpLu-GitHub-Yaml-BuildAndSign?branchName=master)](https://dev.azure.com/msrp/Springfield/_build/latest?definitionId=653&branchName=master)|
+| latest build | [![Build Status](https://dev.azure.com/fslu/public/_apis/build/status/fslu-builds-CI)](https://dev.azure.com/fslu/public/_build/latest?definitionId=1) |
+|master | [![Build Status](https://dev.azure.com/fslu/public/_apis/build/status/fslu-builds-CI?branchName=master)](https://dev.azure.com/fslu/public/_build/latest?definitionId=1&branchName=master) |
+| official releases | [![Build Status](https://dev.azure.com/msrp/Springfield/_apis/build/status/GitHub-repositories/FSharpLu-GitHub-Yaml-BuildAndSign?branchName=master)](https://dev.azure.com/msrp/Springfield/_build/latest?definitionId=653&branchName=master)|
 
 ## Build requirements
 
