@@ -1,3 +1,15 @@
+- 0.11.6
+  - Unit test and fix for Camel casing incorrectly applied to dictionary keys #92
+  - Remove support for appveyor builds (Migrated to Azure DevOps)
+  - Drop support for netstandard1.6 and net452
+  - Clarify error message when timing out on semaphore acquisition
+  - Security: Upgrade to latest Azure SDK nuget packages, addresses a known CVE
+  - Minor log fixes in AzureVM
+  - Sensitive arguments were not always masked in trace logging
+  - Azure Queue unit tests fixes
+  - Change exception type raised in `CompactUnionJsonConverter`
+  - Fix conditional template in Azure DevOps Pipeline
+
 - 0.11.5
   - State machine agents can call each others via `Call` instruction and consume result returned by the callee
 
