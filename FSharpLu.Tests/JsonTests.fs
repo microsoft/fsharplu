@@ -5,6 +5,8 @@ open FsCheck
 open Microsoft.FSharpLu.Json
 open Newtonsoft.Json
 
+open Compact.CamelCaseNoFormatting
+
 type WithFields = SomeField of int * int
 type SimpleDu = Foo | FooBar | Bar
 type ComplexDu = ComplexDu of WithFields | SimpleDU | AString of string
@@ -84,19 +86,6 @@ let inline backwardCompatibleWithDefault< ^T when ^T:equality> (x: ^T) =
     let o2 = json |> BackwardCompatible.deserialize : ^T
     Assert.AreEqual(o1, o2,
         sprintf "BackwardCompatible should coincide with Json.Net when deserializing default Json format. %A <> %A" o1 o2)
-
-type CamelCaseSettings =
-    static member settings =
-        let s =
-            JsonSerializerSettings(
-                NullValueHandling = NullValueHandling.Ignore,
-                MissingMemberHandling = MissingMemberHandling.Error,
-                ContractResolver = Serialization.CamelCasePropertyNamesContractResolver())
-        s.Converters.Add(CompactUnionJsonConverter(true, false))
-        s
-    static member formatting = Formatting.None
-
-type CamelCaseSerializer = With<CamelCaseSettings>
 
 type ReciprocalityCompact () =
     static member x1 = reciprocal<ComplexDu> Compact.serialize Compact.deserialize
@@ -318,6 +307,7 @@ type JsonSerializerTests() =
         ``Run using all serializers`` areReciprocal  <| Some None
         ``Run using all serializers`` areReciprocal  <| Some (Some (Some None))
         ``Run using all serializers`` areReciprocal  <| (1,2,3,4,5,6,7,8,9,10)
+        ``Run using all serializers`` areReciprocal  <| [ "UnDromadaire", 1; "UnChameau", 2; "DeuxChats", 3 ] 
 
     [<TestMethod>]
     [<TestCategory("FSharpLu.Json")>]
@@ -415,3 +405,20 @@ type JsonSerializerTests() =
         assertStrictFailsToDeserialize<ARecord> """{ "id":"f893e695-496d-4e30-8fc7-b2ff59725e6c" }"""
         Assert.ThrowsException<JsonSerializationException>(fun () -> Compact.Strict.deserialize<ARecord> """{ "name":"hola" }""" |> ignore) |> ignore
         ()
+
+    [<TestMethod>]
+    [<TestCategory("FSharpLu.Json.Dictionary")>]
+    member __.``Don't change the casing of dictionary keys`` () =
+        let d = [ "UnDromadaire", 1
+                  "UnChameau", 2
+                  "DeuxChats", 3 ] |> dict 
+
+        let camel = CamelCaseSerializer.serialize d
+        Assert.AreEqual("""{"UnDromadaire":1,"UnChameau":2,"DeuxChats":3}""", camel)
+
+        let compact = Compact.serialize d
+        Assert.AreEqual("""{
+  "UnDromadaire": 1,
+  "UnChameau": 2,
+  "DeuxChats": 3
+}""", compact)
