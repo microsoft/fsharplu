@@ -350,7 +350,7 @@ module Compact =
                 // serializer (that handles both Compact and Default Json format) by reusing
                 // the Compact deserializer.
                 MissingMemberHandling = MissingMemberHandling.Error,
-                Converters = [| CompactUnionJsonConverter(true) |]
+                Converters = [| CompactUnionJsonConverter(true, true) |]
             )
 
     type private S = With<TupleAsArraySettings>
@@ -392,7 +392,7 @@ module Compact =
                 JsonSerializerSettings(
                     NullValueHandling = NullValueHandling.Ignore,
                     MissingMemberHandling = MissingMemberHandling.Error,
-                    Converters = [| CompactUnionJsonConverter(false) |]
+                    Converters = [| CompactUnionJsonConverter(false, true) |]
                 )
 
         type private S = With<TupleAsObjectSettings>
@@ -432,7 +432,7 @@ module Compact =
         /// A contract resolver that requires presence of all properties
         /// that are not of type option<_>
         type RequireNonOptionalPropertiesContractResolver() =
-            inherit Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
+            inherit Newtonsoft.Json.Serialization.DefaultContractResolver()
             override __.CreateProperty(_member, memberSerialization) =
                 let property = base.CreateProperty(_member, memberSerialization)
                 let isRequired = not (property.PropertyType.GetTypeInfo().IsGenericType
@@ -441,15 +441,19 @@ module Compact =
                     property.Required <- Required.Always
                     property.NullValueHandling <- System.Nullable NullValueHandling.Ignore
                 property
-
+            
         /// Compact serialization where tuples are serialized as JSON objects
         type CompactStrictSettings =
             static member formatting = Formatting.Indented
             static member settings =
-                JsonSerializerSettings
-                    (
-                        ContractResolver = RequireNonOptionalPropertiesContractResolver(),
-                        Converters = [|CompactUnionJsonConverter(true)|]
+                JsonSerializerSettings(
+                        ContractResolver = 
+                            RequireNonOptionalPropertiesContractResolver(
+                                NamingStrategy = CamelCaseNamingStrategy(
+                                                    ProcessDictionaryKeys = false,
+                                                    OverrideSpecifiedNames = true
+                                                )),
+                        Converters = [|CompactUnionJsonConverter(true, true)|]
                     )
 
         type private S = With<CompactStrictSettings>
@@ -481,3 +485,19 @@ module Compact =
         /// Deserialize a stream to an object of type ^T
         [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
         let inline deserializeStream< ^T> stream = S.deserializeStream< ^T> stream
+
+    module CamelCaseNoFormatting =
+        type CompactCamelCaseNoFormattingSettings =
+            static member formatting = Formatting.None
+            static member settings =
+                JsonSerializerSettings(
+                    NullValueHandling = NullValueHandling.Ignore,
+                    MissingMemberHandling = MissingMemberHandling.Error,
+                    ContractResolver = CamelCasePropertyNamesContractResolver(
+                                        NamingStrategy = CamelCaseNamingStrategy(
+                                            ProcessDictionaryKeys = false,
+                                            OverrideSpecifiedNames = true
+                                        )),
+                    Converters = [|CompactUnionJsonConverter(true, false)|])
+    
+        type CamelCaseSerializer = With<CompactCamelCaseNoFormattingSettings>
