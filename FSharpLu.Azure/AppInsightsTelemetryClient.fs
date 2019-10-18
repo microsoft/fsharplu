@@ -9,12 +9,12 @@ open Microsoft.FSharpLu
     incoming http requests, and another in a middleware class to report business logic events. You can set properties such as TelemetryClient.Context.User.Id to track
     users and sessions, or TelemetryClient.Context.Device.Id to identify the machine. This information is attached to all events sent by the instance.
 *)
-
 let telemetryClient =
     match System.Environment.OSVersion.Platform with
     | System.PlatformID.Win32Windows
     | System.PlatformID.Win32NT ->
-        TelemetryClient()
+        let config = Extensibility.TelemetryConfiguration.CreateDefault()
+        new TelemetryClient(config)
     | _ ->
         Logging.TraceTags.info "Setting telemetry platform to in-memory telemetry channel" [ "OSVersion", System.Environment.OSVersion.ToString() ]
         let config = new Extensibility.TelemetryConfiguration(TelemetryChannel = new Channel.InMemoryChannel())
