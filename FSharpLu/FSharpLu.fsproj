@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net452;net462;net472</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net462;net472</TargetFrameworks>
     <Authors>Microsoft</Authors>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
@@ -100,10 +100,6 @@
 
   <ItemGroup>
     <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
-    <Reference Include="System.Configuration" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
