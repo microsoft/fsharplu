@@ -189,16 +189,16 @@ module Process =
                     //    `System.InvalidOperationException: No process is associated with this object`
                     // we thus wrap the handler within a try .. catch block.
                     try
-                        Trace.info "Process execution terminated in %O with exit code 0x%X: '%O %O'" timer.Elapsed (int32 instance.ExitCode) command arguments
+                        Trace.info "Process execution terminated in %O with exit code 0x%X: '%O %O'" timer.Elapsed (int32 instance.ExitCode) command maskedArguments
                     with :? System.InvalidOperationException ->
-                        Trace.info "Process execution terminated abruptly in %O with no exit code: '%O %O'" timer.Elapsed command arguments
+                        Trace.info "Process execution terminated abruptly in %O with no exit code: '%O %O'" timer.Elapsed command maskedArguments
                     if not instanceExit.SafeWaitHandle.IsClosed then
                         instanceExit.Set() |> ignore)
 
             // IMPORTANT NOTE:
-            // It is tempting here to use 
-            //      Async.AwaitEvent(instance.Exited) 
-            // to detect when the process ends, instead of relying on 
+            // It is tempting here to use
+            //      Async.AwaitEvent(instance.Exited)
+            // to detect when the process ends, instead of relying on
             // an extra System.Threading.AutoResetEvent.
             //
             // However this can hang when stars don't align...
@@ -239,7 +239,7 @@ module Process =
                 instance.ErrorDataReceived.Add(appendHandler noMoreError standardError)
 
             if not (instance.Start()) then
-                let message = sprintf "Could not start command: '%s' with parameters '%s'" command arguments
+                let message = sprintf "Could not start command: '%s' with parameters '%s'" command maskedArguments
                 return raise <| System.InvalidOperationException(message)
             else
                 if redirectOutput then
@@ -249,9 +249,9 @@ module Process =
 
                 let! exitedBeforeTimeout = waitAsync
 
-                let exitCode = 
+                let exitCode =
                     if exitedBeforeTimeout then
-                        Trace.info "(%d) %s %s exited with code: %d" instance.Id command arguments instance.ExitCode
+                        Trace.info "(%d) %s %s exited with code: %d" instance.Id command maskedArguments instance.ExitCode
                         instance.ExitCode
                     else
                         match timeout with
@@ -259,7 +259,7 @@ module Process =
                             failwith "Impossible case: waitAsync timed out with an infinite timeout value!"
                         | AttemptToKillProcessAfterTimeout t
                         | KeepTheProcessRunningAfterTimeout t ->
-                            Trace.info "Process (%d) [%s %s] did not exit within allocated time out of %f seconds." instance.Id command arguments t.TotalSeconds
+                            Trace.info "Process (%d) [%s %s] did not exit within allocated time out of %f seconds." instance.Id command maskedArguments t.TotalSeconds
                             // Note: calling instance.ExitCode would throw:
                             //  System.InvalidOperationException: Process must exit before requested information can be determined.
                             -1
@@ -268,11 +268,11 @@ module Process =
                     // Read the stdout and stderr
                     if redirectOutput then
                         let! _ = Async.AwaitWaitHandle noMoreOutput
-                        Trace.verbose "Standard output captured (%d) [%s %s]" instance.Id command arguments
+                        Trace.verbose "Standard output captured (%d) [%s %s]" instance.Id command maskedArguments
 
                     if redirectErrors then
                         let! _ = Async.AwaitWaitHandle noMoreError
-                        Trace.verbose "Standard error captured (%d) [%s %s]" instance.Id command arguments
+                        Trace.verbose "Standard error captured (%d) [%s %s]" instance.Id command maskedArguments
                 else
                     // We should not read stdoud/stderr since the time out period is already exceeded,
                     // and reading the standard outputerror would indirectly wait for the process to terminate!
@@ -280,12 +280,12 @@ module Process =
                     | KeepTheProcessRunningAfterTimeout _
                     | NoTimeout -> ()
                     | AttemptToKillProcessAfterTimeout t ->
-                        Trace.info "Killing timed-out process (%d) [%s %s]" instance.Id command arguments
-                        try 
+                        Trace.info "Killing timed-out process (%d) [%s %s]" instance.Id command maskedArguments
+                        try
                             instance.Kill()
-                            Trace.info "Process killed (%d) [%s %s]" instance.Id command arguments
+                            Trace.info "Process killed (%d) [%s %s]" instance.Id command maskedArguments
                         with _ ->
-                            Trace.warning "Failed to kill process (%d) [%s %s]" instance.Id command arguments
+                            Trace.warning "Failed to kill process (%d) [%s %s]" instance.Id command maskedArguments
 
                 return
                     {
