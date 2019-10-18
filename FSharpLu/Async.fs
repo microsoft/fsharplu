@@ -218,10 +218,10 @@ let retryUntilTrueOrTimeout (timeout:TimeSpan) (retryDelay:TimeSpan) f =
                         | true -> return Some ()
                         | false -> return None
                     })
-    
+
         return result.IsSome
     }
-    
+
 /////////////
 ///// Operation on sequences of Async (seq<Async<t>)
 
@@ -241,7 +241,7 @@ let sequentialCombine (asyncSeq:seq<Async<'t>>) : Async<list<'t>> =
 
 /// Create an async computation that evaluates a sequence of async and return a list of the corresponding results
 /// Alternative implementations of sequentialCombine that relies on cons instead of list concatenation
-let sequential (s:seq<Async<'t>>) : Async<list<'t>> = 
+let sequential (s:seq<Async<'t>>) : Async<list<'t>> =
     Seq.foldBack
         (fun aHead aQueue -> async.Bind(aHead, fun head -> async.Bind(aQueue, fun queue -> async.Return(head::queue))))
         s
@@ -308,7 +308,7 @@ module Synchronization =
                     if ok then
                         return releaseOnDispose semaphore
                     else
-                        return failwith "Could not acquire a token from the pool"
+                        return failwith "Could not acquire a token from the pool within allocated time"
                 }
 
             /// Try acquiring a token from the pool.
