@@ -9,7 +9,7 @@
     <Description>Windows specific helpers requiring the full .NetFramework</Description>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, Utilities, Windows, Security, Console</PackageTags>
-    <PackageReleaseNotes>Add more Windows utilities: SMB, sysprep, shutdown, certificate...</PackageReleaseNotes>
+    <PackageReleaseNotes>See https://github.com/microsoft/fsharplu/blob/master/RELEASENOTES.md</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
     <RepositoryUrl>https://github.com/Microsoft/fsharplu/</RepositoryUrl>

@@ -9,7 +9,7 @@
     <Description>Json serialization converters for F# option types and discriminated unions.</Description>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageTags>F#, FSharp, Utilities, Json, discriminated unions</PackageTags>
-    <PackageReleaseNotes>Signed assemblies and nuget package</PackageReleaseNotes>
+    <PackageReleaseNotes>See https://github.com/microsoft/fsharplu/blob/master/RELEASENOTES.md</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
     <RepositoryUrl>https://github.com/Microsoft/fsharplu/</RepositoryUrl>

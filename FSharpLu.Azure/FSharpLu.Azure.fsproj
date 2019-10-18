@@ -11,7 +11,7 @@
     <Company>Microsoft</Company>
     <Version>$(NUGET_PACKAGE_VERSION)</Version>
     <Title>Microsoft.FSharpLu.Azure</Title>
-    <PackageReleaseNotes>First release of FSharpLu.Azure</PackageReleaseNotes>
+    <PackageReleaseNotes>See https://github.com/microsoft/fsharplu/blob/master/RELEASENOTES.md</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
     <RepositoryUrl>https://github.com/Microsoft/fsharplu/</RepositoryUrl>
