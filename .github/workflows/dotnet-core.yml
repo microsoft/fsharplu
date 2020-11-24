@@ -26,7 +26,7 @@ jobs:
       run: |
         $version = & ./Get-Version.ps1
         Write-Host "::set-env name=NUGET_PACKAGE_VERSION::$version"
-      working-directory: $GITHUB_WORKSPACE/Scripts
+      working-directory: $GITHUB_WORKSPACE\Scripts
           
     - name: Install dependencies
       run: dotnet restore
