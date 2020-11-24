@@ -17,7 +17,7 @@ jobs:
     - name: Print working dir
       run: |
         Write-Host "wd=$Env:GITHUB_WORKSPACE"
-        $c = Get-Content "$PSScriptRoot\..\RELEASENOTES.md" -Encoding UTF8
+        $c = Get-Content "$Env:GITHUB_WORKSPACE\RELEASENOTES.md" -Encoding UTF8
         $firstLine = $c[0]
         $version = $firstLine -replace '- *([^ ]*).*', '$1'
         if(-not $version) {
