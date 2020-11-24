@@ -1,4 +1,4 @@
-name: .NET Core
+name: GitHub Action CI
 
 on:
   push:
@@ -16,7 +16,11 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 3.1.301, 2.0.0
+        dotnet-version: 2.0.0
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.301
     - name: Install dependencies
       run: dotnet restore
     - name: Build
