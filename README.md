@@ -10,8 +10,7 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 
 | Branch | Status |
 |--------|--------|
-| latest build | [![Build Status](https://dev.azure.com/fslu/public/_apis/build/status/fslu-builds-CI)](https://dev.azure.com/fslu/public/_build/latest?definitionId=1) ![GitHub Action CI](https://github.com/microsoft/fsharplu/workflows/GitHub%20Action%20CI/badge.svg) |
-|master | [![Build Status](https://dev.azure.com/fslu/public/_apis/build/status/fslu-builds-CI?branchName=master)](https://dev.azure.com/fslu/public/_build/latest?definitionId=1&branchName=master) |
+|master | [![Build Status](https://dev.azure.com/fslu/public/_apis/build/status/fslu-builds-CI?branchName=master)](https://dev.azure.com/fslu/public/_build/latest?definitionId=1&branchName=master) ![GitHub Action CI](https://github.com/microsoft/fsharplu/workflows/GitHub%20Action%20CI/badge.svg) |
 | official releases | [![Build Status](https://dev.azure.com/msrp/Springfield/_apis/build/status/GitHub-repositories/FSharpLu-GitHub-Yaml-BuildAndSign?branchName=master)](https://dev.azure.com/msrp/Springfield/_build/latest?definitionId=653&branchName=master)|
 
 
