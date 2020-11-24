@@ -2,7 +2,7 @@ name: .NET Core
 
 on:
   push:
-    branches: [ master ]
+    branches: [ blumu-github-actions ]
   pull_request:
     branches: [ master ]
 
