@@ -16,12 +16,18 @@ jobs:
 
     - name: Print working dir
       run: |
-        Write-Host "wd=$Env:GITHUB_WORKSPACE"
+        Write-Host "wd=$Env:GITHUB_WORKSPACE
+        $c = Get-Content "$PSScriptRoot\..\RELEASENOTES.md" -Encoding UTF8
+        $firstLine = $c[0]
+        $version = $firstLine -replace '- *([^ ]*).*', '$1'
+        if(-not $version) {
+            throw "Could not extract version tag from RELEASENOTES.md"
+        }
+        Write-Host "Using version tag extracted from release notes: $version"
     - name: Infer version from release notes
       run: |
         $version = & ./Get-Version.ps1
-        Write-Host "::set-env name=NUGET_PACKAGE_VERSION::$version"
-      working-directory: $GITHUB_WORKSPACE\Scripts
+        echo "NUGET_PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
