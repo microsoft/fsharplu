@@ -1,8 +1,8 @@
 name: GitHub Action CI
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ blumu-github-actions ]
   pull_request:
     branches: [ master ]
 
