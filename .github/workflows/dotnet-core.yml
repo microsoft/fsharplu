@@ -13,6 +13,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Print working dir
+      run: |
+        Write-Host "wd=$Env:GITHUB_WORKSPACE"
+    - name: Infer version from release notes
+      run: |
+        $version = & ./Get-Version.ps1
+        Write-Host "::set-env name=NUGET_PACKAGE_VERSION::$version"
+      working-directory: $GITHUB_WORKSPACE\Scripts
+      
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
@@ -21,12 +31,7 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.1.301
-        
-    - name: Infer version from release notes
-      run: |
-        $version = & ./Get-Version.ps1
-        Write-Host "::set-env name=NUGET_PACKAGE_VERSION::$version"
-      working-directory: $GITHUB_WORKSPACE\Scripts
+
           
     - name: Install dependencies
       run: dotnet restore
