@@ -338,20 +338,22 @@ module Compact =
     type TupleAsArraySettings =
         static member formatting = Formatting.Indented
         static member settings =
-            JsonSerializerSettings(
-                NullValueHandling = NullValueHandling.Ignore,
+            let settings =
+                JsonSerializerSettings(
+                    NullValueHandling = NullValueHandling.Ignore,
 
-                // MissingMemberHandling is not technically needed for
-                // compact serialization but it avoids certain ambiguities
-                // that guarantee that deserialization coincides with the
-                // default Json.Net deserialization.
-                // (where 'coincides' means 'if the deserialization succeeds they both return the same object')
-                // This allows us to easily define the BackwardCompatible
-                // serializer (that handles both Compact and Default Json format) by reusing
-                // the Compact deserializer.
-                MissingMemberHandling = MissingMemberHandling.Error,
-                Converters = [| CompactUnionJsonConverter(true, true) |]
-            )
+                    // MissingMemberHandling is not technically needed for
+                    // compact serialization but it avoids certain ambiguities
+                    // that guarantee that deserialization coincides with the
+                    // default Json.Net deserialization.
+                    // (where 'coincides' means 'if the deserialization succeeds they both return the same object')
+                    // This allows us to easily define the BackwardCompatible
+                    // serializer (that handles both Compact and Default Json format) by reusing
+                    // the Compact deserializer.
+                    MissingMemberHandling = MissingMemberHandling.Error
+                )
+            settings.Converters.Add(CompactUnionJsonConverter(true, true))
+            settings
 
     type private S = With<TupleAsArraySettings>
 
@@ -389,11 +391,13 @@ module Compact =
         type TupleAsObjectSettings =
             static member formatting = Formatting.Indented
             static member settings =
-                JsonSerializerSettings(
-                    NullValueHandling = NullValueHandling.Ignore,
-                    MissingMemberHandling = MissingMemberHandling.Error,
-                    Converters = [| CompactUnionJsonConverter(false, true) |]
-                )
+                let settings =
+                    JsonSerializerSettings(
+                        NullValueHandling = NullValueHandling.Ignore,
+                        MissingMemberHandling = MissingMemberHandling.Error
+                    )
+                settings.Converters.Add(CompactUnionJsonConverter(false, true))
+                settings
 
         type private S = With<TupleAsObjectSettings>
 
@@ -446,15 +450,17 @@ module Compact =
         type CompactStrictSettings =
             static member formatting = Formatting.Indented
             static member settings =
-                JsonSerializerSettings(
-                        ContractResolver = 
-                            RequireNonOptionalPropertiesContractResolver(
-                                NamingStrategy = CamelCaseNamingStrategy(
-                                                    ProcessDictionaryKeys = false,
-                                                    OverrideSpecifiedNames = true
-                                                )),
-                        Converters = [|CompactUnionJsonConverter(true, true)|]
-                    )
+                let settings =
+                    JsonSerializerSettings(
+                            ContractResolver = 
+                                RequireNonOptionalPropertiesContractResolver(
+                                    NamingStrategy = CamelCaseNamingStrategy(
+                                                        ProcessDictionaryKeys = false,
+                                                        OverrideSpecifiedNames = true
+                                                    ))
+                        )
+                settings.Converters.Add(CompactUnionJsonConverter(true, true))
+                settings
 
         type private S = With<CompactStrictSettings>
 
@@ -490,14 +496,16 @@ module Compact =
         type CompactCamelCaseNoFormattingSettings =
             static member formatting = Formatting.None
             static member settings =
-                JsonSerializerSettings(
-                    NullValueHandling = NullValueHandling.Ignore,
-                    MissingMemberHandling = MissingMemberHandling.Error,
-                    ContractResolver = CamelCasePropertyNamesContractResolver(
-                                        NamingStrategy = CamelCaseNamingStrategy(
-                                            ProcessDictionaryKeys = false,
-                                            OverrideSpecifiedNames = true
-                                        )),
-                    Converters = [|CompactUnionJsonConverter(true, false)|])
+                let settings =
+                    JsonSerializerSettings(
+                        NullValueHandling = NullValueHandling.Ignore,
+                        MissingMemberHandling = MissingMemberHandling.Error,
+                        ContractResolver = CamelCasePropertyNamesContractResolver(
+                                            NamingStrategy = CamelCaseNamingStrategy(
+                                                ProcessDictionaryKeys = false,
+                                                OverrideSpecifiedNames = true
+                                            )))
+                settings.Converters.Add(CompactUnionJsonConverter(true, false))
+                settings
     
         type CamelCaseSerializer = With<CompactCamelCaseNoFormattingSettings>
