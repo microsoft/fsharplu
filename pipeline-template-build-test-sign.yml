@@ -149,7 +149,7 @@ steps:
       repositoryName: '$(Build.Repository.Name)'
       action: 'create'
       target: '$(Build.SourceVersion)'
-      tag: 'release-$(Build.SourceVersion)'
+      tag: 'release-$(NUGET_PACKAGE_VERSION)'
       tagSource: 'manual'
       title: 'FSharpLu Release $(NUGET_PACKAGE_VERSION)'
       releaseNotesSource: 'input'
