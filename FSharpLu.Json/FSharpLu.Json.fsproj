@@ -63,7 +63,7 @@
     <None Include="Scripts\load-project-release.fsx" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Update="FSharp.Core" Version="4.5.4" />
     <PackageReference Update="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
