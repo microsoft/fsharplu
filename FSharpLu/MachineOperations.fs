@@ -66,7 +66,7 @@ let pingUntilResponse (serverName:string) =
     Async.retryUntilSomeOrTimeout Constants.Ping.Timeout Constants.Ping.IntervalsBetweenAttempts ping
 
 /// Run cmdkey with provided arguments in order to make changes in Windows Credential manager
-let private startCredentialManager arguments expectedStringInStdOut =
+let private startCredentialManager arguments (expectedStringInStdOut:string) =
     async {
         let command = "cmdkey"
         let workingDirectory = System.Environment.CurrentDirectory

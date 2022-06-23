@@ -43,21 +43,21 @@ type Subscription =
 let acquireTokenAsync (authMethod:ADAuthenticationMethod) (authenticationContext:AuthenticationContext) =
     match authMethod with
     | User u ->
-#if NET462
-        authenticationContext.AcquireTokenAsync(
-                    Microsoft.FSharpLu.Azure.Constants.management,
-                    u.clientId,System.Uri u.redirectUri,
-                    PlatformParameters(PromptBehavior.Auto)).AsAsync
-#else
-    #if NETSTANDARD2_0
+// #if NET472
+//         authenticationContext.AcquireTokenAsync(
+//                     Microsoft.FSharpLu.Azure.Constants.management,
+//                     u.clientId,System.Uri u.redirectUri,
+//                     PlatformParameters(PromptBehavior.Auto)).AsAsync
+// #else
+//     #if NETSTANDARD2_0
             authenticationContext.AcquireTokenAsync(
                         Microsoft.FSharpLu.Azure.Constants.management,
                         u.clientId,System.Uri u.redirectUri,
                         PlatformParameters(PromptBehavior.Auto, null)).AsAsync
-    #else
-            raise <| System.NotImplementedException("acquireTokenAsync not implemented for this framework.")
-    #endif
-#endif
+//     #else
+//             raise <| System.NotImplementedException("acquireTokenAsync not implemented for this framework.")
+//     #endif
+// #endif
     | Principal p ->
         authenticationContext.AcquireTokenAsync(
                     Microsoft.FSharpLu.Azure.Constants.management,

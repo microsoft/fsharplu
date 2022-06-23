@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net462;net472</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net60</TargetFrameworks>
     <Authors>Microsoft</Authors>
     <PackageProjectUrl>https://github.com/Microsoft/fsharplu</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
@@ -29,10 +29,6 @@
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Microsoft.FSharpLu.xml</DocumentationFile>
     <AssemblyName>Microsoft.FSharpLu</AssemblyName>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Reference Include="System.Net.Http.WebRequest" Condition="'$(TargetFramework)' != 'netstandard2.0'" />
-  </ItemGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -93,22 +89,10 @@
     <None Include="..\LICENSE.MD" Pack="true" PackagePath="$(PackageLicenseFile)" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <PackageReference Include="System.Configuration" Version="2.0.5" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <PackageReference Include="System.Configuration" Version="2.0.5" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="System.Configuration" Version="2.0.5" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />
-  </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Configuration" Version="2.0.5" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="6.0.0" />
     <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.22" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.7" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />

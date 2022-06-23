@@ -44,7 +44,7 @@ extern bool LogonUser(string lpszUsername, string lpszDomain, string lpszPasswor
 
 type PROVIDER =
     | DEFAULT = 0
-    
+
 type LOGON32 =
     | LOGON_INTERACTIVE       = 2
     | LOGON_NETWORK           = 3
@@ -57,25 +57,20 @@ type LOGON32 =
 [<PermissionSetAttribute(SecurityAction.Demand, Name = "FullTrust")>]
 let public impersonate (log:Logger.Logger<_,_>) logonType alias domain getPwd f =
     let mutable safeTokenHandle = Unchecked.defaultof<_>
-        
+
     let logonType = defaultArg logonType LOGON32.LOGON_INTERACTIVE
     let returnValue = LogonUser(alias, domain, getPwd(), (int)logonType, (int)PROVIDER.DEFAULT, &safeTokenHandle)
-    
+
     if not returnValue then
         let ret = Marshal.GetLastWin32Error()
         log.write "[WARNING] LogonUser failed with error code : 0x%X" ret
         raise <| new ComponentModel.Win32Exception(ret)
-    
+
     use x = safeTokenHandle
     log.write "Impersonating %s\%s from %s" domain alias (WindowsIdentity.GetCurrent().Name)
     use newId = new WindowsIdentity(safeTokenHandle.DangerousGetHandle())
     let result =
-#if NET452 || NET461 || NET462 || NET472
-        (use impersonatedUser = newId.Impersonate()
-        f())
-#else
         WindowsIdentity.RunImpersonated(newId.AccessToken, fun () -> f ())
-#endif
     log.write "Reimpersonated as %s" (WindowsIdentity.GetCurrent().Name)
     result
 
@@ -86,5 +81,3 @@ let public impersonateIfNecessary log logonType alias domain getPwd f =
         impersonate log logonType  alias domain getPwd f
     else
         f()
-
-

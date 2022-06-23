@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net60;netstandard2.0</TargetFrameworks>
     <PackageId>Microsoft.FSharpLu.Azure</PackageId>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ProductName>Microsoft.FSharpLu.Azure</ProductName>
@@ -61,8 +61,8 @@
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.11.0" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.7" />
     <PackageReference Include="Microsoft.Azure.Cosmos.Table" Version="1.0.5" />
-    <PackageReference Include="Microsoft.Azure.KeyVault" Version="3.0.4" />
-    <PackageReference Include="Microsoft.Azure.KeyVault.Core" Version="3.0.4" />
+    <PackageReference Include="Microsoft.Azure.KeyVault" Version="3.0.5" />
+    <PackageReference Include="Microsoft.Azure.KeyVault.Core" Version="3.0.5" />
     <PackageReference Include="Microsoft.Azure.Management.Compute" Version="29.1.0" />
     <PackageReference Include="Microsoft.Azure.Management.KeyVault" Version="2.4.3" />
     <PackageReference Include="Microsoft.Azure.Management.Network" Version="19.16.0-preview" />

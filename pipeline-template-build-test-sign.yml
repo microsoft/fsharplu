@@ -11,10 +11,11 @@ parameters:
   PublishRelease: 'false'
 
 steps:
-- task: DotNetCoreInstaller@0
-  displayName: Use .NET Core SDK 2.2.401
+- task: UseDotNet@2
+  displayName: Use .NET Core SDK
   inputs:
-    version: 2.2.401
+    packageType: sdk  
+    version: 6.0.x
 
 - powershell: |
     $version = & ./Get-Version.ps1
@@ -32,7 +33,7 @@ steps:
   displayName: dotnet test
   inputs:
     command: test
-    arguments: --no-build --collect:"Code Coverage" --configuration $(BuildConfiguration) --test-adapter-path $(System.DefaultWorkingDirectory)\FSharpLu.Tests\bin\$(BuildConfiguration)\net472
+    arguments: --no-build --collect:"Code Coverage" --configuration $(BuildConfiguration) --test-adapter-path $(System.DefaultWorkingDirectory)\FSharpLu.Tests\bin\$(BuildConfiguration)\net60
     projects: |-
       **\\*test*.fsproj
       **\\*test*.csproj

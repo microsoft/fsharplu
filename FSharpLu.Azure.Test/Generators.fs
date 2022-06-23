@@ -39,7 +39,7 @@ module Generators =
             let xs =
                 segments
                 |> Array.map(fun x -> x.Get)
-                |> Array.map(fun s -> Uri.EscapeUriString s)
+                |> Array.map(fun s -> Uri.EscapeDataString s)
 
             let url =
                 if Array.isEmpty xs then

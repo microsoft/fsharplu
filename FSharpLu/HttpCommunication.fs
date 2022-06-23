@@ -170,7 +170,11 @@ module Server =
     /// Extract the correlationId that is stored in the HTTP request properties by the CorrelationId filter, create
     /// one if the property is not found.
     let getCorrelationId (request:HttpRequestMessage) =
+    #if netstandard20 || NET6_0
+        let success, value = request.Options.TryGetValue(HttpRequestOptionsKey(Constants.CorrelationIdKey))
+    #else
         let success, value = request.Properties.TryGetValue(Constants.CorrelationIdKey)
+    #endif
         if success then
             value.ToString()
         else
@@ -348,19 +352,19 @@ module Client =
                 // The default server certificate validation will cause in some cases "SslPolicyErrors.RemoteCertificateNameMismatch" because
                 // of a conflict with the client certificate even when the server certificate is valid. This behavior occurs when the backend web app is deployed on a large instance
                 // we configure the server certificate validation to only use the certificate chain and ignore the certificate name mismatch.
-#if NET452 || NET462 || NET472
-                let clientHandler = new WebRequestHandler()
-                clientHandler.ServerCertificateValidationCallback <-
-                    fun o certificate chain sslPolicyErrors -> chain.Build (certificate:?> System.Security.Cryptography.X509Certificates.X509Certificate2)
-#else
-    #if NETSTANDARD2_0
+// #if NET472
+//                 let clientHandler = new WebRequestHandler()
+//                 clientHandler.ServerCertificateValidationCallback <-
+//                     fun o certificate chain sslPolicyErrors -> chain.Build (certificate:?> System.Security.Cryptography.X509Certificates.X509Certificate2)
+// #else
+  //  #if NETSTANDARD2_0
                 let clientHandler = new HttpClientHandler(ClientCertificateOptions = ClientCertificateOption.Manual)
                 clientHandler.ServerCertificateCustomValidationCallback <-
                     fun o certificate chain sslPolicyErrors -> chain.Build certificate
-    #else
-                raise <| System.NotImplementedException("createHttpClient not implemented for this framework.")
-    #endif
-#endif
+  //  #else
+    //            raise <| System.NotImplementedException("createHttpClient not implemented for this framework.")
+  //  #endif
+//#endif
 
                 clientHandler.ClientCertificates.Add(certificate) |> ignore
                 new HttpClient(clientHandler,

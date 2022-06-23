@@ -63,7 +63,7 @@ let addSecurityRule (context:InfrastructureContext) groupName networkSecurityGro
     }
 
 /// Get security rules starting with the specified prefix from a given NSG
-let getSecurityRule (context:InfrastructureContext) groupName networkSecurityGroupName rulePrefix =
+let getSecurityRule (context:InfrastructureContext) groupName networkSecurityGroupName (rulePrefix:string) =
     async {
         let! nsg = context.network.NetworkSecurityGroups.GetWithHttpMessagesAsync(groupName, networkSecurityGroupName) |> Async.AwaitTask
 

@@ -10,27 +10,14 @@ Some of the provided utilities are just thin `let`-bindings wrappers around exis
 
 | Branch | Status |
 |--------|--------|
-|master | [![Build Status](https://dev.azure.com/fslu/public/_apis/build/status/fslu-builds-CI?branchName=master)](https://dev.azure.com/fslu/public/_build/latest?definitionId=1&branchName=master) ![GitHub Action CI](https://github.com/microsoft/fsharplu/workflows/GitHub%20Action%20CI/badge.svg) |
-| official releases | [![Build Status](https://dev.azure.com/msrp/Springfield/_apis/build/status/GitHub-repositories/FSharpLu-GitHub-Yaml-BuildAndSign?branchName=master)](https://dev.azure.com/msrp/Springfield/_build/latest?definitionId=653&branchName=master)|
-
+| main   | [![Build Status](https://dev.azure.com/fslu/public/_apis/build/status/fslu-builds-CI?branchName=main)](https://dev.azure.com/fslu/public/_build/latest?definitionId=1&branchName=main) ![GitHub Action CI](https://github.com/microsoft/fsharplu/workflows/GitHub%20Action%20CI/badge.svg) |
 
 
 ## Build requirements
 
 - F# compiler. See https://fsharp.org/use/Windows and https://fsharp.org/use/linux/
 
-- Install .NET Core SDK from https://dotnet.microsoft.com/download/visual-studio-sdks.
-
-  - .NET Core 2.2 SDK
-  - .NET Core 3.0 SDK
-
-- Install .NET Framework Developer Packs from https://www.microsoft.com/net/download/visual-studio-sdks
-for the following versions of .NET:
-
-  - .NET Framework 4.5.2
-  - .NET Framework 4.6.1
-  - .NET Framework 4.6.2
-  - .NET Framework 4.7.2
+- Install .NET Core SDK 6.0 from https://dotnet.microsoft.com/download/visual-studio-sdks.
 
 To build project run `dotnet build` under the top-level directory or run the script `scripts\build.ps1`.
 

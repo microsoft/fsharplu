@@ -36,27 +36,27 @@ type System.String with
             this
 
 /// Returns true if text starts with the specified prefix
-let startsWith prefix (text:System.String) =
-    text.StartsWith prefix
+let startsWith (prefix:string) (text:System.String) =
+    text.StartsWith(prefix)
 
 /// Returns true if text ends with the specified suffix
-let endWith prefix (text:System.String) =
-    text.EndsWith prefix
+let endWith (prefix:string) (text:System.String) =
+    text.EndsWith(prefix)
 
 /// Remove count characters from the end of the specified string
 let chop count (text:System.String) =
     text.Remove(text.Length-count)
 
 /// Remove leading and trailing occurrences of a set of characters
-let trim chars (text:System.String) =
+let trim (chars:char[]) (text:System.String) =
     text.Trim chars
 
 /// Remove trailing occurrences of a set of characters
-let trimEnd chars (text:System.String) =
+let trimEnd (chars:char[]) (text:System.String) =
     text.TrimEnd chars
 
 /// Remove leading occurrences of a set of characters
-let trimStart chars (text:System.String) =
+let trimStart (chars:char[]) (text:System.String) =
     text.TrimStart chars
 
 /// Skip count number of characters from the specified string
@@ -64,14 +64,14 @@ let skip (text:string) count =
     text.Substring(count, text.Length-count)
 
 /// Remove a prefix from the specified string
-let skipPrefix prefix (text:string) =
+let skipPrefix (prefix:string) (text:string) =
     if text.StartsWith prefix then
         skip text prefix.Length
     else
         text
 
 /// Remove a suffix from the specified string
-let removeSuffix suffix (text:string) =
+let removeSuffix (suffix:string) (text:string) =
     if text.EndsWith suffix then
         chop suffix.Length text
     else
@@ -92,7 +92,7 @@ let removeSuffixCaseInsensitive suffix (text:string) =
         text
 
 /// Remove part following the the first occurrence of a given string
-let removeAfter marker (text:string) =
+let removeAfter (marker:string) (text:string) =
     let markPosition = text.IndexOf(marker, System.StringComparison.OrdinalIgnoreCase)
     if markPosition >= 0 then
         text.Remove markPosition
@@ -229,4 +229,3 @@ let kmpTryFindFirstBytesInStream (stream:System.IO.Stream) (searchBytes:uint8[])
 let fileContainsBytes (filePath:string) (searchBytes:uint8[]) =
     use fileStream = System.IO.File.Open (filePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)
     (kmpTryFindFirstBytesInStream fileStream searchBytes).IsSome
-
