@@ -103,7 +103,7 @@ module ErrorHandling =
 
             if not (isNull cloudError.Details) then
                 for errorDetail in cloudError.Details do
-                    errorDetails.AppendLine(printCloudErrorInternal errorDetail errorDetails (indentLevel + 1)) |> ignore
+                    errorDetails.AppendLine((printCloudErrorInternal errorDetail errorDetails (indentLevel + 1)) : string) |> ignore
 
             errorDetails.ToString()
 

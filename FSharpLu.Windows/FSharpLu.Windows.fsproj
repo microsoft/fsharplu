@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;net472;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net60;netstandard2.0</TargetFrameworks>
     <PackageId>Microsoft.FSharpLu.Windows</PackageId>
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
@@ -34,7 +34,7 @@
 
   <!--
     ///
-      The following conditional include works for net462, but unfortunately
+      The following conditional include works for net472, but unfortunately
       breaks `dotnet build` despite the conditional guard.
       This is due to absence of a build task for COMReference on dotnet core.
       Commenting out for now until this gets fixed in msbuild.
@@ -95,17 +95,6 @@
  <ItemGroup>
    <PackageReference Update="FSharp.Core" Version="4.5.4" />
    <PackageReference Update="System.ValueTuple" Version="4.5.0" />
- </ItemGroup>
-
- <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-   <PackageReference Include="Microsoft.Win32.Registry" Version="4.5.0" />
-  </ItemGroup>
-
- <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <PackageReference Include="Microsoft.Win32.Registry" Version="4.5.0" />
- </ItemGroup>
-
- <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
    <PackageReference Include="Microsoft.Win32.Registry" Version="4.5.0" />
  </ItemGroup>
 

@@ -237,7 +237,7 @@ let validateFilePath (pathAsString:string) =
     else
         Some pathAsString
 
-let contains textToSearchFor (text:string) =
+let contains (textToSearchFor:string) (text:string) =
     text.IndexOf(textToSearchFor, System.StringComparison.InvariantCultureIgnoreCase) > -1
 
 let findMatchingLines (file:string) textToSearchFor =

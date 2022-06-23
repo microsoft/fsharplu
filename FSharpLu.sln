@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29102.190
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32602.215
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu", "FSharpLu\FSharpLu.fsproj", "{77C664BE-DD18-476D-AB71-1144107DE408}"
 EndProject
@@ -11,15 +11,20 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
-		CI-vsts.yml = CI-vsts.yml
 		Directory.Build.props = Directory.Build.props
+		fsharplint.json = fsharplint.json
 		fsharplu-nuget.md = fsharplu-nuget.md
+		fsharplu.azure-nuget.md = fsharplu.azure-nuget.md
 		fsharplu.json-nuget.md = fsharplu.json-nuget.md
 		FSharpLu.Json.md = FSharpLu.Json.md
 		fsharplu.windows-nuget.md = fsharplu.windows-nuget.md
 		fslu_esrprequest.inf = fslu_esrprequest.inf
 		LICENSE.MD = LICENSE.MD
 		msft-StrongName.pub = msft-StrongName.pub
+		pipeline-CI.yml = pipeline-CI.yml
+		pipeline-sign.yml = pipeline-sign.yml
+		pipeline-signrelease.yml = pipeline-signrelease.yml
+		pipeline-template-build-test-sign.yml = pipeline-template-build-test-sign.yml
 		README.md = README.md
 		RELEASENOTES.md = RELEASENOTES.md
 		THIRDPARTYNOTICE.md = THIRDPARTYNOTICE.md
@@ -48,6 +53,11 @@ EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Azure", "FSharpLu.Azure\FSharpLu.Azure.fsproj", "{27F5C3AA-20D1-4788-B80C-4E993F0E95DD}"
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharpLu.Azure.Test", "FSharpLu.Azure.Test\FSharpLu.Azure.Test.fsproj", "{0796136C-736B-4BCF-8624-43BF8FA65F57}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{F859D11E-0F08-4FA2-A6C8-F56595D68FCB}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\dotnet-core.yml = .github\workflows\dotnet-core.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

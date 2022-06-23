@@ -4,8 +4,8 @@ module Microsoft.FSharpLu.Parsing
 open Microsoft.FSharpLu.Option
 
 /// Try to parse an int32
-let public tryParseInt =
-    System.Int32.TryParse >> ofPair
+let public tryParseInt (s:string) =
+    System.Int32.TryParse(s) |> ofPair
 
 /// A parser for string parameter
 let public tryParseString = Some
@@ -23,7 +23,7 @@ let public parseBoolean =
 /// Parse a C#-like enumeration (i.e. of the form type MyEnum = One = 1 | Two = 2)
 let public tryParseEnum<'T when 'T : struct
                             and 'T : (new : unit -> 'T)
-                            and 'T :> System.ValueType> e =
+                            and 'T :> System.ValueType> (e:string) =
     System.Enum.TryParse<'T>(e, true) |> ofPair
 
 /// Lookup value from a dictionary and try to parse it with the provided parser
@@ -32,8 +32,8 @@ let public tryParseDictValue dict key parser =
    |> Option.bind parser
 
 /// Try to parse a Guid
-let public tryParseGuid value =
-    System.Guid.TryParse value |> ofPair
+let public tryParseGuid (value:string) =
+    System.Guid.TryParse(value) |> ofPair
 
 module Union =
     open FSharp.Reflection
