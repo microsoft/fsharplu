@@ -60,46 +60,51 @@ type AsyncTest() =
     [<TestMethod>]
     [<Description("Async created with Async.CompeteWithThreadingObject returns expected result when the threading object is acquired")>]
     member __.``CompeteWithThreadingObject when semaphore wins``() =
-        let t1 = async {
-                    do! Async.Sleep(1000)
-                    printfn "t1 done"
-                    Assert.Fail()
+        
+        let t1 = // a long running task
+            async {
+                    do! Async.Sleep(5000)
+                    printfn "async task done"
+                    Assert.Fail("async task terminating before being cancelled")
                 }
-        use s = new SemaphoreSlim(1)
+        use s = // a semaphore that gets acquired immediately
+            new SemaphoreSlim(1)
         s.Wait()
         let main =
              async {
                 let compete = Async.CompeteWithThreadingObject t1 s
                 let! c = Async.StartChild(compete)
-                do! Async.Sleep(100)
+                do! Async.Sleep(10)
                 printfn "Releasing"
                 let z = s.Release()
                 printfn "semaphore released. %d" z
                 let! r = c
                 match r with 
-                | Choice1Of3 _
-                | Choice3Of3 _ -> Assert.Fail("Unexpected result")
+                | Choice1Of3 _ -> Assert.Fail("async task terminated first!")
                 | Choice2Of3 y -> y.Dispose()
+                | Choice3Of3 _ -> Assert.Fail("async task terminated and semaphore acquired at the same time!")
             }
         Async.RunSynchronously main
 
     [<TestMethod>]
     [<Description("Async created with Async.CompeteWithThreadingObject returns expected result when the threading object is acquired")>]
     member __.``CompeteWithThreadingObject when workflow wins``() =
-        let t1 = async {
-                    do! Async.Sleep(1000)
-                    printfn "t1 done"
-                    return 7
-                }
-        use s = new SemaphoreSlim(0)
+        let t1 = // a long running task
+            async {
+                do! Async.Sleep(100)
+                printfn "async task done"
+                return 7
+            }
+        use s = // a semaphore that never gets acquired
+            new SemaphoreSlim(0)
         let main =
              async {
                 let compete = Async.CompeteWithThreadingObject t1 s
                 let! r = compete
                 match r with 
-                | Choice2Of3 _
-                | Choice3Of3 _ -> Assert.Fail("Unexpected result")
                 | Choice1Of3 y -> Assert.AreEqual(y, 7)
+                | Choice2Of3 _ -> Assert.Fail("Empty semaphore should not be acquirable!")
+                | Choice3Of3 _ -> Assert.Fail("async task terminate as expected, but empty semaphore should not be acquirable!")
             }
         Async.RunSynchronously main
 
