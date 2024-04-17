@@ -27,7 +27,9 @@ type 'a Wrapper = { WrappedField : 'a }
 type NestedStructure = { subField : int }
 type NestedOptionStructure = { field : NestedStructure option }
 
-type SomeTupleType = int * string list * int * int64 * OptionOfDu * Color * int Tree  
+type SomeTupleType = int * string list * int * int64 * OptionOfDu * Color * int Tree
+
+type TypeWithDict = { ThisIsADictionaryField : System.Collections.Generic.IDictionary<string,int> }
 
 /// Test cases for possible ambiguity between option types and other DU or records with a 'Some' field.
 module SomeAmbiguity =
@@ -114,6 +116,7 @@ type ReciprocalityCompact () =
     static member x24 = reciprocal<SomeAmbiguity.Ambiguous3> Compact.serialize Compact.deserialize
     static member x25 = reciprocal<int list> Compact.serialize Compact.deserialize
     static member x26 = reciprocal<SomeTupleType> Compact.serialize Compact.deserialize
+    static member x27 = reciprocal<TypeWithDict> Compact.serialize Compact.deserialize
 
 type ReciprocalityCamelCase () =
     static member x1 = reciprocal<ComplexDu> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
@@ -142,6 +145,7 @@ type ReciprocalityCamelCase () =
     static member x24 = reciprocal<SomeAmbiguity.Ambiguous3> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
     static member x25 = reciprocal<int list> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
     static member x26 = reciprocal<SomeTupleType> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
+    static member x27 = reciprocal<TypeWithDict> CamelCaseSerializer.serialize CamelCaseSerializer.deserialize
 
 type CoincidesWithJsonNetOnDeserialization () =
     static member x1 = coincidesWithDefault<ComplexDu>
@@ -170,6 +174,7 @@ type CoincidesWithJsonNetOnDeserialization () =
     static member x24 = coincidesWithDefault<SomeAmbiguity.Ambiguous3>
     static member x25 = coincidesWithDefault<int list>
     static member x26 = coincidesWithDefault<SomeTupleType>
+    static member x27 = coincidesWithDefault<TypeWithDict>
 
 
 type BackwardCompatibility () =
@@ -199,6 +204,7 @@ type BackwardCompatibility () =
     static member x24 = backwardCompatibleWithDefault<SomeAmbiguity.Ambiguous3>
     static member x25 = backwardCompatibleWithDefault<int list>
     static member x26 = backwardCompatibleWithDefault<SomeTupleType>
+    static member x27 = backwardCompatibleWithDefault<TypeWithDict>
 
 
 let inline ``Run using all serializers``< ^T when ^T:equality> (test: (^T->string)->(string-> ^T)-> ^T->unit) (input: ^T) =
