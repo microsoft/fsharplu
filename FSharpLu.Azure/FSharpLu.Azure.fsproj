@@ -68,10 +68,10 @@
     <PackageReference Include="Microsoft.Azure.Management.Network" Version="19.16.0-preview" />
     <PackageReference Include="Microsoft.Azure.Management.ResourceManager" Version="2.4.1-preview" />
     <PackageReference Include="Microsoft.Azure.Management.Storage" Version="13.3.0" />
-    <PackageReference Include="Microsoft.Azure.Storage.Blob" Version="11.1.0" />
-    <PackageReference Include="Microsoft.Azure.Storage.Common" Version="11.1.0" />
-    <PackageReference Include="Microsoft.Azure.Storage.DataMovement" Version="1.1.0" />
-    <PackageReference Include="Microsoft.Azure.Storage.File" Version="11.1.0" />
+    <PackageReference Include="Microsoft.Azure.Storage.Blob" Version="11.2.3" />
+    <PackageReference Include="Microsoft.Azure.Storage.Common" Version="11.2.3" />
+    <PackageReference Include="Microsoft.Azure.Storage.DataMovement" Version="2.0.5" />
+    <PackageReference Include="Microsoft.Azure.Storage.File" Version="11.2.3" />
     <PackageReference Include="Microsoft.Azure.Storage.Queue" Version="11.1.0" />
     <PackageReference Include="Microsoft.IdentityModel.Clients.ActiveDirectory" Version="5.2.3" />
     <PackageReference Include="Microsoft.Rest.ClientRuntime" Version="2.3.24" />
